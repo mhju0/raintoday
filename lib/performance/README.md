@@ -65,8 +65,11 @@ Archives publish no probability, so seed rows carry an amount only. They are sco
 ```bash
 npm run performance:capture -- --cohort=06     # one live cohort (scheduled)
 npm run performance:seed -- --start=2025-06-01 --end=2025-08-31
+npm run performance:observations -- --start=2026-08-21 --end=2026-08-22
 npm run performance:catalog                     # regenerate the fallback station catalog
 ```
+
+`performance:observations` repairs ground truth the cohorts missed. Each cohort reads one date fixed by the clock, so a date missed while the pipeline was degraded stays missed and every comparison whose target date it is stays incomplete. It writes observations only — no capture, no catalog sync — over the stations the store already records as active, and is idempotent by `(station, date)`. It refuses an end date newer than two days back for the same reason the 06 cohort does: an uncompiled day would be recorded as an absence, writing the hole the tool exists to fill. A station whose window could not be read is a reported failure and a non-zero exit, never an absence.
 
 `performance:seed` is offline, idempotent by `(station, date)`, and records a failed window rather than aborting, so a re-run costs only the re-fetch. It reads the station catalog from apihub `stn_inf` when that subscription is available and from `stationCatalog.ts` otherwise.
 
@@ -85,7 +88,8 @@ npm run performance:catalog                     # regenerate the fallback statio
 | `batch.ts` | Nationwide bounded live cohort run |
 | `influence.ts` | Effective Influence and the blend it produces |
 | `stations.ts` | Station Match against distance and elevation gates |
-| `kma.ts` | ASOS station catalog and daily observations |
+| `kma.ts` | ASOS station catalog, daily observations, and past observation windows |
+| `observations.ts` | One-shot backfill of ground truth the cohorts missed |
 | `store.ts` | Durable boundary and the in-memory adapter |
 | `postgres.ts` | Production adapter |
 | `storeContract.ts` | One executable contract both adapters must satisfy |

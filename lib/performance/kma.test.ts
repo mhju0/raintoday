@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   fetchAsosObservation,
+  fetchAsosObservationWindow,
   fetchKmaAsosStations,
   parseAsosDailyObservation,
   parseKmaStationCatalog,
@@ -285,4 +286,98 @@ test("a missing observation key is a reported fault, not a silent absence", asyn
     if (previousObservation !== undefined) process.env.KMA_OBSERVATION_API_KEY = previousObservation;
     if (previousShortTerm !== undefined) process.env.KMA_SHORT_TERM_API_KEY = previousShortTerm;
   }
+});
+
+const asosRangeBody = (rows: { tm: string; sumRn: string }[]): string => JSON.stringify({
+  response: {
+    header: { resultCode: "00", resultMsg: "NORMAL_SERVICE" },
+    body: { dataType: "JSON", items: { item: rows.map((row) => ({ stnId: "108", ...row })) } },
+  },
+});
+
+test("an observation window returns every published day and omits the ones ASOS has no row for", async () => {
+  await withObservationKey(async () => {
+  const requests: string[] = [];
+  const read = await fetchAsosObservationWindow(
+    "108",
+    "2026-08-21",
+    "2026-08-23",
+    new Date("2026-08-25T09:00:00+09:00"),
+    async (url) => {
+      requests.push(String(url));
+      // The middle day has a row with a blank total — a measured dry day, not a gap.
+      // The last day has no row at all, which the caller must see as an absence.
+      return new Response(
+        asosRangeBody([
+          { tm: "2026-08-21", sumRn: "12.5" },
+          { tm: "2026-08-22", sumRn: "  " },
+        ]),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    },
+  );
+
+  assert.equal(read.status, "observed");
+  assert.equal(requests.length, 1, "a whole window costs one request, not one per day");
+  assert.match(requests[0], /startDt=20260821&endDt=20260823/);
+  assert.deepEqual(
+    read.observations?.map((observation) => [observation.date, observation.observedMm]),
+    [["2026-08-21", 12.5], ["2026-08-22", 0]],
+  );
+  assert.equal(read.observations?.[0]?.stationId, "108");
+  assert.equal(read.observations?.[0]?.source, "kma-asos");
+  });
+});
+
+test("a window ASOS refuses is a fault, never an empty window that reads as no rain", async () => {
+  // The seed path answers an unusable window with an empty map on purpose, because a
+  // skipped seed window costs only evidence. A backfilled observation is benchmark
+  // ground truth: an empty window that looks the same as a dry one would write
+  // nothing and leave a hole that every later read reports as filled.
+  await withObservationKey(async () => {
+  let attempts = 0;
+  const refused = await fetchAsosObservationWindow(
+    "108",
+    "2026-08-21",
+    "2026-08-22",
+    new Date("2026-08-25T09:00:00+09:00"),
+    async () => {
+      attempts += 1;
+      return new Response(asosBody("30"), { status: 200 });
+    },
+    async () => {},
+  );
+  assert.equal(refused.status, "failed");
+  assert.equal(attempts, 1, "a refusal is terminal — retrying it only spends quota");
+
+  let dropped = 0;
+  const unreachable = await fetchAsosObservationWindow(
+    "108",
+    "2026-08-21",
+    "2026-08-22",
+    new Date("2026-08-25T09:00:00+09:00"),
+    async () => {
+      dropped += 1;
+      throw new Error("socket hang up");
+    },
+    async () => {},
+  );
+  assert.equal(unreachable.status, "failed");
+  assert.match(unreachable.reason ?? "", /socket hang up/);
+  assert.equal(dropped, 3, "a dropped connection is retried");
+  });
+});
+
+test("a window ASOS has no rows at all for is an absence, which is not a fault", async () => {
+  await withObservationKey(async () => {
+  const read = await fetchAsosObservationWindow(
+    "108",
+    "2026-08-21",
+    "2026-08-22",
+    new Date("2026-08-25T09:00:00+09:00"),
+    async () => new Response(asosBody("03"), { status: 200 }),
+  );
+  assert.equal(read.status, "observed");
+  assert.deepEqual(read.observations, []);
+  });
 });
