@@ -222,3 +222,34 @@ test("a failed observation never reaches the store as a reading", async () => {
   });
   assert.deepEqual(await store.loadObservations("108"), [], "a fault must not be scored as 0 mm");
 });
+
+test("the 06 cohort reads a day ASOS has already published rather than yesterday", async () => {
+  // ASOS compiles a calendar day's summary hours after midnight. Every scheduled
+  // 06 KST run asking for yesterday found 5, 10, 15, 17 and 19 of 97 rows on
+  // consecutive days, while every 18 KST run at the same one-day offset found 97 —
+  // and one manual 06 cohort run at midday found 97 too. The unpublished rows come
+  // back as NODATA, which the read reports as `absent`, so the early cohort was
+  // claiming up to 92 station-days a day had no record when they simply had not been
+  // compiled yet. Reaching one day further back keeps both cohorts on a published
+  // day and turns the second read of a date into a real second chance.
+  const requested: string[] = [];
+  const readObservationDate = async (cohort: "06" | "18", now: Date): Promise<string> => {
+    requested.length = 0;
+    await runPerformanceBatch({
+      cohort,
+      now,
+      store: new InMemoryPerformanceStore(),
+      fetchStations: async () => stations,
+      fetchObservation: async (_stationId, date) => {
+        requested.push(date);
+        return { status: "absent" };
+      },
+      readForecasts: async () => [forecastSnapshot()],
+      concurrency: 1,
+    });
+    return requested[0];
+  };
+
+  assert.equal(await readObservationDate("06", new Date("2026-08-25T06:10:00+09:00")), "2026-08-23");
+  assert.equal(await readObservationDate("18", new Date("2026-08-25T18:10:00+09:00")), "2026-08-24");
+});
