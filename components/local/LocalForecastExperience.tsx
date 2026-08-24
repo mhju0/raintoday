@@ -934,8 +934,17 @@ function ForecastDashboard({ forecast, selection, onReset }: {
           <b>{forecast.locationName}</b>
           {/* With a resolved place name, the source says how we got it. Without
               one it only repeats the name — "현재 위치 · 현재 기기 위치" tells the
-              reader nothing — so show the accuracy instead. */}
-          <span className="local-strip-meta">
+              reader nothing — so show the accuracy instead.
+
+              The phone strip hides this line to stay short across a sticky
+              scroll. That is right while a name carries the location, and wrong
+              without one: "현재 위치" alone qualifies nothing, so mark the case
+              where this text is the only qualifier and let it through. */}
+          <span
+            className={`local-strip-meta${
+              forecast.locationName === DEVICE_PLACEHOLDER_NAME ? " is-sole-qualifier" : ""
+            }`}
+          >
             {forecast.locationName === DEVICE_PLACEHOLDER_NAME
               ? locationDescription.precision
               : `${locationDescription.source} · ${locationDescription.precision}`}

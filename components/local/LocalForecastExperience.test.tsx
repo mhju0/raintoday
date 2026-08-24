@@ -895,6 +895,47 @@ test("an unnamed device fix shows its accuracy rather than repeating itself", as
   await view.cleanup();
 });
 
+test("an unnamed device fix keeps its accuracy on a phone, where the strip hides the rest", async () => {
+  // The mobile strip hides the provenance line to stay short across a sticky
+  // scroll. With no resolved name there is nothing left but "현재 위치", so the
+  // accuracy is the only thing qualifying it and has to survive that rule.
+  window.localStorage.setItem(
+    "raintoday.last-location.v1",
+    JSON.stringify({
+      name: "현재 위치", latitude: 37.5006, longitude: 127.0364,
+      elevationM: null, selection: { kind: "device", accuracyM: 18 },
+    }),
+  );
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ locationName: "현재 위치" })),
+  );
+
+  const meta = view.container.querySelector(".local-strip-place .local-strip-meta");
+  assert.ok(meta?.classList.contains("is-sole-qualifier"));
+  await view.cleanup();
+});
+
+test("a named place drops the provenance on a phone rather than lengthening the strip", async () => {
+  window.localStorage.setItem(
+    "raintoday.last-location.v1",
+    JSON.stringify({
+      name: "현재 위치", latitude: 37.5006, longitude: 127.0364,
+      elevationM: null, selection: { kind: "device", accuracyM: 18 },
+    }),
+  );
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ locationName: "서울특별시 강남구 역삼1동" })),
+  );
+
+  const meta = view.container.querySelector(".local-strip-place .local-strip-meta");
+  assert.equal(
+    meta?.classList.contains("is-sole-qualifier"),
+    false,
+    "the name already says where, so the strip stays one line",
+  );
+  await view.cleanup();
+});
+
 test("a resolved place name keeps the provenance label", async () => {
   window.localStorage.setItem(
     "raintoday.last-location.v1",

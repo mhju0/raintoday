@@ -2085,8 +2085,27 @@ html {
     backdrop-filter: blur(14px);
   }
 
-  .local-strip-place .local-strip-meta {
+  /* The strip is sticky across the whole scroll, so the provenance line is
+     dropped here to keep it one row — the place name already says where. It is
+     kept only when there is no name to say it. */
+  .local-strip-place .local-strip-meta:not(.is-sole-qualifier) {
     display: none;
+  }
+
+  /* Out of flex sizing on purpose. Wrapped as a flex item it widened the place
+     block past the row and pushed the temperature and the button onto a third
+     row — 74px of sticky bar became 128px. Positioned, it costs one line. Where
+     :has() is unsupported the padding below is not reserved and the line simply
+     sits inside the strip's existing padding, clear of the reading column,
+     rather than breaking the layout. */
+  .local-strip-place .local-strip-meta.is-sole-qualifier {
+    position: absolute;
+    left: 1rem;
+    bottom: 0.5rem;
+  }
+
+  .local-strip:has(.local-strip-meta.is-sole-qualifier) {
+    padding-bottom: 1.9rem;
   }
 
   /* Eight blocks at this width would be 40px each. The ribbon — and only the
