@@ -1,13 +1,9 @@
 import type { ForecastLocation } from "../location.ts";
 import type { ProviderSnapshot } from "../types.ts";
 import { captureStationForecast } from "./capture.ts";
-import { fetchAsosObservation, fetchKmaAsosStations } from "./kma.ts";
+import { fetchAsosObservation, fetchKmaAsosStations, type AsosObservationRead } from "./kma.ts";
 import type { PerformanceStore } from "./store.ts";
-import type {
-  CaptureCohort,
-  ObservationStation,
-  PrecipObservation,
-} from "./types.ts";
+import type { CaptureCohort, ObservationStation } from "./types.ts";
 
 export interface PerformanceBatchFailure {
   stationId: string;
@@ -18,6 +14,10 @@ export interface PerformanceBatchFailure {
 export interface PerformanceBatchResult {
   stationCount: number;
   observationsStored: number;
+  /** Stations ASOS has no row for. A fact about the record, not a fault. */
+  observationsAbsent: number;
+  /** Stations whose observation could not be read. Always also in `failures`. */
+  observationsFailed: number;
   capturesInserted: number;
   capturesExisting: number;
   capturesSkipped: number;
@@ -37,7 +37,7 @@ interface PerformanceBatchInput {
     stationId: string,
     date: string,
     now: Date,
-  ) => Promise<PrecipObservation | null>;
+  ) => Promise<AsosObservationRead>;
   readForecasts?: (location: ForecastLocation) => Promise<ProviderSnapshot[]>;
   concurrency?: number;
 }
@@ -91,6 +91,8 @@ export async function runPerformanceBatch(
   const result: PerformanceBatchResult = {
     stationCount: stations.length,
     observationsStored: 0,
+    observationsAbsent: 0,
+    observationsFailed: 0,
     capturesInserted: 0,
     capturesExisting: 0,
     capturesSkipped: 0,
@@ -106,12 +108,26 @@ export async function runPerformanceBatch(
     while (nextIndex < stations.length) {
       const station = stations[nextIndex++];
       try {
-        const observation = await fetchObservation(station.id, observationDate, input.now);
-        if (observation) {
-          await input.store.saveObservation(observation);
+        const read = await fetchObservation(station.id, observationDate, input.now);
+        if (read.status === "observed") {
+          await input.store.saveObservation(read.observation);
           result.observationsStored += 1;
+        } else if (read.status === "failed") {
+          // Not the same as `absent`. A station ASOS has no row for is a fact about
+          // the record; a refused or dropped request is a fault, and counting it as
+          // an absence is how 87 of 97 observations once vanished from a run that
+          // reported no failures at all.
+          result.observationsFailed += 1;
+          result.failures.push({
+            stationId: station.id,
+            phase: "observation",
+            message: read.reason,
+          });
+        } else {
+          result.observationsAbsent += 1;
         }
       } catch (error) {
+        result.observationsFailed += 1;
         result.failures.push({
           stationId: station.id,
           phase: "observation",

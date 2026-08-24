@@ -9,6 +9,11 @@ const MAX_STATION_CATALOG_BYTES = 1024 * 1024;
 const STATION_CATALOG_ATTEMPTS = 3;
 const STATION_CATALOG_RETRY_BASE_MS = 3_000;
 const MAX_ASOS_OBSERVATION_BYTES = 256 * 1024;
+const ASOS_OBSERVATION_ATTEMPTS = 3;
+// Shorter than the catalog's, because this runs once per station rather than once
+// per cohort: 97 stations each waiting the catalog's 3s and 6s would add minutes
+// to a run whose whole point is to finish inside the cohort's hour.
+const ASOS_OBSERVATION_RETRY_BASE_MS = 750;
 
 function koreanDate(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -78,9 +83,9 @@ export function parseKmaStationCatalog(body: string, at: Date): ObservationStati
   });
 }
 
-export type CatalogDelay = (ms: number) => Promise<void>;
+export type RetryDelay = (ms: number) => Promise<void>;
 
-const sleep: CatalogDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep: RetryDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * The catalog runs before any station is read, so a single dropped connection used to
@@ -96,7 +101,7 @@ const sleep: CatalogDelay = (ms) => new Promise((resolve) => setTimeout(resolve,
 async function fetchCatalog(
   url: string,
   fetchImpl: typeof fetch,
-  delay: CatalogDelay,
+  delay: RetryDelay,
 ): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 0; attempt < STATION_CATALOG_ATTEMPTS; attempt += 1) {
@@ -127,7 +132,7 @@ function decodeCatalog(response: Response, bytes: Uint8Array): string {
 export async function fetchKmaAsosStations(
   at: Date,
   fetchImpl: typeof fetch = fetch,
-  delay: CatalogDelay = sleep,
+  delay: RetryDelay = sleep,
 ): Promise<ObservationStation[]> {
   const key = serviceKey(process.env.KMA_APIHUB_KEY);
   if (!key) throw new Error("KMA_APIHUB_KEY is required for the ASOS station catalog");
@@ -166,16 +171,36 @@ export function parseAsosDailyObservation(raw: unknown): number | null {
   return Number.isFinite(observedMm) && observedMm >= 0 ? observedMm : null;
 }
 
+/**
+ * The outcome of one station-day observation read.
+ *
+ * `absent` and `failed` used to be the same bare `null`, so a refused request was
+ * indistinguishable from a station ASOS simply has no row for. A run once stored 10
+ * of 97 observations and reported no failures at all, and nothing in the output said
+ * why. Only `absent` is a real answer; `failed` is a fault and must be reported.
+ */
+export type AsosObservationRead =
+  | { status: "observed"; observation: PrecipObservation; reason?: undefined }
+  | { status: "absent"; observation?: undefined; reason?: undefined }
+  | { status: "failed"; observation?: undefined; reason: string };
+
+function transportReason(error: unknown): string {
+  return error instanceof Error ? error.message : "observation request failed";
+}
+
 export async function fetchAsosObservation(
   stationId: string,
   date: string,
   now: Date,
   fetchImpl: typeof fetch = fetch,
-): Promise<PrecipObservation | null> {
+  delay: RetryDelay = sleep,
+): Promise<AsosObservationRead> {
   const key = serviceKey(
     process.env.KMA_OBSERVATION_API_KEY ?? process.env.KMA_SHORT_TERM_API_KEY,
   );
-  if (!key) return null;
+  // Reporting this per station is noisy, but an unset key silently scoring every
+  // station as unobserved is how a whole pipeline stalls without anyone noticing.
+  if (!key) return { status: "failed", reason: "KMA_OBSERVATION_API_KEY is not configured" };
   const compactDate = date.replace(/-/g, "");
   const params = new URLSearchParams({
     serviceKey: key,
@@ -188,25 +213,46 @@ export async function fetchAsosObservation(
     numOfRows: "10",
     pageNo: "1",
   });
-  let response: Response;
-  try {
-    response = await fetchImpl(`${ASOS_DAILY_URL}?${params}`, {
-      signal: AbortSignal.timeout(15_000),
-    });
-  } catch {
-    return null;
+
+  let reason = "observation request failed";
+  for (let attempt = 0; attempt < ASOS_OBSERVATION_ATTEMPTS; attempt += 1) {
+    if (attempt > 0) await delay(ASOS_OBSERVATION_RETRY_BASE_MS * 2 ** (attempt - 1));
+    let response: Response;
+    try {
+      response = await fetchImpl(`${ASOS_DAILY_URL}?${params}`, {
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch (error) {
+      reason = transportReason(error);
+      continue;
+    }
+    const bytes = await readResponseBytes(response, { maxBytes: MAX_ASOS_OBSERVATION_BYTES });
+    const classified = classifyKmaResponse(response.status, new TextDecoder().decode(bytes));
+    // NODATA is the service answering that the row does not exist. That is a fact
+    // about the weather record, not a fault, and must not turn the run red.
+    if (classified.class === "empty") return { status: "absent" };
+    if (classified.class === "forbidden") {
+      // A key the service refuses will be refused again; retrying only spends quota.
+      return { status: "failed", reason: `forbidden — ${classified.detail}` };
+    }
+    if (classified.class !== "ok") {
+      reason = `${classified.class} — ${classified.detail}`;
+      continue;
+    }
+    const observedMm = parseAsosDailyObservation(classified.json);
+    // An OK response with no readable row is the same absence as NODATA: KMA
+    // publishes a blank sumRn for a dry day, so a missing row means no record.
+    if (observedMm === null) return { status: "absent" };
+    return {
+      status: "observed",
+      observation: {
+        stationId,
+        date,
+        observedMm,
+        observedAt: now.toISOString(),
+        source: "kma-asos",
+      },
+    };
   }
-  const bytes = await readResponseBytes(response, { maxBytes: MAX_ASOS_OBSERVATION_BYTES });
-  const text = new TextDecoder().decode(bytes);
-  const classified = classifyKmaResponse(response.status, text);
-  if (classified.class !== "ok") return null;
-  const observedMm = parseAsosDailyObservation(classified.json);
-  if (observedMm === null) return null;
-  return {
-    stationId,
-    date,
-    observedMm,
-    observedAt: now.toISOString(),
-    source: "kma-asos",
-  };
+  return { status: "failed", reason };
 }

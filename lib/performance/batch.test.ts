@@ -62,11 +62,14 @@ test("nationwide batch stores yesterday's observation before an idempotent next-
     store,
     fetchStations: async () => stations,
     fetchObservation: async (stationId, date, now) => ({
-      stationId,
-      date,
-      observedMm: stationId === "108" ? 0 : 4.2,
-      observedAt: now.toISOString(),
-      source: "kma-asos",
+      status: "observed",
+      observation: {
+        stationId,
+        date,
+        observedMm: stationId === "108" ? 0 : 4.2,
+        observedAt: now.toISOString(),
+        source: "kma-asos",
+      },
     }),
     readForecasts: async () => [forecastSnapshot()],
     concurrency: 2,
@@ -81,6 +84,8 @@ test("nationwide batch stores yesterday's observation before an idempotent next-
     failures: [],
     catalogSource: "kma",
     catalogError: null,
+    observationsAbsent: 0,
+    observationsFailed: 0,
   });
   assert.equal((await store.loadObservations("159"))[0]?.date, "2026-08-12");
   assert.equal((await store.loadCaptures("159", "18"))[0]?.targetDate, "2026-08-14");
@@ -90,7 +95,7 @@ test("nationwide batch stores yesterday's observation before an idempotent next-
     now: new Date("2026-08-13T18:20:00+09:00"),
     store,
     fetchStations: async () => stations,
-    fetchObservation: async () => null,
+    fetchObservation: async () => ({ status: "absent" }),
     readForecasts: async () => [forecastSnapshot()],
     concurrency: 2,
   });
@@ -123,7 +128,7 @@ test("an unreachable station catalog falls back to the stations already recorded
     fetchStations: async () => {
       throw new TypeError("fetch failed");
     },
-    fetchObservation: async () => null,
+    fetchObservation: async () => ({ status: "absent" }),
     readForecasts: async () => [forecastSnapshot()],
     concurrency: 2,
   });
@@ -152,7 +157,7 @@ test("a dead catalog with nothing recorded yet still fails rather than reporting
       fetchStations: async () => {
         throw new TypeError("fetch failed");
       },
-      fetchObservation: async () => null,
+      fetchObservation: async () => ({ status: "absent" }),
       readForecasts: async () => [forecastSnapshot()],
     }),
     /fetch failed/,
@@ -172,10 +177,48 @@ test("retired stations are not resurrected by the fallback", async () => {
     fetchStations: async () => {
       throw new TypeError("fetch failed");
     },
-    fetchObservation: async () => null,
+    fetchObservation: async () => ({ status: "absent" }),
     readForecasts: async () => [forecastSnapshot()],
   });
 
   assert.equal(result.catalogSource, "store");
   assert.equal(result.stationCount, 1, "only the still-active station is captured");
+});
+
+test("an observation that could not be read is reported, and an absent one is not", async () => {
+  // A green run once stored 10 of 97 observations with `failures: []`, because a
+  // refused request and a station with no row were the same bare null.
+  const store = new InMemoryPerformanceStore();
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store,
+    fetchStations: async () => stations,
+    fetchObservation: async (stationId) => stationId === "108"
+      ? { status: "failed", reason: "rate-limited — resultCode 22" }
+      : { status: "absent" },
+    readForecasts: async () => [forecastSnapshot()],
+  });
+
+  assert.equal(result.observationsStored, 0);
+  assert.equal(result.observationsFailed, 1);
+  assert.equal(result.observationsAbsent, 1);
+  assert.deepEqual(result.failures, [
+    { stationId: "108", phase: "observation", message: "rate-limited — resultCode 22" },
+  ]);
+  // The forecasts never needed the observation service, so they are still captured.
+  assert.equal(result.capturesInserted, 2);
+});
+
+test("a failed observation never reaches the store as a reading", async () => {
+  const store = new InMemoryPerformanceStore();
+  await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store,
+    fetchStations: async () => stations,
+    fetchObservation: async () => ({ status: "failed", reason: "fetch failed" }),
+    readForecasts: async () => [forecastSnapshot()],
+  });
+  assert.deepEqual(await store.loadObservations("108"), [], "a fault must not be scored as 0 mm");
 });
