@@ -19,9 +19,9 @@ The interface is Korean, for Korean users. The captions below describe what each
 
 *The heading answers when, not whether — a probability alone cannot tell someone leaving at 09:00 from someone leaving at 21:00. The ribbon is eight 3-hour blocks on a plain 0–100% scale, with the umbrella threshold drawn at the value it names and the rain window marked across every block it covers. It is one provider's hourly series and says so, because the day figures below it are a blend of several. A block nobody published is hatched and shows a dash, never 0%.*
 
-![Today and tomorrow as two cards, over the three evidence cards](public/screenshots/outlook.webp)
+![Today and tomorrow as two cards, over the two evidence cards](public/screenshots/outlook.webp)
 
-*Today and tomorrow are different calculations, so they are different surfaces and each card carries its own method tag — performance weighting is scored on next-day forecasts only and never claimed for today. Below them: the station the evidence comes from, every provider with the figure it actually gave and the influence it was granted, and the six-day outlook that is always an equal average.*
+*Today and tomorrow are different calculations, so they are different surfaces and each card carries its own method tag — performance weighting is scored on next-day forecasts only and never claimed for today. Below them: every provider with the figure it actually gave, drawn as its own bar so the bar tracks the number beside it, and the influence that figure was granted stated separately; then the six-day outlook that is always an equal average. The station the evidence comes from is named once, where the scoring is explained.*
 
 <img src="public/screenshots/mobile.webp" alt="The same forecast on a phone" width="320">
 
