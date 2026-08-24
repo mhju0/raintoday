@@ -128,6 +128,7 @@ test("KMA station catalog retries a dropped connection but not a refusal", async
     const stations = await fetchKmaAsosStations(
       new Date("2026-08-13T06:00:00+09:00"),
       flaky as unknown as typeof fetch,
+      async () => {},
     );
     assert.equal(transportAttempts, 3);
     assert.deepEqual(stations.map((station) => station.id), ["90"]);
@@ -145,6 +146,43 @@ test("KMA station catalog retries a dropped connection but not a refusal", async
       /HTTP 403/,
     );
     assert.equal(refusedAttempts, 1, "a refusal is terminal and must not be retried");
+  } finally {
+    if (previousCatalogKey === undefined) delete process.env.KMA_APIHUB_KEY;
+    else process.env.KMA_APIHUB_KEY = previousCatalogKey;
+  }
+});
+
+test("the catalog waits between attempts instead of retrying inside the same blip", async () => {
+  // Three back-to-back attempts all land inside a network blip that lasts a few
+  // seconds, which is the shape of the runner failures this retry exists for.
+  const previousCatalogKey = process.env.KMA_APIHUB_KEY;
+  process.env.KMA_APIHUB_KEY = "test-key";
+  const body = "90 128.5647 38.2509 11 17.5 18.7 1.7 10.0 0.4 90 속초 Sokcho 90 11D20401 5121025021 0";
+
+  try {
+    const waits: number[] = [];
+    let attempts = 0;
+    const flaky = async () => {
+      attempts += 1;
+      if (attempts < 3) throw new TypeError("fetch failed");
+      return new Response(body, { status: 200, headers: { "content-type": "text/plain" } });
+    };
+    await fetchKmaAsosStations(
+      new Date("2026-08-13T06:00:00+09:00"),
+      flaky as unknown as typeof fetch,
+      async (ms) => { waits.push(ms); },
+    );
+    assert.equal(waits.length, 2, "a wait precedes every attempt after the first");
+    assert.ok(waits[0] > 0, "the first retry does not fire immediately");
+    assert.ok(waits[1] > waits[0], "the wait grows so the attempts span more than one blip");
+
+    const waitsBeforeSuccess: number[] = [];
+    await fetchKmaAsosStations(
+      new Date("2026-08-13T06:00:00+09:00"),
+      (async () => new Response(body, { status: 200, headers: { "content-type": "text/plain" } })) as unknown as typeof fetch,
+      async (ms) => { waitsBeforeSuccess.push(ms); },
+    );
+    assert.deepEqual(waitsBeforeSuccess, [], "a catalog that answers first time never waits");
   } finally {
     if (previousCatalogKey === undefined) delete process.env.KMA_APIHUB_KEY;
     else process.env.KMA_APIHUB_KEY = previousCatalogKey;

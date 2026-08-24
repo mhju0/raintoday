@@ -45,6 +45,8 @@ The [`local-performance`](.github/workflows/local-performance.yml) workflow runs
 3. freezes the adaptive and equal-weight outputs before the outcome exists;
 4. writes the immutable capture and corrected station-day observation to PostgreSQL.
 
+The station catalog is the run's only call to KMA apihub — the captures read the weather providers and the observations read data.go.kr — so an apihub outage no longer discards a cohort that never needed it. The catalog read backs off across three attempts, and if it still fails the run proceeds on the stations already recorded, reports `catalogSource: "store"`, and applies no activation or retirement until a catalog read succeeds again.
+
 The serving profile keeps the two capture cohorts separate. Provider probability performance uses all completed days—including dry days—with a 30-day operating window and a 14-day half-life. It reports Brier score, misses, false alarms, and rainy-day amount MAE. Public evidence also includes the latest seven-day Brier slice.
 
 Learned influence requires at least 30 comparable captures per provider plus both wet and dry evidence. It ramps from equal to learned influence, applies provider floors and caps, and renormalizes over the providers that actually answered the current request. The Prospective Benchmark freezes adaptive and equal outputs before outcomes and suspends learning if the adaptive output regresses or lacks a fair comparison set.

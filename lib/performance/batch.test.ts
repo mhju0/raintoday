@@ -79,6 +79,8 @@ test("nationwide batch stores yesterday's observation before an idempotent next-
     capturesExisting: 0,
     capturesSkipped: 0,
     failures: [],
+    catalogSource: "kma",
+    catalogError: null,
   });
   assert.equal((await store.loadObservations("159"))[0]?.date, "2026-08-12");
   assert.equal((await store.loadCaptures("159", "18"))[0]?.targetDate, "2026-08-14");
@@ -94,4 +96,86 @@ test("nationwide batch stores yesterday's observation before an idempotent next-
   });
   assert.equal(retry.capturesExisting, 2);
   assert.equal((await store.loadCaptures("159", "18")).length, 1);
+});
+
+test("an unreachable station catalog falls back to the stations already recorded", async () => {
+  // The catalog is the cohort's only apihub call — the forecast captures and the
+  // ASOS observations reach different hosts entirely. A runner that cannot resolve
+  // apihub used to discard a whole cohort of captures that never needed it.
+  class SyncCountingStore extends InMemoryPerformanceStore {
+    syncCalls = 0;
+    override async syncStations(
+      catalog: readonly ObservationStation[],
+      catalogDate: string,
+    ): Promise<void> {
+      this.syncCalls += 1;
+      return super.syncStations(catalog, catalogDate);
+    }
+  }
+  const store = new SyncCountingStore();
+  await store.syncStations(stations, "2026-08-13");
+  const syncsBeforeRun = store.syncCalls;
+
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store,
+    fetchStations: async () => {
+      throw new TypeError("fetch failed");
+    },
+    fetchObservation: async () => null,
+    readForecasts: async () => [forecastSnapshot()],
+    concurrency: 2,
+  });
+
+  assert.equal(result.catalogSource, "store");
+  assert.match(result.catalogError ?? "", /fetch failed/);
+  assert.equal(result.stationCount, 2);
+  assert.equal(result.capturesInserted, 2, "the cohort is captured despite the dead catalog");
+  assert.deepEqual(result.failures, []);
+  assert.equal(
+    store.syncCalls,
+    syncsBeforeRun,
+    "a catalog we could not read must not drive retirement decisions",
+  );
+});
+
+test("a dead catalog with nothing recorded yet still fails rather than reporting an empty cohort", async () => {
+  // On a first run there is no recorded station set to fall back to, and a batch
+  // that quietly reports zero stations would look like a successful empty cohort.
+  const store = new InMemoryPerformanceStore();
+  await assert.rejects(
+    () => runPerformanceBatch({
+      cohort: "06",
+      now: new Date("2026-08-13T06:10:00+09:00"),
+      store,
+      fetchStations: async () => {
+        throw new TypeError("fetch failed");
+      },
+      fetchObservation: async () => null,
+      readForecasts: async () => [forecastSnapshot()],
+    }),
+    /fetch failed/,
+  );
+});
+
+test("retired stations are not resurrected by the fallback", async () => {
+  const store = new InMemoryPerformanceStore();
+  await store.syncStations(stations, "2026-08-13");
+  // 부산 leaves the catalog on the next successful sync.
+  await store.syncStations([stations[0]], "2026-08-14");
+
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-14T18:10:00+09:00"),
+    store,
+    fetchStations: async () => {
+      throw new TypeError("fetch failed");
+    },
+    fetchObservation: async () => null,
+    readForecasts: async () => [forecastSnapshot()],
+  });
+
+  assert.equal(result.catalogSource, "store");
+  assert.equal(result.stationCount, 1, "only the still-active station is captured");
 });
