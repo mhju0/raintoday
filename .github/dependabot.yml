@@ -10,12 +10,26 @@ updates:
       timezone: Asia/Seoul
     open-pull-requests-limit: 5
     rebase-strategy: auto
-    # Next.js 16.2 only supports TypeScript 7 through an experimental CLI path,
-    # while eslint-config-next's TypeScript ESLint stack requires TypeScript <6.1.
+    # Two majors are held back by the lint stack, not by this repository's code.
+    # Both were re-verified against the installed tree on 2026-08-24.
+    #
+    # typescript >=7: @typescript-eslint 8.61.0 peers on `>=4.8.4 <6.1.0`, so
+    # TypeScript 7 breaks every typed lint rule. Next.js also still routes TS 7
+    # through an experimental CLI path.
+    #
+    # eslint >=10: eslint-config-next declares `eslint: >=9.0.0`, which is
+    # optimistic — it bundles eslint-plugin-react, which calls the
+    # `context.getFilename()` that ESLint 10 removed. Installing ESLint 10 makes
+    # `npm run lint` abort outright with "contextOrFilename.getFilename is not a
+    # function" before reporting a single result. Revisit when
+    # eslint-config-next ships an eslint-plugin-react that does not use it.
     ignore:
       - dependency-name: typescript
         versions:
           - ">=7.0.0"
+      - dependency-name: eslint
+        versions:
+          - ">=10.0.0"
     groups:
       production-minor-and-patch:
         dependency-type: production
