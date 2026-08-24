@@ -36,6 +36,12 @@ Two ordering rules are load-bearing:
 - Seed **cannot rescue a suspension.** A benchmark regression is a live verdict that the adaptive blend is currently worse than equal weighting; retrospective archive evidence is not grounds to overrule it.
 - Mature live evidence **supersedes the seed entirely.** Learned weights are identical whether or not seed evidence is present.
 
+## Live cohorts
+
+Two scheduled runs a day freeze provider forecasts at a fixed KST hour — cohort `06` and cohort `18` — and each also reads one day of ASOS ground truth. The two cohorts read different days: `18` reads yesterday, `06` reads the day before yesterday.
+
+That offset is not symmetry for its own sake. ASOS compiles a calendar day's summary hours after midnight, so at 06 KST yesterday's rows mostly do not exist yet, and an uncompiled day answers NODATA — indistinguishable from a station with no row at all. Reading two days back keeps both cohorts on a published day, so every date is still read twice and the later read is a genuine second chance at a date the first one missed.
+
 ## Seeding
 
 Day-ahead archived forecasts come from Open-Meteo's Previous Runs API — the `_previous_day1` variables, which are the run issued the day before. The ordinary historical-forecast endpoint returns the day-of run, which is effectively a nowcast; scoring that would flatter every provider and distort the ranking. Ground truth comes from the KMA ASOS daily service, which accepts a date range, so a month of observations costs one request.

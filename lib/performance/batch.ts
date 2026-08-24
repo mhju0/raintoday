@@ -51,8 +51,25 @@ function koreanDate(date: Date): string {
   }).format(date);
 }
 
-function previousCalendarDate(date: string): string {
-  return new Date(Date.parse(`${date}T00:00:00.000Z`) - 86_400_000).toISOString().slice(0, 10);
+function addCalendarDays(date: string, days: number): string {
+  return new Date(Date.parse(`${date}T00:00:00.000Z`) + days * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * ASOS compiles a calendar day's summary hours after midnight, not at it. Every
+ * scheduled 06 KST cohort reading yesterday found 5, 10, 15, 17 and 19 of 97 rows on
+ * consecutive days, while every 18 KST cohort at the same one-day offset found 97 —
+ * and one manual 06 cohort run at midday found 97 too. An uncompiled day answers
+ * NODATA, which is indistinguishable from a station that has no row, so the early
+ * cohort reported up to 92 absences a day that were nothing of the kind. Reach one
+ * day further back at 06 KST: both cohorts then read a published day, every date
+ * still gets two reads, and the later one is a real second chance rather than a
+ * premature one.
+ */
+function observationDate(cohort: CaptureCohort, now: Date): string {
+  return addCalendarDays(koreanDate(now), cohort === "06" ? -2 : -1);
 }
 
 function failureMessage(error: unknown): string {
@@ -100,7 +117,7 @@ export async function runPerformanceBatch(
     catalogSource,
     catalogError,
   };
-  const observationDate = previousCalendarDate(koreanDate(input.now));
+  const targetObservationDate = observationDate(input.cohort, input.now);
   const fetchObservation = input.fetchObservation ?? fetchAsosObservation;
   let nextIndex = 0;
 
@@ -108,7 +125,7 @@ export async function runPerformanceBatch(
     while (nextIndex < stations.length) {
       const station = stations[nextIndex++];
       try {
-        const read = await fetchObservation(station.id, observationDate, input.now);
+        const read = await fetchObservation(station.id, targetObservationDate, input.now);
         if (read.status === "observed") {
           await input.store.saveObservation(read.observation);
           result.observationsStored += 1;
