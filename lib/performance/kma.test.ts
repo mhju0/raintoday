@@ -188,3 +188,101 @@ test("the catalog waits between attempts instead of retrying inside the same bli
     else process.env.KMA_APIHUB_KEY = previousCatalogKey;
   }
 });
+
+const asosBody = (resultCode: string, sumRn = ""): string => JSON.stringify({
+  response: {
+    header: { resultCode, resultMsg: "test" },
+    body: { dataType: "JSON", items: { item: [{ stnId: "108", sumRn }] } },
+  },
+});
+
+function withObservationKey<T>(run: () => Promise<T>): Promise<T> {
+  const previous = process.env.KMA_OBSERVATION_API_KEY;
+  process.env.KMA_OBSERVATION_API_KEY = "test-key";
+  return run().finally(() => {
+    if (previous === undefined) delete process.env.KMA_OBSERVATION_API_KEY;
+    else process.env.KMA_OBSERVATION_API_KEY = previous;
+  });
+}
+
+const AT = new Date("2026-08-24T06:10:00+09:00");
+const read = (impl: unknown, delay?: (ms: number) => Promise<void>) =>
+  fetchAsosObservation("108", "2026-08-23", AT, impl as typeof fetch, delay);
+
+test("a refused ASOS observation is reported, not silently dropped", async () => {
+  // 87 of 97 observations vanished from a run that reported no failures at all,
+  // because every error path returned the same bare null as a genuine absence.
+  await withObservationKey(async () => {
+    const noWait = async () => {};
+    const rateLimited = await read(async () => new Response(asosBody("22"), { status: 200 }), noWait);
+    assert.equal(rateLimited.status, "failed");
+    assert.match(rateLimited.reason ?? "", /rate-limited/);
+
+    const forbidden = await read(async () => new Response(asosBody("30"), { status: 200 }));
+    assert.equal(forbidden.status, "failed");
+    assert.match(forbidden.reason ?? "", /forbidden/);
+
+    const dropped = await read(async () => { throw new TypeError("fetch failed"); }, noWait);
+    assert.equal(dropped.status, "failed");
+    assert.match(dropped.reason ?? "", /fetch failed/);
+  });
+});
+
+test("a station ASOS has no row for is absent, which is not a failure", async () => {
+  // NODATA is a real answer. Scoring must skip the day without reporting a fault,
+  // or every genuinely quiet station would turn the nationwide run red.
+  await withObservationKey(async () => {
+    const nodata = await read(async () => new Response(asosBody("03"), { status: 200 }));
+    assert.equal(nodata.status, "absent");
+
+    // A blank sumRn is a dry day, not an absence: KMA publishes the row.
+    const dry = await read(async () => new Response(asosBody("00", ""), { status: 200 }));
+    assert.equal(dry.status, "observed");
+    assert.equal(dry.observation?.observedMm, 0);
+
+    const wet = await read(async () => new Response(asosBody("00", "3.5"), { status: 200 }));
+    assert.equal(wet.status, "observed");
+    assert.equal(wet.observation?.observedMm, 3.5);
+  });
+});
+
+test("a throttled ASOS observation is retried with backoff, but a refusal is not", async () => {
+  await withObservationKey(async () => {
+    let attempts = 0;
+    const waits: number[] = [];
+    const flaky = async () => {
+      attempts += 1;
+      if (attempts < 3) return new Response(asosBody("22"), { status: 200 });
+      return new Response(asosBody("00", "1.2"), { status: 200 });
+    };
+    const recovered = await read(flaky, async (ms) => { waits.push(ms); });
+    assert.equal(recovered.status, "observed");
+    assert.equal(attempts, 3);
+    assert.equal(waits.length, 2, "a wait precedes every attempt after the first");
+    assert.ok(waits[1] > waits[0], "the wait grows so the attempts span more than one burst");
+
+    // A key the service refuses will be refused again; retrying only spends quota.
+    let refusals = 0;
+    const refused = await read(async () => {
+      refusals += 1;
+      return new Response(asosBody("30"), { status: 200 });
+    }, async () => {});
+    assert.equal(refused.status, "failed");
+    assert.equal(refusals, 1, "a refusal is terminal");
+  });
+});
+
+test("a missing observation key is a reported fault, not a silent absence", async () => {
+  const previousObservation = process.env.KMA_OBSERVATION_API_KEY;
+  const previousShortTerm = process.env.KMA_SHORT_TERM_API_KEY;
+  delete process.env.KMA_OBSERVATION_API_KEY;
+  delete process.env.KMA_SHORT_TERM_API_KEY;
+  try {
+    const result = await read(async () => new Response(asosBody("00", "1.0"), { status: 200 }));
+    assert.equal(result.status, "failed");
+    assert.match(result.reason ?? "", /KMA_OBSERVATION_API_KEY/);
+  } finally {
+    if (previousObservation !== undefined) process.env.KMA_OBSERVATION_API_KEY = previousObservation;
+    if (previousShortTerm !== undefined) process.env.KMA_SHORT_TERM_API_KEY = previousShortTerm;
+  }
+});

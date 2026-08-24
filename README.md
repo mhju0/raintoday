@@ -19,9 +19,9 @@ The interface is Korean, for Korean users. The captions below describe what each
 
 *The heading answers when, not whether — a probability alone cannot tell someone leaving at 09:00 from someone leaving at 21:00. The ribbon is eight 3-hour blocks on a plain 0–100% scale, with the umbrella threshold drawn at the value it names and the rain window marked across every block it covers. It is one provider's hourly series and says so, because the day figures below it are a blend of several. A block nobody published is hatched and shows a dash, never 0%.*
 
-![Today and tomorrow as two cards, over the two evidence cards](public/screenshots/outlook.webp)
+![Today and tomorrow as two cards, over the three evidence cards](public/screenshots/outlook.webp)
 
-*Today and tomorrow are different calculations, so they are different surfaces and each card carries its own method tag — performance weighting is scored on next-day forecasts only and never claimed for today. Below them: every provider with the figure it actually gave, drawn as its own bar so the bar tracks the number beside it, and the influence that figure was granted stated separately; then the six-day outlook that is always an equal average. The station the evidence comes from is named once, where the scoring is explained.*
+*Today and tomorrow are different calculations, so they are different surfaces and each card carries its own method tag — performance weighting is scored on next-day forecasts only and never claimed for today. Below them: the station the evidence comes from, every provider with the figure it actually gave and the influence it was granted, and the six-day outlook that is always an equal average.*
 
 <img src="public/screenshots/mobile.webp" alt="The same forecast on a phone" width="320">
 
@@ -46,6 +46,8 @@ The [`local-performance`](.github/workflows/local-performance.yml) workflow runs
 4. writes the immutable capture and corrected station-day observation to PostgreSQL.
 
 The station catalog is the run's only call to KMA apihub — the captures read the weather providers and the observations read data.go.kr — so an apihub outage no longer discards a cohort that never needed it. The catalog read backs off across three attempts, and if it still fails the run proceeds on the stations already recorded, reports `catalogSource: "store"`, and applies no activation or retirement until a catalog read succeeds again.
+
+The observation read distinguishes a station ASOS has no row for from a request that was refused or dropped. Only the first is an absence; the second is counted in `observationsFailed`, named in `failures`, and fails the run. Throttled and dropped reads are retried with a short backoff, and a refused key is not retried at all.
 
 The serving profile keeps the two capture cohorts separate. Provider probability performance uses all completed days—including dry days—with a 30-day operating window and a 14-day half-life. It reports Brier score, misses, false alarms, and rainy-day amount MAE. Public evidence also includes the latest seven-day Brier slice.
 
