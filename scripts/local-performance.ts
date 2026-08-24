@@ -14,6 +14,15 @@ async function main(): Promise<void> {
       store,
     });
     console.log(JSON.stringify({ cohort, ...result }, null, 2));
+    // The cohort was captured, so the run is not a failure — but it ran on a
+    // station list nothing re-verified today, and a green run reports nothing.
+    if (result.catalogSource === "store") {
+      console.warn(
+        `WARNING: the KMA station catalog was unreachable (${result.catalogError}). ` +
+          `This cohort ran on the ${result.stationCount} stations already recorded. ` +
+          "Station activations and retirements are not applied until a catalog read succeeds.",
+      );
+    }
     if (result.failures.length > 0) process.exitCode = 1;
   } finally {
     await store.close();

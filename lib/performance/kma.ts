@@ -7,6 +7,7 @@ const ASOS_DAILY_URL =
   "https://apis.data.go.kr/1360000/AsosDalyInfoService/getWthrDataList";
 const MAX_STATION_CATALOG_BYTES = 1024 * 1024;
 const STATION_CATALOG_ATTEMPTS = 3;
+const STATION_CATALOG_RETRY_BASE_MS = 3_000;
 const MAX_ASOS_OBSERVATION_BYTES = 256 * 1024;
 
 function koreanDate(date: Date): string {
@@ -77,16 +78,29 @@ export function parseKmaStationCatalog(body: string, at: Date): ObservationStati
   });
 }
 
+export type CatalogDelay = (ms: number) => Promise<void>;
+
+const sleep: CatalogDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
- * The catalog is the one call the cohort cannot continue without: it runs before any
- * station is read, so a single dropped connection used to discard the whole run.
- * Scheduled runners reach apihub only intermittently, so retry a thrown transport
- * error — a connect failure or a timeout. A refusal is the server's actual answer and
- * is never retried.
+ * The catalog runs before any station is read, so a single dropped connection used to
+ * discard the whole run. Scheduled runners reach apihub only intermittently, so retry a
+ * thrown transport error — a connect failure or a timeout. A refusal is the server's
+ * actual answer and is never retried.
+ *
+ * The attempts back off rather than firing back to back: the runner failures this
+ * exists for are blips lasting seconds, and three immediate retries all land inside
+ * the same one. Backing off is not a guarantee either, which is why the batch can
+ * still proceed without a live catalog.
  */
-async function fetchCatalog(url: string, fetchImpl: typeof fetch): Promise<Response> {
+async function fetchCatalog(
+  url: string,
+  fetchImpl: typeof fetch,
+  delay: CatalogDelay,
+): Promise<Response> {
   let lastError: unknown;
   for (let attempt = 0; attempt < STATION_CATALOG_ATTEMPTS; attempt += 1) {
+    if (attempt > 0) await delay(STATION_CATALOG_RETRY_BASE_MS * 2 ** (attempt - 1));
     try {
       return await fetchImpl(url, { signal: AbortSignal.timeout(15_000) });
     } catch (error) {
@@ -113,6 +127,7 @@ function decodeCatalog(response: Response, bytes: Uint8Array): string {
 export async function fetchKmaAsosStations(
   at: Date,
   fetchImpl: typeof fetch = fetch,
+  delay: CatalogDelay = sleep,
 ): Promise<ObservationStation[]> {
   const key = serviceKey(process.env.KMA_APIHUB_KEY);
   if (!key) throw new Error("KMA_APIHUB_KEY is required for the ASOS station catalog");
@@ -123,7 +138,7 @@ export async function fetchKmaAsosStations(
     help: "0",
     authKey: key,
   });
-  const response = await fetchCatalog(`${STATION_CATALOG_URL}?${params}`, fetchImpl);
+  const response = await fetchCatalog(`${STATION_CATALOG_URL}?${params}`, fetchImpl, delay);
   if (!response.ok) throw new Error(`KMA station catalog returned HTTP ${response.status}`);
   const catalog = await readResponseBytes(response, { maxBytes: MAX_STATION_CATALOG_BYTES });
   const stations = parseKmaStationCatalog(decodeCatalog(response, catalog), at);
