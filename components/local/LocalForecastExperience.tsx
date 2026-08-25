@@ -38,7 +38,6 @@ interface ChosenForecastLocation {
  */
 export const COMPARED_PROVIDER_NAMES = [
   "Open-Meteo",
-  "MET Norway",
   "기상청",
   "Pirate Weather",
   "WeatherAPI",
@@ -1185,7 +1184,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
       <PerformanceEvidence evidence={forecast.evidence} cohortLabel={forecast.cohortLabel} />
 
       <footer className="local-footer">
-        <p>출처 Open-Meteo · MET Norway · 기상청 · Pirate Weather · WeatherAPI 중 응답한 서비스 · 모든 시각 KST</p>
+        <p>출처 Open-Meteo · 기상청 · Pirate Weather · WeatherAPI 중 응답한 서비스 · 모든 시각 KST</p>
         <p>관측 검증: 기상청 ASOS · 사용자 위치는 서버에 저장하지 않음</p>
         {timeline && (
           <p>

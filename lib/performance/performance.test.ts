@@ -450,3 +450,39 @@ test("a provider with no archive proxy keeps a neutral share in seed mode", () =
     "no opinion must outrank a measured poor record",
   );
 });
+
+test("seed rows for a provider no longer compared are not scored or shown", () => {
+  // The seed table outlives a provider. MET Norway was seeded from ecmwf_ifs025
+  // before it was dropped from the comparison for publishing no probability in
+  // Korea, and those rows are still in the tables. Scoring them would put a
+  // service's measured performance on the page beside a blend it is not part of —
+  // the same claim-versus-reality gap that got it dropped.
+  const stale = seedHistory(40).map((comparison) => ({
+    ...comparison,
+    providers: [
+      ...comparison.providers,
+      { provider: "met-norway" as PrecipProviderId, amountMm: comparison.observedMm },
+    ],
+  }));
+  const data = series({ days: 3, probability: () => 50 });
+  const profile = buildRecentPerformanceProfile({
+    stationId: "108",
+    cohort: "18",
+    captures: data.captures,
+    observations: data.observations,
+    asOf: new Date("2025-07-12T00:00:00.000Z"),
+    seedComparisons: stale,
+  });
+
+  assert.equal(profile.mode, "seed");
+  assert.equal(
+    profile.seed?.some((provider) => provider.provider === "met-norway"),
+    false,
+    "a provider the forecast never reads must not carry seed evidence",
+  );
+  assert.equal(
+    Object.hasOwn(profile.effectiveWeights, "met-norway"),
+    false,
+    "and must not hold a share of the blend",
+  );
+});

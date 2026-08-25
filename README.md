@@ -148,7 +148,7 @@ The forecast is served at `/`. The retired `/atmosphere` and `/diagnostics` rout
 | --- | --- |
 | App | Next.js 16, React 19, TypeScript |
 | Styling | Tailwind CSS 4 and custom responsive CSS |
-| Forecasts | Open-Meteo, MET Norway, KMA, Pirate Weather, WeatherAPI |
+| Forecasts | Open-Meteo, KMA, Pirate Weather, WeatherAPI |
 | Ground truth | KMA ASOS daily precipitation |
 | Persistence | PostgreSQL via Postgres.js |
 | Scheduling | GitHub Actions at fixed KST cohorts |
@@ -215,7 +215,7 @@ Manual product checks should cover:
 - A location may have no eligible observation station even when forecasts are available.
 - Provider availability and forecast horizon vary; missing values are omitted, never treated as zero.
 - Prospective evidence needs time to accumulate. A station begins on retrospective seed evidence where a backfill has been run, and on equal influence otherwise.
-- Seed evidence uses each provider's underlying model as a proxy (ECMWF for MET Norway, GFS for Pirate Weather, KMA's own model for KMA), not the provider's published product. It is capped, labelled as retrospective, and replaced by live evidence as soon as that matures.
+- Seed evidence uses each provider's underlying model as a proxy (GFS for Pirate Weather, KMA's own model for KMA), not the provider's published product. It is capped, labelled as retrospective, and replaced by live evidence as soon as that matures.
 - The offline backfill reads the station catalog from KMA apihub `stn_inf`; without that subscription it falls back to the committed catalog in `lib/performance/stationCatalog.ts`, which must be regenerated with `npm run performance:catalog` before nationwide seeding.
 - Weather information is not suitable for safety-critical decisions.
 

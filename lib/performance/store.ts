@@ -12,9 +12,11 @@ export type CaptureWriteResult = "inserted" | "existing";
 
 const CATALOG_DROP_GUARD_MIN_ACTIVE_STATIONS = 20;
 const CATALOG_DROP_GUARD_MIN_RETAINED_RATIO = 0.8;
+// MET Norway is absent because it never produced a scored forecast to report. Rows
+// it holds from earlier seeding stay in the tables; nothing reads them, so the page
+// no longer shows a provider's measured performance beside a blend it is not in.
 export const PERFORMANCE_PROVIDERS: readonly PrecipProviderId[] = [
   "open-meteo",
-  "met-norway",
   "kma",
   "pirate-weather",
   "weather-api",

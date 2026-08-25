@@ -52,7 +52,7 @@ export default function OpengraphImage() {
         </div>
 
         <div style={{ display: "flex", fontSize: 22, color: "#7f8f96", letterSpacing: 1 }}>
-          Open-Meteo · MET Norway · KMA · Pirate Weather · WeatherAPI
+          Open-Meteo · KMA · Pirate Weather · WeatherAPI
         </div>
       </div>
     ),

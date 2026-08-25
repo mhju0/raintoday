@@ -347,9 +347,15 @@ export function buildRecentPerformanceProfile(input: ProfileInput): RecentPerfor
   // Span every known provider, not just the seeded ones: a provider that answers
   // at serving time but has no archive proxy must keep a neutral share rather than
   // be dropped from the blend for having no weight entry.
+  //
+  // Narrowed to the providers still compared, because the seed table outlives a
+  // provider. Rows stored for one since dropped would otherwise be scored and shown
+  // beside a blend it is not part of — a service's measured performance on the page
+  // next to a forecast it had no part in.
+  const compared = new Set<PrecipProviderId>(PERFORMANCE_PROVIDERS);
   const seedProviderIds = Array.from(
     new Set<PrecipProviderId>([...PERFORMANCE_PROVIDERS, ...providerIds]),
-  ).sort();
+  ).filter((provider) => compared.has(provider)).sort();
   const seedProfile = buildSeedProfile({
     comparisons: input.seedComparisons ?? [],
     providers: seedProviderIds,

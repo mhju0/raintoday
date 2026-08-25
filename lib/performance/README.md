@@ -51,12 +51,11 @@ Each provider is seeded from the model that actually drives it:
 | Provider | Seed model |
 | --- | --- |
 | Open-Meteo | `best_match` |
-| MET Norway | `ecmwf_ifs025` |
 | KMA | `kma_seamless` |
 | Pirate Weather | `gfs_seamless` |
 | WeatherAPI | *not seeded* |
 
-WeatherAPI publishes no model lineage with a public forecast archive. It is omitted rather than given a guessed proxy, and keeps a neutral share so it is still blended.
+WeatherAPI publishes no model lineage with a public forecast archive. It is omitted rather than given a guessed proxy, and keeps a neutral share so it is still blended. MET Norway is absent for a different reason: it is no longer compared at all, because it publishes no precipitation probability for Korea.
 
 Archives publish no probability, so seed rows carry an amount only. They are scored with `lib/reliability/score.ts` — rain/no-rain with an asymmetric miss penalty, plus an amount term on days it actually rained — and weighted through the same bounded floor/cap projection the live path uses.
 

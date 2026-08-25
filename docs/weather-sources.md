@@ -9,7 +9,7 @@ The application remains usable without weather-provider keys: Open-Meteo supplie
 | Open-Meteo Forecast | Current, hourly, and seven-day baseline at the requested coordinate | None | 5 min per location | Expired cache, then route-level 503 |
 | Kakao Map Local REST | Korean administrative-area search (one row per place, 행정동 name leading and 법정동 alongside), WGS84 resolution, and reverse geocoding of a device coordinate | `KAKAO_REST_API_KEY` | HTTP response cache 5 min | Search route returns 503 `search_not_configured` when unkeyed, so the client offers no retry; reverse geocoding degrades to the "현재 위치" placeholder |
 | Open-Meteo Air Quality | Keyless PM, gases, aerosol, and UV baseline | None | 20 min | Air quality becomes `null` |
-| MET Norway | Provider comparison | `MET_NO_USER_AGENT` with contact | 15 min | Provider reports `needs-config` or `error` |
+| MET Norway | Read by `lib/reliability/` only — **not** compared on the forecast path | `MET_NO_USER_AGENT` with contact | 15 min | Provider reports `needs-config` or `error` |
 | KMA short-term | Forecast comparison at the requested KMA grid | `KMA_SHORT_TERM_API_KEY` | 5 min per location | Source is omitted from the current blend |
 | KMA ASOS station catalog | Active station coordinates and elevations for performance collection | `KMA_APIHUB_KEY` with station-information access | Refreshed by each fixed cohort | Collector fails visibly rather than using a fabricated catalog |
 | KMA ASOS daily observation | Completed station-day precipitation ground truth | `KMA_OBSERVATION_API_KEY` | Durable PostgreSQL row | Missing station-day observation is not scored |
@@ -69,7 +69,8 @@ These remain live:
 
 - Displayed radar imagery comes from KMA API Hub, served by `/api/radar/*`. RainViewer remains a separate approach signal and never supplies the displayed map. Both are retained but **not currently served**: the only consumer is `RadarSection` in the unrouted `components/atmosphere/`, and the radar is expected to return to the product rather than be removed.
 - Scheduled forecast logging projects daily data only from available snapshots. A non-OK provider or a missing target date is omitted, never represented as a made-up forecast. The same rule governs the assembler's runtime precipitation collection, which is retained but no longer served.
-- Forecast-provider order remains Open-Meteo, MET Norway, KMA, Pirate Weather, then WeatherAPI. The first available current snapshot in that order is the comparison primary.
+- Forecast-provider order remains Open-Meteo, KMA, Pirate Weather, then WeatherAPI. The first available current snapshot in that order is the comparison primary.
+- MET Norway is not on that list. Its Locationforecast product publishes `precipitation_amount` for Korea but no `probability_of_precipitation` — that field is Nordic-only in their detailed model — and both the served blend (`lib/localForecast.ts`) and the capture (`lib/performance/capture.ts`) require a next-day probability. It was therefore requested on every forecast and discarded every time, so the forecast path no longer requests it. `lib/reliability/` still collects it from the full `providers` registry and scores it on its own terms.
 
 ## Attribution
 
