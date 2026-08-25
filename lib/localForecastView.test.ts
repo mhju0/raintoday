@@ -90,7 +90,7 @@ function response(overrides: Partial<LocalForecastResponse> = {}): LocalForecast
     providers: [
       { id: "kma", name: "기상청 단기예보 (KMA)", probability: 50, amountMm: null, available: true },
       { id: "open-meteo", name: "Open-Meteo", probability: 80, amountMm: 5, available: true },
-      { id: "met-norway", name: "MET Norway", probability: null, amountMm: null, available: false },
+      { id: "pirate-weather", name: "Pirate Weather", probability: null, amountMm: null, available: false },
     ],
     effectiveInfluence: { kma: 0.4, "open-meteo": 0.6 },
     performance: {

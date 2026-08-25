@@ -325,7 +325,7 @@ export default function GroundStationSection() {
 
             {/* Quiet data-source attribution — a line inside the deck, not a footer. */}
             <p className="px-1 pt-2 text-center font-mono text-[11px] leading-relaxed tracking-[0.1em] text-white">
-              서울의 하늘 — 서울을 위한 개인 기상 프로젝트 · 데이터: Open-Meteo · MET Norway
+              서울의 하늘 — 서울을 위한 개인 기상 프로젝트 · 데이터: Open-Meteo
               {" / "}선택: 기상청(KMA) · Pirate Weather · WeatherAPI · 대기질: AirKorea · 레이더: 기상청(KMA) · 레이더 접근: RainViewer — 비공식 개인 프로젝트
             </p>
           </>

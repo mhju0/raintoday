@@ -46,7 +46,7 @@ function profile(
 test("Effective Influence is normalized over the providers actually present", () => {
   const blend = blendPrecipitation(
     [forecast("open-meteo", 60), forecast("kma", 20)],
-    profile("learned", { "open-meteo": 0.5, kma: 0.25, "met-norway": 0.25 }),
+    profile("learned", { "open-meteo": 0.5, kma: 0.25, "pirate-weather": 0.25 }),
   );
 
   const total = Object.values(blend.influence).reduce((sum, value) => sum + value, 0);
@@ -80,7 +80,7 @@ test("a profile that is not learning falls back to equal influence", () => {
 });
 
 test("a null profile blends equally, which is the prospective equal benchmark", () => {
-  const forecasts = [forecast("open-meteo", 90), forecast("kma", 30), forecast("met-norway", 60)];
+  const forecasts = [forecast("open-meteo", 90), forecast("kma", 30), forecast("weather-api", 60)];
   const blend = blendPrecipitation(forecasts, null);
 
   const mean = forecasts.reduce((sum, entry) => sum + entry.probability!, 0) / forecasts.length;

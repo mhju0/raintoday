@@ -180,7 +180,6 @@ const COHORT_LABELS: Record<LocalForecastResponse["captureCohort"], string> = {
  */
 const PROVIDER_SHORT_NAMES: Readonly<Record<string, string>> = {
   "open-meteo": "Open-Meteo",
-  "met-norway": "MET Norway",
   kma: "기상청",
   "pirate-weather": "Pirate Weather",
   "weather-api": "WeatherAPI",

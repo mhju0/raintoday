@@ -74,7 +74,7 @@ These remain live:
 
 ## Attribution
 
-The UI must retain the applicable credits: Kakao Map for administrative search; Open-Meteo; MET Norway; 기상청 (KMA); AirKorea; Pirate Weather; WeatherAPI; RainViewer; and © CARTO / © OpenStreetMap for the radar basemap. The service-area geometry is derived from 국가데이터처 SGIS 행정구역 경계, published with no stated usage restriction; it is used server-side only and no boundary geometry is displayed. Check provider terms before changing commercial use, caching, or redistribution behavior.
+The UI must retain the applicable credits: Kakao Map for administrative search; Open-Meteo; 기상청 (KMA); AirKorea; Pirate Weather; WeatherAPI; RainViewer; and © CARTO / © OpenStreetMap for the radar basemap. MET Norway is absent from that list because the served page displays none of its data — crediting a source the reader is not being shown would be the same false claim as comparing it. The obligation follows the use: `lib/reliability/` still requests it under the contact-bearing user agent, and the credit returns to the page if that output ever does. The service-area geometry is derived from 국가데이터처 SGIS 행정구역 경계, published with no stated usage restriction; it is used server-side only and no boundary geometry is displayed. Check provider terms before changing commercial use, caching, or redistribution behavior.
 
 Kakao is credited in **plain text only, and deliberately so**. Kakao Developers site terms 11-10 prohibit using Kakao trademarks or logos without explicit consent, and Kakao states that Local API search results require no source attribution or branding at all — the logo guidance applies to the Kakao Map SDK, which this project does not use. Adding a Kakao logo would move the project from compliant to non-compliant.
 

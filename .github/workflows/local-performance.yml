@@ -43,7 +43,6 @@ jobs:
           KMA_APIHUB_KEY: ${{ secrets.KMA_APIHUB_KEY }}
           KMA_OBSERVATION_API_KEY: ${{ secrets.KMA_OBSERVATION_API_KEY }}
           KMA_SHORT_TERM_API_KEY: ${{ secrets.KMA_SHORT_TERM_API_KEY }}
-          MET_NO_USER_AGENT: ${{ secrets.MET_NO_USER_AGENT }}
           PIRATE_WEATHER_API_KEY: ${{ secrets.PIRATE_WEATHER_API_KEY }}
           WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
         run: |
