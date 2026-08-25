@@ -1,5 +1,6 @@
 import { classifyKmaResponse } from "../providers/kma.ts";
 import { readResponseBytes } from "../httpResponse.ts";
+import { parseAsosDailyRange } from "./seed.ts";
 import type { ObservationStation, PrecipObservation } from "./types.ts";
 
 const STATION_CATALOG_URL = "https://apihub.kma.go.kr/api/typ01/url/stn_inf.php";
@@ -14,6 +15,10 @@ const ASOS_OBSERVATION_ATTEMPTS = 3;
 // per cohort: 97 stations each waiting the catalog's 3s and 6s would add minutes
 // to a run whose whole point is to finish inside the cohort's hour.
 const ASOS_OBSERVATION_RETRY_BASE_MS = 750;
+/** One window is one request, so it is bounded by what a single response can carry. */
+export const MAX_OBSERVATION_WINDOW_DAYS = 31;
+const MAX_ASOS_WINDOW_BYTES = 1024 * 1024;
+const DAY_MS = 86_400_000;
 
 function koreanDate(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -253,6 +258,123 @@ export async function fetchAsosObservation(
         source: "kma-asos",
       },
     };
+  }
+  return { status: "failed", reason };
+}
+
+function parseIsoDate(value: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new RangeError(`${value} is not YYYY-MM-DD`);
+  const parsed = Date.parse(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(parsed)) throw new RangeError(`${value} is not YYYY-MM-DD`);
+  return parsed;
+}
+
+/**
+ * Bound a window where the request is built, not only where it is orchestrated.
+ *
+ * One request carries at most `numOfRows` days. An over-long window would come back
+ * truncated and perfectly well-formed, and every day past the cut would be reported
+ * as a station-day with no row — a read that failed to cover the range, presenting as
+ * an absence. That is the one conflation this module exists to prevent, so it must
+ * not depend on a caller in another file remembering to check first.
+ */
+export function assertObservationWindowSpan(startDate: string, endDate: string): number {
+  const start = parseIsoDate(startDate);
+  const end = parseIsoDate(endDate);
+  if (start > end) throw new RangeError("the window ends before it starts — check the order");
+  const days = (end - start) / DAY_MS + 1;
+  if (days > MAX_OBSERVATION_WINDOW_DAYS) {
+    throw new RangeError(
+      `a window of ${days} days exceeds the ${MAX_OBSERVATION_WINDOW_DAYS}-day per-request bound`,
+    );
+  }
+  return days;
+}
+
+/**
+ * The outcome of one station's observation window.
+ *
+ * A window that could not be read is `failed`, never an empty list. The seed path
+ * answers an unusable window with an empty map on purpose — a skipped seed window
+ * costs only evidence — but a backfilled observation is benchmark ground truth, and
+ * an empty window is indistinguishable from a station-day ASOS has no row for. One
+ * would leave a hole that every later read reports as filled.
+ */
+export type AsosObservationWindowRead =
+  | { status: "observed"; observations: PrecipObservation[]; reason?: undefined }
+  | { status: "failed"; observations?: undefined; reason: string };
+
+/**
+ * Read one station's observed daily precipitation across a past date range.
+ *
+ * The ASOS daily service accepts a range, so a whole window costs one request rather
+ * than one per station-day. Dates missing from the response are simply absent: the
+ * request itself succeeded, so the record has no row for them.
+ */
+export async function fetchAsosObservationWindow(
+  stationId: string,
+  startDate: string,
+  endDate: string,
+  now: Date,
+  fetchImpl: typeof fetch = fetch,
+  delay: RetryDelay = sleep,
+): Promise<AsosObservationWindowRead> {
+  assertObservationWindowSpan(startDate, endDate);
+  const key = serviceKey(
+    process.env.KMA_OBSERVATION_API_KEY ?? process.env.KMA_SHORT_TERM_API_KEY,
+  );
+  if (!key) return { status: "failed", reason: "KMA_OBSERVATION_API_KEY is not configured" };
+  const params = new URLSearchParams({
+    serviceKey: key,
+    dataType: "JSON",
+    dataCd: "ASOS",
+    dateCd: "DAY",
+    startDt: startDate.replace(/-/g, ""),
+    endDt: endDate.replace(/-/g, ""),
+    stnIds: stationId,
+    numOfRows: String(MAX_OBSERVATION_WINDOW_DAYS + 1),
+    pageNo: "1",
+  });
+
+  let reason = "observation window request failed";
+  for (let attempt = 0; attempt < ASOS_OBSERVATION_ATTEMPTS; attempt += 1) {
+    if (attempt > 0) await delay(ASOS_OBSERVATION_RETRY_BASE_MS * 2 ** (attempt - 1));
+    let response: Response;
+    try {
+      response = await fetchImpl(`${ASOS_DAILY_URL}?${params}`, {
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch (error) {
+      reason = transportReason(error);
+      continue;
+    }
+    const bytes = await readResponseBytes(response, { maxBytes: MAX_ASOS_WINDOW_BYTES });
+    const classified = classifyKmaResponse(response.status, new TextDecoder().decode(bytes));
+    // NODATA over a whole window is the service answering that it holds no row for
+    // any of those days. That is a fact about the record, not a fault.
+    if (classified.class === "empty") return { status: "observed", observations: [] };
+    if (classified.class === "forbidden") {
+      return { status: "failed", reason: `forbidden — ${classified.detail}` };
+    }
+    if (classified.class !== "ok") {
+      reason = `${classified.class} — ${classified.detail}`;
+      continue;
+    }
+    const observedAt = now.toISOString();
+    // Store only what was asked for. A row the service echoes from outside the window
+    // is not evidence this run gathered, and counting it would also make the caller's
+    // absence arithmetic — days requested minus days stored — quietly wrong.
+    const observations = Array.from(parseAsosDailyRange(classified.json))
+      .filter(([date]) => date >= startDate && date <= endDate)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([date, observedMm]) => ({
+        stationId,
+        date,
+        observedMm,
+        observedAt,
+        source: "kma-asos" as const,
+      }));
+    return { status: "observed", observations };
   }
   return { status: "failed", reason };
 }
