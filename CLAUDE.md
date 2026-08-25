@@ -45,7 +45,7 @@ The application works without environment variables. Copy `.env.example` to `.en
 - Missing providers, images, WebGL, or radar must leave an honest fallback rather than a blank scene or fabricated value.
 - The two failure shapes stay distinct: `retry` is null exactly when the same request can never succeed, and that card must offer no retry. The loading screen may name the providers being contacted but must never claim per-provider progress — `/api/local-forecast` answers once, so any such row would be invented.
 - `COMPARED_PROVIDER_NAMES` and `VERIFICATION_STATION_COUNT` are what the chooser asserts before anyone commits a coordinate. The station count is a literal because the generated catalog must not reach the client bundle; a test pins it to `FALLBACK_STATION_CATALOG.length`.
-- Preserve required attribution for KMA, CARTO/OpenStreetMap, RainViewer, Open-Meteo, and MET Norway.
+- Preserve required attribution for KMA, Kakao Map (administrative search), CARTO/OpenStreetMap, RainViewer, and Open-Meteo. MET Norway is deliberately no longer credited on the page: the forecast path stopped requesting it, so the page displays none of its data and naming it as a 출처 would be a false claim. Its credit belongs with `lib/reliability/`, the only consumer left, and returns to the page only if that output ever surfaces.
 
 ## Code conventions
 
