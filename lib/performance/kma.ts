@@ -18,6 +18,7 @@ const ASOS_OBSERVATION_RETRY_BASE_MS = 750;
 /** One window is one request, so it is bounded by what a single response can carry. */
 export const MAX_OBSERVATION_WINDOW_DAYS = 31;
 const MAX_ASOS_WINDOW_BYTES = 1024 * 1024;
+const DAY_MS = 86_400_000;
 
 function koreanDate(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -261,6 +262,35 @@ export async function fetchAsosObservation(
   return { status: "failed", reason };
 }
 
+function parseIsoDate(value: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new RangeError(`${value} is not YYYY-MM-DD`);
+  const parsed = Date.parse(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(parsed)) throw new RangeError(`${value} is not YYYY-MM-DD`);
+  return parsed;
+}
+
+/**
+ * Bound a window where the request is built, not only where it is orchestrated.
+ *
+ * One request carries at most `numOfRows` days. An over-long window would come back
+ * truncated and perfectly well-formed, and every day past the cut would be reported
+ * as a station-day with no row — a read that failed to cover the range, presenting as
+ * an absence. That is the one conflation this module exists to prevent, so it must
+ * not depend on a caller in another file remembering to check first.
+ */
+export function assertObservationWindowSpan(startDate: string, endDate: string): number {
+  const start = parseIsoDate(startDate);
+  const end = parseIsoDate(endDate);
+  if (start > end) throw new RangeError("the window ends before it starts — check the order");
+  const days = (end - start) / DAY_MS + 1;
+  if (days > MAX_OBSERVATION_WINDOW_DAYS) {
+    throw new RangeError(
+      `a window of ${days} days exceeds the ${MAX_OBSERVATION_WINDOW_DAYS}-day per-request bound`,
+    );
+  }
+  return days;
+}
+
 /**
  * The outcome of one station's observation window.
  *
@@ -289,6 +319,7 @@ export async function fetchAsosObservationWindow(
   fetchImpl: typeof fetch = fetch,
   delay: RetryDelay = sleep,
 ): Promise<AsosObservationWindowRead> {
+  assertObservationWindowSpan(startDate, endDate);
   const key = serviceKey(
     process.env.KMA_OBSERVATION_API_KEY ?? process.env.KMA_SHORT_TERM_API_KEY,
   );
@@ -330,7 +361,11 @@ export async function fetchAsosObservationWindow(
       continue;
     }
     const observedAt = now.toISOString();
+    // Store only what was asked for. A row the service echoes from outside the window
+    // is not evidence this run gathered, and counting it would also make the caller's
+    // absence arithmetic — days requested minus days stored — quietly wrong.
     const observations = Array.from(parseAsosDailyRange(classified.json))
+      .filter(([date]) => date >= startDate && date <= endDate)
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([date, observedMm]) => ({
         stationId,

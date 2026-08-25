@@ -1,6 +1,6 @@
 import {
+  assertObservationWindowSpan,
   fetchAsosObservationWindow,
-  MAX_OBSERVATION_WINDOW_DAYS,
   type AsosObservationWindowRead,
 } from "./kma.ts";
 import type { PerformanceStore } from "./store.ts";
@@ -24,6 +24,25 @@ export interface ObservationBackfillFailure {
   message: string;
 }
 
+/**
+ * Stations whose recorded activity overlaps the window.
+ *
+ * "Active now" is the wrong set. `syncStations` retires a station the moment a
+ * catalog stops listing it — and a catalog failure is exactly the degradation this
+ * tool repairs — so the stations most likely to have a hole are the ones a
+ * currently-active filter would drop.
+ */
+export function stationsCoveringWindow(
+  stations: readonly ObservationStation[],
+  startDate: string,
+  endDate: string,
+): ObservationStation[] {
+  return stations.filter(
+    (station) =>
+      station.activeFrom <= endDate && (station.activeTo === null || station.activeTo >= startDate),
+  );
+}
+
 export interface ObservationBackfillResult {
   stationCount: number;
   /** Calendar days in the requested window, inclusive of both ends. */
@@ -31,8 +50,19 @@ export interface ObservationBackfillResult {
   observationsStored: number;
   /** Station-days a station that answered has no row for. Not a fault. */
   observationsAbsent: number;
-  /** Stations whose window could not be read at all. Their days are counted nowhere. */
+  /** Stations whose window could not be read or stored. Their days are counted nowhere. */
   failures: ObservationBackfillFailure[];
+}
+
+/**
+ * A window in which nothing anywhere has a row is far likelier to be an outage than a
+ * nationwide gap in the record. Reporting it as absence with a clean exit is how a
+ * hole comes to look filled, which is the failure this whole tool exists to undo.
+ */
+export function isImplausiblyEmpty(result: ObservationBackfillResult): boolean {
+  return (
+    result.stationCount > 1 && result.failures.length === 0 && result.observationsStored === 0
+  );
 }
 
 interface ObservationBackfillInput {
@@ -74,17 +104,9 @@ function parseDate(value: string): number {
  * cohort uses. A repair tool loses nothing by waiting a day.
  */
 export function assertObservationWindow(startDate: string, endDate: string, now: Date): void {
-  const start = parseDate(startDate);
-  const end = parseDate(endDate);
-  if (start > end) throw new RangeError("the window ends before it starts — check the order");
-  const days = (end - start) / DAY_MS + 1;
-  if (days > MAX_OBSERVATION_WINDOW_DAYS) {
-    throw new RangeError(
-      `a window of ${days} days exceeds the ${MAX_OBSERVATION_WINDOW_DAYS}-day per-request bound`,
-    );
-  }
+  assertObservationWindowSpan(startDate, endDate);
   const newestReadable = parseDate(koreanDate(now)) - 2 * DAY_MS;
-  if (end > newestReadable) {
+  if (parseDate(endDate) > newestReadable) {
     throw new RangeError(
       `${endDate} is not compiled yet — the newest readable day is ` +
         `${new Date(newestReadable).toISOString().slice(0, 10)}`,
@@ -134,9 +156,23 @@ export async function runObservationBackfill(
         continue;
       }
       let stored = 0;
-      for (const observation of read.observations) {
-        await input.store.saveObservation(observation);
-        stored += 1;
+      try {
+        for (const observation of read.observations) {
+          await input.store.saveObservation(observation);
+          stored += 1;
+        }
+      } catch (error) {
+        // A dropped write is as much a fault as a dropped read, and letting it reject
+        // the worker would take the whole run's summary — including the stations that
+        // did land — down with it. Days that were committed before the fault are still
+        // committed, so they are counted; the rest of the window is claimed by nobody.
+        result.observationsStored += stored;
+        result.failures.push({
+          stationId: station.id,
+          window,
+          message: error instanceof Error ? error.message : "unknown error",
+        });
+        continue;
       }
       result.observationsStored += stored;
       result.observationsAbsent += Math.max(0, windowDays - stored);

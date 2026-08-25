@@ -9,10 +9,16 @@
  * comparison whose target date it is stays incomplete. Offline and idempotent — a
  * re-run costs only the re-fetch.
  *
- * Stations come from what the store already records as active. This tool reads the
- * observation service only; it is not an authority on the catalog and never syncs it.
+ * Stations come from what the store already records for the window — including any
+ * retired since, because a catalog failure is both what retires a station and what
+ * leaves the hole. This tool reads the observation service only; it is not an
+ * authority on the catalog and never syncs it.
  */
-import { runObservationBackfill } from "../lib/performance/observations.ts";
+import {
+  isImplausiblyEmpty,
+  runObservationBackfill,
+  stationsCoveringWindow,
+} from "../lib/performance/observations.ts";
 import { PostgresPerformanceStore } from "../lib/performance/postgres.ts";
 
 function option(name: string): string | undefined {
@@ -45,39 +51,56 @@ try {
   const recorded = await store.listStations();
   const stations = requested
     ? recorded.filter((station) => station.id === requested)
-    : recorded.filter((station) => station.activeTo === null);
+    : stationsCoveringWindow(recorded, startDate, endDate);
   if (stations.length === 0) {
     console.error(
       requested
         ? `no recorded station matched --station=${requested}`
-        : "the store records no active station to backfill",
-    );
-    process.exit(1);
-  }
-
-  const result = await runObservationBackfill({
-    stations,
-    startDate,
-    endDate,
-    now: new Date(),
-    store,
-    onProgress: (stationId, stored) => console.log(`  ${stationId}: +${stored}`),
-  });
-
-  console.log(
-    `\n${result.stationCount} stations x ${result.windowDays} days: ` +
-      `${result.observationsStored} stored, ${result.observationsAbsent} with no row`,
-  );
-  for (const failure of result.failures) {
-    console.warn(`  failed ${failure.stationId} ${failure.window}: ${failure.message}`);
-  }
-  if (result.failures.length > 0) {
-    console.warn(
-      `${result.failures.length} station(s) could not be read; their days are recorded ` +
-        "nowhere — re-run to retry only those",
+        : `the store records no station covering ${startDate}..${endDate}`,
     );
     process.exitCode = 1;
+  } else {
+    const retired = stations.filter((station) => station.activeTo !== null).length;
+    if (retired > 0) {
+      console.log(`including ${retired} station(s) retired since — they were active then`);
+    }
+
+    const result = await runObservationBackfill({
+      stations,
+      startDate,
+      endDate,
+      now: new Date(),
+      store,
+      onProgress: (stationId, stored) => console.log(`  ${stationId}: +${stored}`),
+    });
+
+    console.log(
+      `\n${result.stationCount} stations x ${result.windowDays} days: ` +
+        `${result.observationsStored} stored, ${result.observationsAbsent} with no row`,
+    );
+    for (const failure of result.failures) {
+      console.warn(`  failed ${failure.stationId} ${failure.window}: ${failure.message}`);
+    }
+    if (result.failures.length > 0) {
+      console.warn(
+        `${result.failures.length} station(s) failed; their days are recorded nowhere. ` +
+          "Re-run the same window — stations that already landed cost only the re-fetch.",
+      );
+      process.exitCode = 1;
+    }
+    if (isImplausiblyEmpty(result)) {
+      console.warn(
+        `no station has a row anywhere in ${startDate}..${endDate}. A gap that wide is ` +
+          "far likelier to be an outage than the record — treat this as unread, not empty.",
+      );
+      process.exitCode = 1;
+    }
   }
+} catch (error) {
+  // A mistyped date is a RangeError from the window guard, and the usage line above
+  // is more use to whoever typed it than a stack trace.
+  console.error(error instanceof Error ? error.message : "observation backfill failed");
+  process.exitCode = 1;
 } finally {
   await store.close();
 }

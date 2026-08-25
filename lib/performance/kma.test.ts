@@ -381,3 +381,44 @@ test("a window ASOS has no rows at all for is an absence, which is not a fault",
   assert.deepEqual(read.observations, []);
   });
 });
+
+test("an observation window is bounded where the request is built, not only by its caller", async () => {
+  // An over-long window comes back truncated and perfectly well-formed, and every day
+  // past the cut reads as a station-day with no row — a read that failed to cover the
+  // range, presenting as an absence. The bound cannot live in another file.
+  await withObservationKey(async () => {
+    let called = false;
+    const impl = (async () => {
+      called = true;
+      return new Response(asosRangeBody([]), { status: 200 });
+    }) as unknown as typeof fetch;
+    await assert.rejects(
+      fetchAsosObservationWindow("108", "2026-06-01", "2026-08-23", AT, impl),
+      /exceeds/,
+    );
+    assert.equal(called, false, "an unbounded window is never sent");
+  });
+});
+
+test("a window keeps only the days it asked for", async () => {
+  // A row echoed from outside the window is not evidence this run gathered, and it
+  // would also make the caller's days-requested-minus-days-stored arithmetic wrong.
+  await withObservationKey(async () => {
+    const read = await fetchAsosObservationWindow(
+      "108",
+      "2026-08-21",
+      "2026-08-22",
+      AT,
+      (async () =>
+        new Response(
+          asosRangeBody([
+            { tm: "2026-08-20", sumRn: "5.0" },
+            { tm: "2026-08-21", sumRn: "1.0" },
+            { tm: "2026-08-23", sumRn: "7.0" },
+          ]),
+          { status: 200 },
+        )) as unknown as typeof fetch,
+    );
+    assert.deepEqual(read.observations?.map((observation) => observation.date), ["2026-08-21"]);
+  });
+});
