@@ -45,7 +45,7 @@ export default function HomePage() {
           </p>
           <p style={{ maxWidth: "44ch", fontSize: "0.8rem", lineHeight: 1.7, color: "#5e6c7b", margin: 0 }}>
             위치 선택과 라이브 예보를 보려면 JavaScript를 켜 주세요. 예보: Open-Meteo ·
-            MET Norway · 기상청 외. 관측 검증: 기상청 ASOS.
+            기상청 외. 관측 검증: 기상청 ASOS.
           </p>
         </div>
       </noscript>

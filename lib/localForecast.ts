@@ -13,12 +13,13 @@ import type {
   RecentPerformanceProfile,
   PrecipProviderId,
 } from "./performance/types.ts";
-import { providers as weatherProviders } from "./providers/registry.ts";
+import { forecastProviders } from "./providers/registry.ts";
 import type { HourlyForecast, ProviderSnapshot, WeatherCondition } from "./types.ts";
 
+// MET Norway is absent: it publishes no precipitation probability for Korea, so it
+// could never survive the probability gate below. See `forecastProviders`.
 const PRECIP_PROVIDERS = new Set<PrecipProviderId>([
   "open-meteo",
-  "met-norway",
   "kma",
   "pirate-weather",
   "weather-api",
@@ -196,7 +197,7 @@ function buildForecastDay(
 }
 
 async function readAllForecasts(location: ForecastLocation): Promise<ProviderSnapshot[]> {
-  return Promise.all(weatherProviders.map((provider) => provider.read(location)));
+  return Promise.all(forecastProviders.map((provider) => provider.read(location)));
 }
 
 export async function readDatabaseEvidence(

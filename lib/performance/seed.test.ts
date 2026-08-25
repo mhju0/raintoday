@@ -72,9 +72,13 @@ test("archived payloads are reshaped per date and provider", () => {
 
   const day = parsed.get("2025-08-04")!;
   const byProvider = new Map(day.map((forecast) => [forecast.provider, forecast.amountMm]));
-  assert.equal(byProvider.get("met-norway"), 9.2);
   assert.equal(byProvider.get("open-meteo"), 0);
   assert.equal(byProvider.get("kma"), null, "a model with no run must not read as dry");
+  // The fixture still carries an ecmwf_ifs025 column with 9.2 mm in it. That was
+  // MET Norway's seed proxy, and MET Norway is no longer compared — seeding a
+  // provider the forecast never reads would accrue evidence that cannot influence
+  // anything, so the column is not requested and must not be reshaped either.
+  assert.equal(byProvider.has("met-norway"), false);
 });
 
 test("a malformed archive payload yields nothing rather than throwing", () => {

@@ -1,5 +1,5 @@
 import { createForecastLocation, type ForecastLocation } from "../location.ts";
-import { providers as weatherProviders } from "../providers/registry.ts";
+import { forecastProviders } from "../providers/registry.ts";
 import type { ProviderSnapshot } from "../types.ts";
 import { blendPrecipitation } from "./influence.ts";
 import { buildRecentPerformanceProfile, DEFAULT_PERFORMANCE_POLICY } from "./performance.ts";
@@ -12,9 +12,10 @@ import type {
   PrecipProviderId,
 } from "./types.ts";
 
+// MET Norway is absent: it publishes no precipitation probability for Korea, so the
+// probability gate below dropped every one of its forecasts. See `forecastProviders`.
 const PRECIP_PROVIDERS = new Set<PrecipProviderId>([
   "open-meteo",
-  "met-norway",
   "kma",
   "pirate-weather",
   "weather-api",
@@ -60,7 +61,7 @@ function validAmount(value: number | null | undefined): number | null {
 }
 
 async function readAllForecasts(location: ForecastLocation): Promise<ProviderSnapshot[]> {
-  return Promise.all(weatherProviders.map((provider) => provider.read(location)));
+  return Promise.all(forecastProviders.map((provider) => provider.read(location)));
 }
 
 /** Freeze one station's next-day provider predictions before the outcome exists. */

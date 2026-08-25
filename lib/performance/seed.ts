@@ -38,13 +38,14 @@ export const MAX_SEED_RANGE_DAYS = 366;
 const HOURLY_VARIABLE = "precipitation_previous_day1";
 
 /**
- * The model behind each provider, for seeding only. `weather-api` is absent on
- * purpose: it publishes no model lineage with a public forecast archive, and a
- * guessed proxy would be a fabricated measurement of a real product.
+ * The model behind each provider, for seeding only. Two are absent on purpose.
+ * `weather-api` publishes no model lineage with a public forecast archive, and a
+ * guessed proxy would be a fabricated measurement of a real product. `met-norway`
+ * is no longer compared at all — seeding a provider the forecast never reads would
+ * accrue evidence for a service that cannot influence anything.
  */
 export const SEED_PROVIDER_MODELS: Readonly<Partial<Record<PrecipProviderId, string>>> = {
   "open-meteo": "best_match",
-  "met-norway": "ecmwf_ifs025",
   kma: "kma_seamless",
   "pirate-weather": "gfs_seamless",
 };
