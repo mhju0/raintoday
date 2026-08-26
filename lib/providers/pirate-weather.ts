@@ -162,6 +162,14 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
         temperatureMin: d.temperatureLow ?? d.temperature ?? 0,
         precipitationProbability:
           d.precipProbability !== undefined ? Math.round(d.precipProbability * 100) : null,
+        // The daily `precipIntensity` is the unconditional 24-hour mean in mm/h, so
+        // this is the day's total — and it matches the sum of the provider's own
+        // hourly series exactly. A day that publishes no intensity stays null rather
+        // than becoming a confident zero.
+        precipitationAmount:
+          d.precipIntensity !== undefined
+            ? Math.round(d.precipIntensity * 24 * 100) / 100
+            : null,
         condition: conditionFromIcon(d.icon),
         sunrise: d.sunriseTime !== undefined ? unixToKstIso(d.sunriseTime) : null,
         sunset: d.sunsetTime !== undefined ? unixToKstIso(d.sunsetTime) : null,

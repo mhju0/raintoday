@@ -17,6 +17,15 @@ export interface PrecipitationBlend {
   influence: Record<string, number>;
   probability: number | null;
   amountMm: number | null;
+  /**
+   * How many providers the amount is a mean of.
+   *
+   * Not always the same as the number behind `probability`. A provider that
+   * publishes a probability but no amount is dropped from the amount alone, and a
+   * card that prints one provider count over both numbers claims a consensus the
+   * amount does not have.
+   */
+  amountProviderCount: number;
 }
 
 /**
@@ -68,17 +77,21 @@ function effectiveInfluence(
 function blendAmount(
   forecasts: readonly CapturedProviderForecast[],
   influence: Readonly<Record<string, number>>,
-): number | null {
+): { amountMm: number | null; providerCount: number } {
   const reporting = forecasts.filter((forecast) => forecast.amountMm !== null);
   const totalWeight = reporting.reduce(
     (sum, forecast) => sum + (influence[forecast.provider] ?? 0),
     0,
   );
-  if (totalWeight <= 0) return null;
-  return reporting.reduce(
-    (sum, forecast) => sum + forecast.amountMm! * (influence[forecast.provider] ?? 0) / totalWeight,
-    0,
-  );
+  if (totalWeight <= 0) return { amountMm: null, providerCount: 0 };
+  return {
+    amountMm: reporting.reduce(
+      (sum, forecast) =>
+        sum + forecast.amountMm! * (influence[forecast.provider] ?? 0) / totalWeight,
+      0,
+    ),
+    providerCount: reporting.length,
+  };
 }
 
 /**
@@ -92,9 +105,11 @@ export function blendPrecipitation(
   profile: RecentPerformanceProfile | null,
 ): PrecipitationBlend {
   const influence = effectiveInfluence(forecasts, profile);
+  const amount = blendAmount(forecasts, influence);
   return {
     influence,
     probability: blendPrecipProbability(forecasts, influence),
-    amountMm: blendAmount(forecasts, influence),
+    amountMm: amount.amountMm,
+    amountProviderCount: amount.providerCount,
   };
 }

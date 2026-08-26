@@ -93,6 +93,9 @@ test("local forecast targets the user's coordinate and applies only recent local
     date: "2026-08-14",
     precipitationProbability: 68,
     precipitationAmountMm: 5,
+    // One of the two providers in this fixture publishes no amount, so the amount
+    // is a one-provider mean while the probability is a two-provider blend.
+    amountProviderCount: 1,
     temperatureMax: 31,
     temperatureMin: 24,
     condition: "rain",
