@@ -23,7 +23,10 @@ test("Pirate Weather's daily amount is read from the intensity it publishes", as
   // reason a four-provider probability sat beside a two-provider amount.
   const real = globalThis.fetch;
   const previousKey = process.env.PIRATE_WEATHER_API_KEY;
-  process.env.PIRATE_WEATHER_API_KEY = "0123456789abcdef0123456789abcdef";
+  // Deliberately not key-shaped. The format gate only needs [A-Za-z0-9_-]{16,256},
+  // and a high-entropy hex literal here reads as a real credential to the secret
+  // scanner — which is exactly the judgement that gate is there to make.
+  process.env.PIRATE_WEATHER_API_KEY = "pirate-weather-fake-key-for-tests";
   clearCache();
   try {
     globalThis.fetch = (async () => new Response(JSON.stringify({
