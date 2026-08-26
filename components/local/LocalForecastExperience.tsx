@@ -834,6 +834,27 @@ function formatRange(high: number | null, low: number | null): string {
 }
 
 /**
+ * The amount, marked with its own provider count when that is not the card's.
+ *
+ * Not every compared service publishes a daily amount, so the amount is a mean of
+ * fewer of them than the probability printed above it. The card's tag names the
+ * probability's count, and letting it stand over both numbers claims a consensus
+ * the amount does not have. When the two counts agree the tag is already accurate,
+ * so the marker would be noise.
+ */
+function formatAmount(
+  amountMm: number | null,
+  amountProviderCount: number,
+  comparedProviderCount: number,
+): string {
+  if (amountMm === null) return "—";
+  const value = `${amountMm.toFixed(1)} mm`;
+  return amountProviderCount > 0 && amountProviderCount !== comparedProviderCount
+    ? `${value} · ${amountProviderCount}곳`
+    : value;
+}
+
+/**
  * One block's one-line reading. Kept factual rather than advisory: the umbrella
  * advice belongs to the day, and repeating it eight times would assert an
  * hourly recommendation the daily blend never made.
@@ -1071,7 +1092,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
                 : <>{Math.round(today.precipitationProbability)}<span>%</span></>}
             </p>
             <p className="local-day-row">
-              <span>{today.precipitationAmountMm === null ? "—" : `${today.precipitationAmountMm.toFixed(1)} mm`}</span>
+              <span>{formatAmount(today.precipitationAmountMm, today.amountProviderCount, forecast.comparedProviderCount)}</span>
               <span>{formatRange(today.temperatureMax, today.temperatureMin)}</span>
               <span>{CONDITION_LABELS_KO[today.condition]}</span>
             </p>
@@ -1104,7 +1125,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
               : <>{Math.round(tomorrow.precipitationProbability)}<span>%</span></>}
           </p>
           <p className="local-day-row">
-            <span>{tomorrow.precipitationAmountMm === null ? "—" : `${tomorrow.precipitationAmountMm.toFixed(1)} mm`}</span>
+            <span>{formatAmount(tomorrow.precipitationAmountMm, tomorrow.amountProviderCount, forecast.comparedProviderCount)}</span>
             <span>{formatRange(tomorrow.temperatureMax, tomorrow.temperatureMin)}</span>
             <span>{CONDITION_LABELS_KO[tomorrow.condition]}</span>
           </p>

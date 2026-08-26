@@ -82,6 +82,7 @@ function response(overrides: Partial<LocalForecastResponse> = {}): LocalForecast
     recommendation: {
       precipitationProbability: 68,
       precipitationAmountMm: 5,
+      amountProviderCount: 2,
       temperatureMax: 31,
       temperatureMin: 24,
       condition: "rain",
