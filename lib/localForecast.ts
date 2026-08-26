@@ -46,6 +46,12 @@ export interface LocalForecastDay {
   date: string;
   precipitationProbability: number | null;
   precipitationAmountMm: number | null;
+  /**
+   * Providers behind the amount, which is not always the number behind the
+   * probability: two of the compared services publish no daily amount. The page
+   * must not print one provider count over both numbers.
+   */
+  amountProviderCount: number;
   temperatureMax: number | null;
   temperatureMin: number | null;
   condition: WeatherCondition;
@@ -87,6 +93,7 @@ export interface LocalForecastResponse {
   recommendation: {
     precipitationProbability: number | null;
     precipitationAmountMm: number | null;
+    amountProviderCount: number;
     temperatureMax: number | null;
     temperatureMin: number | null;
     condition: WeatherCondition;
@@ -190,6 +197,7 @@ function buildForecastDay(
     date,
     precipitationProbability: blend.probability,
     precipitationAmountMm: blend.amountMm,
+    amountProviderCount: blend.amountProviderCount,
     temperatureMax: rows[0].temperatureMax,
     temperatureMin: rows[0].temperatureMin,
     condition: rows[0].condition,
@@ -331,6 +339,7 @@ export async function readLocalForecast(
     date: targetDate,
     precipitationProbability: null,
     precipitationAmountMm: null,
+    amountProviderCount: 0,
     temperatureMax: null,
     temperatureMin: null,
     condition: "unknown" as const,
@@ -359,6 +368,7 @@ export async function readLocalForecast(
     recommendation: {
       precipitationProbability: recommendation.precipitationProbability,
       precipitationAmountMm: recommendation.precipitationAmountMm,
+      amountProviderCount: recommendation.amountProviderCount,
       temperatureMax: recommendation.temperatureMax,
       temperatureMin: recommendation.temperatureMin,
       condition: recommendation.condition,

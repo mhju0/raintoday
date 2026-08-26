@@ -205,6 +205,7 @@ test("device accuracy is displayed but not sent to the forecast API", async () =
       recommendation: {
         precipitationProbability: 30,
         precipitationAmountMm: 0,
+        amountProviderCount: 4,
         temperatureMax: 30,
         temperatureMin: 22,
         condition: "clear",
@@ -302,6 +303,7 @@ function forecastPayload(overrides: Record<string, unknown> = {}) {
       date: "2026-08-17",
       precipitationProbability: 85,
       precipitationAmountMm: 2.7,
+      amountProviderCount: 4,
       temperatureMax: 28,
       temperatureMin: 23,
       condition: "rain",
@@ -309,6 +311,7 @@ function forecastPayload(overrides: Record<string, unknown> = {}) {
     recommendation: {
       precipitationProbability: 41,
       precipitationAmountMm: 0.7,
+      amountProviderCount: 4,
       temperatureMax: 31,
       temperatureMin: 23,
       condition: "drizzle",
@@ -1231,6 +1234,7 @@ test("the umbrella advice never contradicts the headline above it", async () => 
         date: "2026-08-17",
         precipitationProbability: 85,
         precipitationAmountMm: 0.4,
+        amountProviderCount: 4,
         temperatureMax: 28,
         temperatureMin: 23,
         condition: "cloudy",
@@ -1387,4 +1391,40 @@ test("the chooser counts the providers it names rather than carrying a number", 
   for (const name of COMPARED_PROVIDER_NAMES) assert.match(facts, new RegExp(name));
   assert.match(facts, new RegExp(`${VERIFICATION_STATION_COUNT}개`));
   await view.cleanup();
+});
+
+test("the amount says how many services it came from when that is not the card's count", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  // The tag over the card names the probability's provider count. Two of the
+  // compared services publish no daily amount, so printing that one count over both
+  // numbers claims a consensus the amount does not have.
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      comparedProviderCount: 4,
+      today: {
+        date: "2026-08-17",
+        precipitationProbability: 85,
+        precipitationAmountMm: 2.7,
+        amountProviderCount: 2,
+        temperatureMax: 28,
+        temperatureMin: 23,
+        condition: "rain",
+      },
+      recommendation: {
+        precipitationProbability: 41,
+        precipitationAmountMm: 0.7,
+        amountProviderCount: 4,
+        temperatureMax: 31,
+        temperatureMin: 23,
+        condition: "drizzle",
+      },
+    })),
+  );
+
+  const rows = [...view.container.querySelectorAll(".local-day-row")].map(
+    (row) => row.textContent ?? "",
+  );
+  assert.match(rows[0], /2\.7 mm · 2곳/, "an amount from fewer services says so");
+  assert.match(rows[1], /0\.7 mm(?! · )/, "when the counts agree the tag already covers it");
+  assert.doesNotMatch(rows[1], /4곳/, "no redundant marker when nothing is being narrowed");
 });
