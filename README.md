@@ -186,10 +186,10 @@ The scheduled evidence jobs prove the collector's credentials work; they say not
 
 ```bash
 npm run service:health
-npm run service:health -- --base=http://localhost:3000
+npm run service:health -- --target=local
 ```
 
-It asserts the page answers, that a forecast still blends at least three of the four compared providers with a usable probability, and that administrative search still resolves. It also reads Pirate Weather's `ratelimit-*` headers and fails when what is left will not cover the scheduled pipeline's burn for the rest of the billing period plus a reserve held back for visitors — runway rather than a fixed threshold, because the same balance is comfortable on the last day of a period and fatal on the first. It runs every six hours from `.github/workflows/service-health.yml`.
+It asserts the page answers, that a forecast still blends at least three of the four compared providers with a usable probability, and that administrative search still resolves. It also reads Pirate Weather's `ratelimit-*` headers and fails when what is left will not cover the scheduled pipeline's burn for the rest of the billing period plus a reserve held back for visitors — runway rather than a fixed threshold, because the same balance is comfortable on the last day of a period and fatal on the first. It runs every six hours from `.github/workflows/service-health.yml`. Targets are named rather than free-form URLs, so every address it requests is a constant in the script.
 
 ## Verification
 

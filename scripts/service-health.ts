@@ -3,7 +3,7 @@
  * provider quota still has runway.
  *
  *     npm run service:health
- *     npm run service:health -- --base=http://localhost:3000
+ *     npm run service:health -- --target=local
  *
  * Everything else that watches this project watches the evidence pipeline. The
  * scheduled jobs prove the collector's credentials work; they say nothing about
@@ -29,7 +29,24 @@ const REQUEST_TIMEOUT_MS = 20_000;
 const ATTEMPTS = 3;
 const RETRY_GAP_MS = 5_000;
 
-const DEFAULT_BASE = "https://raintoday.vercel.app";
+/**
+ * Named targets rather than a free-form `--base`, so every URL this script
+ * requests is a constant in this file. An operator cannot point the check at an
+ * arbitrary host by typo or by an inherited environment variable, and the origin
+ * never derives from input — which is also what keeps CodeQL's request-forgery
+ * rule quiet without dismissing a finding.
+ */
+const TARGETS = {
+  production: "https://raintoday.vercel.app",
+  local: "http://localhost:3000",
+} as const;
+
+type TargetName = keyof typeof TARGETS;
+
+function isTargetName(value: string): value is TargetName {
+  return Object.hasOwn(TARGETS, value);
+}
+
 /** 서울 종로 — inside the service area and the reference station for the evidence. */
 const PROBE = { name: "서울", latitude: 37.5665, longitude: 126.978 };
 
@@ -194,8 +211,16 @@ async function checkPirateWeatherQuota(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const base = (option("base") ?? process.env.SERVICE_HEALTH_BASE ?? DEFAULT_BASE).replace(/\/$/, "");
-  process.stdout.write(`오늘비 service health — ${base}\n\n`);
+  const requested = option("target") ?? "production";
+  if (!isTargetName(requested)) {
+    process.stderr.write(
+      `unknown --target=${requested}; expected one of ${Object.keys(TARGETS).join(", ")}\n`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  const base = TARGETS[requested];
+  process.stdout.write(`오늘비 service health — ${requested} (${base})\n\n`);
 
   await checkHomePage(base);
   await checkForecast(base);
