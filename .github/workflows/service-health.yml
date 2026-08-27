@@ -1,0 +1,46 @@
+name: service-health
+
+# Watches the served path, which nothing else does. The scheduled evidence jobs
+# prove the collector's credentials work against KMA and the database; they say
+# nothing about whether a visitor can load a forecast, and they read their keys
+# from a different store than production. A key rotated in one place and not the
+# other leaves those jobs green while the site quietly degrades.
+#
+# Also the only thing watching Pirate Weather's monthly ceiling — the one upstream
+# quota low enough for this project to reach.
+#
+# Costs two Pirate Weather calls per run (one through the forecast endpoint, one
+# direct for the headers). At four runs a day that is ~240 a month, which the
+# check's own visitor reserve already accounts for.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: service-health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      # No `npm ci`. The script imports one generated constant and one pure
+      # module, and the only cross-file import it resolves is a type, so it has
+      # no runtime dependency to install.
+      - name: Check the served path and the metered quota
+        env:
+          PIRATE_WEATHER_API_KEY: ${{ secrets.PIRATE_WEATHER_API_KEY }}
+        run: node scripts/service-health.ts
