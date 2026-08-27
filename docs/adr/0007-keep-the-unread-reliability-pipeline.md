@@ -2,7 +2,7 @@
 status: accepted
 ---
 
-# Keep `lib/reliability/` running, unread, and revisit on 2026-09-18
+# Keep `lib/reliability/` running, unread, and revisit on 2026-10-01
 
 Retiring `/api/sky` and `/api/weather` (#71) removed the only HTTP path that read
 `lib/reliability/`'s learned weights. Issue #62 asked what follows: retire the module
@@ -31,7 +31,7 @@ So "retire `lib/reliability/`" was never available as stated. At minimum `score.
 
 ## Decision
 
-**Keep the scheduled pipeline running unchanged, and revisit on 2026-09-18.** Delete
+**Keep the scheduled pipeline running unchanged, and revisit on 2026-10-01.** Delete
 nothing now.
 
 ## Why
@@ -54,7 +54,7 @@ rather than with deletion.
 
 ## Consequences
 
-- The revisit date is 2026-09-18, roughly one month of further accumulation. Two
+- The revisit date is 2026-10-01, roughly one month of further accumulation. Two
   questions decide it: whether the served pipeline has left seed mode, and whether the
   two pipelines' learned orderings agree. If they agree, the single-station experiment
   has told us what it can and can retire. If they disagree, that disagreement is
@@ -64,3 +64,37 @@ rather than with deletion.
   not at all.
 - No user-visible behaviour changes. Nothing served reads the learned-weights file
   today and nothing will before the revisit.
+
+## Amendment, 2026-08-27 — the revisit date fell before either question could be answered
+
+The date above read **2026-09-18** when this record was accepted. It now reads 2026-10-01,
+and nothing else here changes: the decision, the reasoning and the import-graph finding all
+stand.
+
+The two questions named under Consequences decide the revisit, and measurement shows
+neither could have been answered on the original date.
+
+**Whether the served pipeline has left seed mode.** Measured against the live database on
+2026-08-27, station 108 holds 5 completed comparisons in cohort 06 and 4 in cohort 18,
+against the bar of 30 in `DEFAULT_PERFORMANCE_POLICY`. A comparison accrues at most one per
+cohort per day, so with no further losses the earliest flip is ~2026-09-20 for cohort 06 and
+~2026-09-23 for cohort 18 — the latter held back by KMA, whose 2026-08-26 and 2026-08-27
+evening captures were frozen without it when every KMA call in those runs failed at the
+network level. On 2026-09-18 the answer would still have been "no".
+
+**Whether the two pipelines' learned orderings agree.** This is strictly downstream of the
+first: while the served pipeline is quoting seed evidence it has no learned ordering to
+compare. So it was unanswerable on the original date too.
+
+A revisit on 2026-09-18 could therefore have returned only "still in seed mode, defer",
+which is the date-passing #88 was opened to prevent. 2026-10-01 leaves about a week beyond
+the projected cohort-18 flip. Derivation is on #89.
+
+One thing to carry into the revisit that this record did not anticipate: `score.ts` and
+`types.ts` are served **because** evidence is in seed mode, through
+`lib/performance/seedScore.ts`. When the served pipeline flips to learned, seed influence is
+superseded entirely and that path goes quiet. The revisit therefore lands just as the
+"unread" question changes shape, rather than after it has settled — which is an argument for
+deciding on what the flip reveals, not for deferring again.
+
+This record is otherwise unchanged and remains accepted.
