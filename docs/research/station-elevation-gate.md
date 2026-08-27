@@ -10,7 +10,7 @@ This document is evidence and a recommendation. It is **not** a decision — see
 ## What the gate is
 
 [Verified] `STATION_POLICY` is `{ maxDistanceKm: 100, maxElevationDifferenceM: 400 }`
-(`lib/localForecast.ts:26`). `findStationMatch` computes an elevation difference only
+(`lib/localForecast.ts` (`STATION_POLICY`)). `findStationMatch` computes an elevation difference only
 when **both** the location and the station carry one, and applies the bound only when
 the difference is non-null (`lib/performance/stations.ts:57–67`):
 
@@ -31,11 +31,11 @@ A missing elevation therefore **skips** the gate rather than failing it.
 (`lib/locationSearch.ts:142`) — confirmed against a live response from
 `/api/locations/search`, which returns `"elevationM":null` for a resolved 시. Shared
 links are the same: `locationFromSearch` hardcodes `elevationM: null`
-(`components/local/LocalForecastExperience.tsx:144`).
+(`components/local/LocalForecastExperience.tsx (`locationFromSearch`)`).
 
 [Verified] The **only** producer of a non-null location elevation in the codebase is the
 browser fix, `position.coords.altitude`
-(`components/local/LocalForecastExperience.tsx:390–393`).
+(`components/local/LocalForecastExperience.tsx` (`useCurrentLocation`)).
 
 So the gate is not "frequently inert" — it is *structurally* inert for every visitor who
 types a place name or opens a shared link. It can fire only for someone who taps

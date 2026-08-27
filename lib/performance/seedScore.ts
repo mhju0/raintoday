@@ -13,7 +13,7 @@ import type {
  * Live evidence is scored on the probability Brier score. Seed evidence cannot
  * be: public archives publish an amount but no probability. Rather than invent a
  * probability, seed evidence is scored on the amount-and-outcome skill that
- * `lib/reliability/score.ts` already defines and unit-tests — rain/no-rain with
+ * `precipSkill.ts` already defines and unit-tests — rain/no-rain with
  * an asymmetric miss penalty, plus an amount term on days it actually rained.
  *
  * Two rules keep the seed from overstating itself:

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: partially superseded by ADR 0008
 ---
 
 # Keep the two precipitation-scoring pipelines separate for now
@@ -66,3 +66,20 @@ Two consequences follow:
   projection policy.
 
 This record is otherwise unchanged and remains accepted.
+
+## Superseded in part, 2026-08-27, by [ADR 0008](./0008-retire-the-second-scoring-pipeline-and-the-retired-scene.md)
+
+`lib/reliability/` is deleted, and `lib/precipWeightContract.test.ts` with it. **The
+decision above no longer has a subject.** There is one `normalizeClamped` in the tree, so
+there is nothing to keep separate and nothing to gate. The amendment above named this
+condition exactly — the test "would only become pointless if one implementation were
+deleted" — and it has now occurred, for reasons unrelated to which projection policy is
+better.
+
+**The measurement is not superseded, and is the reason to still read this record.**
+Everything above the Consequences section remains the only account of how the two policies
+differ: the 78% disagreement, the 0.167 maximum, and the worked case where water-filling
+and the fixed-point iteration split a bounded simplex differently. ADR 0008 records that
+water-filling now survives by inheritance rather than by contest, and points here for what
+the alternative was. Read this record for that. Do not read it for the instruction to keep
+two implementations.

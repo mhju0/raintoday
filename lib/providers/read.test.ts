@@ -2,9 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { clearCache } from "../cache.ts";
 import { createForecastLocation } from "../location.ts";
-import type { CurrentWeather, DailyForecast, HourlyForecast, ProviderSnapshot } from "../types.ts";
+import type { CurrentWeather, DailyForecast, HourlyForecast } from "../types.ts";
 import { createWeatherProvider } from "./read.ts";
-import { readAvailableProviderDaily } from "./read.ts";
 
 const current: CurrentWeather = {
   time: "2026-07-14T00:00:00.000Z",
@@ -286,35 +285,4 @@ test("createWeatherProvider preserves distinct adapter and status display names"
 
   assert.equal(provider.name, "기상청 (KMA)");
   assert.equal(snapshot.status.name, "기상청 단기예보 (KMA)");
-});
-
-test("readAvailableProviderDaily projects one atomic provider read", async () => {
-  const snapshot: ProviderSnapshot = {
-    id: "kma",
-    status: {
-      id: "kma",
-      name: "KMA",
-      availability: "ok",
-      message: "ok",
-      missingEnvVars: [],
-      lastUpdated: current.time,
-      fromCache: false,
-    },
-    current,
-    hourly,
-    daily,
-  };
-  let calls = 0;
-
-  const result = await readAvailableProviderDaily({
-    id: "kma",
-    name: "KMA",
-    read: async () => {
-      calls += 1;
-      return snapshot;
-    },
-  });
-
-  assert.equal(calls, 1);
-  assert.deepEqual(result, { source: "kma", daily });
 });

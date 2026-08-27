@@ -118,3 +118,18 @@ the eligibility policy stay readable in one place.
 
 The honest fallback is unchanged: with no eligible station the product still says local
 evidence is unavailable and serves equal weights.
+
+## Amendment, 2026-08-27 — two consequences are discharged
+
+- **The consolidation gate has no subject.**
+  [ADR 0008](./0008-retire-the-second-scoring-pipeline-and-the-retired-scene.md) deleted
+  `lib/reliability/`, so one `normalizeClamped` remains and
+  `lib/precipWeightContract.test.ts` is gone. There is no merge left to gate and no
+  projection-policy record left to write; ADR 0008 records that the comparison ADR 0004
+  wanted can now never be run, and why that matters.
+- **The elevation bullet is answered.** Issue #51 is closed and
+  [ADR 0006](./0006-the-elevation-gate-is-non-binding.md) measured the gate as non-binding
+  where people actually are. It stays inert rather than being removed.
+
+The coverage measurement and the proximity decision itself are unchanged. Note the
+`proximity` dimension this record calls for is still **not implemented** in the page.
