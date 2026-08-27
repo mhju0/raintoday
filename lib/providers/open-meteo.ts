@@ -1,7 +1,7 @@
 import { conditionFromWmoCode } from "../conditions.ts";
 import { readResponseBytes } from "../httpResponse.ts";
 import type { ForecastLocation } from "../location.ts";
-import { CACHE_TTL_MS } from "../seoul.ts";
+import { CACHE_TTL_MS } from "../providerCache.ts";
 import type {
   CurrentWeather,
   DailyForecast,

@@ -1,12 +1,10 @@
-import { cachedFetch } from "../cache.ts";
 import { readResponseBytes } from "../httpResponse.ts";
 import type { ForecastLocation } from "../location.ts";
-import { CACHE_TTL_MS, SEOUL } from "../seoul.ts";
+import { CACHE_TTL_MS } from "../providerCache.ts";
 import type {
   CurrentWeather,
   DailyForecast,
   HourlyForecast,
-  WeatherProviderStatus,
 } from "../types";
 import { conditionFromKma } from "./kma-mapping.ts";
 import { createWeatherProvider } from "./read.ts";
@@ -14,26 +12,24 @@ import { createWeatherProvider } from "./read.ts";
 /**
  * 기상청 (Korea Meteorological Administration) — optional provider.
  *
- * Uses the official open APIs from 공공데이터포털 (data.go.kr). The keys are free.
- * The two services are SEPARATE 활용신청 (application approvals) on data.go.kr and
- * therefore use TWO INDEPENDENT environment variables — each service is optional
- * and verified on its own:
+ * Uses the official 단기예보 조회서비스 (VilageFcstInfoService_2.0) from 공공데이터포털
+ * (data.go.kr), a free 활용신청:
  *
  *  - KMA_SHORT_TERM_API_KEY → VilageFcstInfoService_2.0 (단기예보 조회서비스)
  *      · getUltraSrtNcst (초단기실황): live obs → current
  *      · getVilageFcst   (단기예보):   3-day → hourly + daily
- *  - KMA_WARNING_API_KEY    → WthrWrnInfoService (기상특보 조회서비스)
- *      · getWthrWrnList   (기상특보):   official warnings
  *
- * Both the "Encoding" and "Decoding" key formats work; keys are used
- * server-side only and are never logged, serialized, or returned to the client.
- * A missing short-term key disables only obs/forecast; a missing warning key
- * disables only warnings; neither is ever required for the public scene
- * (Open-Meteo is the zero-key fallback).
+ * There was a second, independent service here — WthrWrnInfoService (기상특보), with
+ * its own 활용신청 and its own key. Its only consumer was the retired cinematic
+ * scene, so it was removed with it; nothing served ever displayed a warning.
+ *
+ * Both the "Encoding" and "Decoding" key formats work; the key is used
+ * server-side only and is never logged, serialized, or returned to the client.
+ * A missing key disables only the KMA enrichment — Open-Meteo is the zero-key
+ * fallback, so the forecast still answers.
  */
 
 const API_BASE = "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0";
-const WARN_BASE = "https://apis.data.go.kr/1360000/WthrWrnInfoService";
 const KMA_RESPONSE_MAX_BYTES = 2 * 1024 * 1024;
 
 /**
