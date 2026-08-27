@@ -179,9 +179,17 @@ async function checkPirateWeatherQuota(): Promise<void> {
     record("pirate quota", false, "PIRATE_WEATHER_API_KEY is not set");
     return;
   }
+  // Pirate Weather carries its key in the path, so a key containing a slash or a
+  // colon would silently retarget the request at another host. Refuse a
+  // malformed secret rather than build a URL we did not intend.
+  if (!/^[A-Za-z0-9_-]+$/.test(key)) {
+    record("pirate quota", false, "PIRATE_WEATHER_API_KEY has an unexpected shape");
+    return;
+  }
   try {
     const response = await fetchWithRetry(
-      `https://api.pirateweather.net/forecast/${key}/${PROBE.latitude},${PROBE.longitude}?exclude=minutely,hourly,alerts`,
+      `https://api.pirateweather.net/forecast/${encodeURIComponent(key)}` +
+        `/${PROBE.latitude},${PROBE.longitude}?exclude=minutely,hourly,alerts`,
     );
     const remaining = Number(response.headers.get("ratelimit-remaining"));
     const reset = Number(response.headers.get("ratelimit-reset"));
