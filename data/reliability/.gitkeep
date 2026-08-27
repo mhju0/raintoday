@@ -1,3 +1,0 @@
-# Output directory for the precipitation source-reliability batch
-# (scripts/precip-reliability.ts). The generated forecast-log.jsonl and
-# daily-skill.jsonl are git-ignored — only this placeholder is tracked.

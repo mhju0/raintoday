@@ -1,8 +1,7 @@
-import type { Contingency, RainOutcome, SourceDayScore } from "./types.ts";
 
 /**
  * Pure precipitation verification + daily skill scoring. No I/O, no network, no
- * clock — fully unit-tested in score.test.ts. The batch script feeds it one
+ * clock — fully unit-tested in precipSkill.test.ts. Its one caller is seedScore.ts, which feeds it one
  * source's forecast (pop, predicted_mm) plus the day's observed_mm and gets back
  * a single skill in [0,1], or null when the day must be skipped.
  *
@@ -16,6 +15,36 @@ import type { Contingency, RainOutcome, SourceDayScore } from "./types.ts";
  * Every threshold/weight below is a named, tunable constant — Phase 2 may
  * calibrate them without touching the logic.
  */
+
+/** Which of the four contingency cells a source's day fell into. */
+export type RainOutcome = "hit" | "miss" | "false_alarm" | "correct_dry";
+
+/** The 2x2 rain/no-rain contingency table for one scored day. */
+export interface Contingency {
+  hits: number;
+  misses: number;
+  false_alarms: number;
+  correct_negatives: number;
+}
+
+/** Pure scoring output for one source on one day (no I/O fields). */
+export interface SourceDayScore {
+  predicted_rain: boolean;
+  observed_rain: boolean;
+  outcome: RainOutcome;
+  contingency: Contingency;
+  /** CSI for the day: 1 (hit), 0 (miss/false alarm); never null here because a
+   *  correct-dry day is not emitted (it carries no precipitation skill). */
+  csi: number | null;
+  /** Categorical skill in [0,1] with the asymmetric miss/false-alarm penalty. */
+  categorical_skill: number;
+  /** Quantitative skill in [0,1] from the rainy-day amount error, or null. */
+  quantitative_skill: number | null;
+  /** Absolute amount error |predicted_mm - observed_mm| (mm), or null. */
+  mae: number | null;
+  /** Combined daily skill in [0,1]. */
+  skill: number;
+}
 
 /** Measurable precipitation threshold (mm). Used for both observed and amount-based predicted rain. */
 export const RAIN_THRESHOLD_MM = 0.1;

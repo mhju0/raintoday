@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
 import { clearCache } from "../cache.ts";
-import { metNorwayProvider } from "./met-norway.ts";
 import { openMeteoProvider } from "./open-meteo.ts";
 import { weatherApiProvider } from "./weather-api.ts";
 
@@ -45,18 +44,6 @@ const openMeteoBody = JSON.stringify({
   },
 });
 
-const metNorwayBody = JSON.stringify({
-  properties: {
-    timeseries: [{
-      time: new Date((nowSeconds + 3600) * 1000).toISOString(),
-      data: {
-        instant: { details: { air_temperature: 27 } },
-        next_1_hours: { summary: { symbol_code: "clearsky_day" } },
-      },
-    }],
-  },
-});
-
 const weatherApiBody = JSON.stringify({
   current: {
     last_updated_epoch: nowSeconds,
@@ -69,14 +56,12 @@ const weatherApiBody = JSON.stringify({
 });
 
 beforeEach(() => {
-  process.env.MET_NO_USER_AGENT = "raintoday test contact@example.com";
   process.env.WEATHERAPI_KEY = "MOCK-WEATHER-API-KEY";
   clearCache();
 });
 
 afterEach(() => {
   globalThis.fetch = realFetch;
-  delete process.env.MET_NO_USER_AGENT;
   delete process.env.WEATHERAPI_KEY;
   clearCache();
 });
@@ -84,7 +69,6 @@ afterEach(() => {
 test("local forecast providers reject responses whose declared size exceeds the limit", async () => {
   for (const [provider, body] of [
     [openMeteoProvider, openMeteoBody],
-    [metNorwayProvider, metNorwayBody],
     [weatherApiProvider, weatherApiBody],
   ] as const) {
     globalThis.fetch = (async () => new Response(body, {

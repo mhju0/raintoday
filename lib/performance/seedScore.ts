@@ -1,4 +1,4 @@
-import { scoreSourceDay } from "../reliability/score.ts";
+import { scoreSourceDay } from "./precipSkill.ts";
 import { normalizeClamped } from "./performance.ts";
 import type {
   PerformancePolicy,
