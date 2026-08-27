@@ -2,33 +2,29 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { clearCache } from "../cache.ts";
 import { createForecastLocation } from "../location.ts";
-import {
-  classifyKmaResponse,
-  getKmaWarningStatus,
-  getKmaWarnings,
-  kmaProvider,
-} from "./kma.ts";
+import { classifyKmaResponse, kmaProvider } from "./kma.ts";
 
 /**
- * Two-key split for the KMA provider. Proves the short-term forecast and the
- * weather-warning services read SEPARATE, INDEPENDENT environment variables,
- * that one missing key never disables the other, that the obsolete single
- * KMA_API_KEY is never read, that missing keys produce safe statuses, that no
- * key value ever leaks into a status/response, and that an empty-but-successful
- * warning response is distinguished from an authorization failure.
+ * Key handling for the KMA provider. Proves the short-term forecast service reads
+ * its own environment variable, that the obsolete single KMA_API_KEY is never
+ * read, that a missing key produces a safe status rather than a throw, and that
+ * no key value ever leaks into a status or response.
+ *
+ * The 기상특보 warning service was a second, independent 활용신청 with its own key.
+ * It was removed with the retired scene, which was its only consumer, so only one
+ * key remains — but the leak-safety and obsolete-key guarantees still bind.
  *
  * All keys here are MOCK PLACEHOLDERS — never real credentials.
  */
 
 const SHORT_TERM_KEY = "MOCK-SHORT-TERM-KEY-aaaa1111";
-const WARNING_KEY = "MOCK-WARNING-KEY-bbbb2222";
 const OBSOLETE_KEY = "MOCK-OBSOLETE-SINGLE-KEY-cccc3333";
 
-type FetchCall = { url: string; service: "short-term" | "warning" | "other" };
+type FetchCall = { url: string; service: "short-term" | "other" };
 let calls: FetchCall[] = [];
 const realFetch = globalThis.fetch;
 
-/** A minimal successful 초단기실황 + 단기예보 / 특보 JSON body. */
+/** A minimal successful 초단기실황 + 단기예보 JSON body. */
 function okJson(items: unknown[]): string {
   return JSON.stringify({
     response: { header: { resultCode: "00", resultMsg: "NORMAL_SERVICE" }, body: { items: { item: items } } },
@@ -55,22 +51,16 @@ const FCST_ITEMS = [
  */
 function installFetch(opts: {
   shortTerm?: { status?: number; body: string };
-  warning?: { status?: number; body: string };
 }) {
   calls = [];
   globalThis.fetch = (async (input: string | URL | Request) => {
     const url = String(input instanceof Request ? input.url : input);
     let service: FetchCall["service"] = "other";
     if (url.includes("/VilageFcstInfoService_2.0/")) service = "short-term";
-    else if (url.includes("/WthrWrnInfoService/")) service = "warning";
     calls.push({ url, service });
 
     if (service === "short-term") {
       const o = opts.shortTerm ?? { body: okJson([]) };
-      return new Response(o.body, { status: o.status ?? 200 });
-    }
-    if (service === "warning") {
-      const o = opts.warning ?? { body: okJson([]) };
       return new Response(o.body, { status: o.status ?? 200 });
     }
     return new Response("not mocked", { status: 500 });
@@ -80,7 +70,6 @@ function installFetch(opts: {
 beforeEach(() => {
   delete process.env.KMA_API_KEY;
   delete process.env.KMA_SHORT_TERM_API_KEY;
-  delete process.env.KMA_WARNING_API_KEY;
   clearCache();
 });
 
@@ -88,7 +77,6 @@ afterEach(() => {
   globalThis.fetch = realFetch;
   delete process.env.KMA_API_KEY;
   delete process.env.KMA_SHORT_TERM_API_KEY;
-  delete process.env.KMA_WARNING_API_KEY;
   clearCache();
 });
 
@@ -169,29 +157,6 @@ test("short-term forecast uses the selected location's KMA grid", async () => {
   }
 });
 
-test("warnings read KMA_WARNING_API_KEY and hit WthrWrnInfoService", async () => {
-  process.env.KMA_WARNING_API_KEY = WARNING_KEY;
-  installFetch({ warning: { body: okJson([]) } });
-  const warnings = await getKmaWarnings();
-  assert.deepEqual(warnings, []);
-  assert.ok(calls.length >= 1);
-  assert.ok(calls.every((c) => c.service === "warning"));
-});
-
-test("short-term works when the warning key is absent", async () => {
-  process.env.KMA_SHORT_TERM_API_KEY = SHORT_TERM_KEY;
-  // KMA_WARNING_API_KEY intentionally unset.
-  globalThis.fetch = (async (input: string | URL | Request) => {
-    const url = String(input instanceof Request ? input.url : input);
-    if (url.includes("getUltraSrtNcst")) return new Response(okJson(NCST_ITEMS), { status: 200 });
-    if (url.includes("getVilageFcst")) return new Response(okJson(FCST_ITEMS), { status: 200 });
-    return new Response("not mocked", { status: 500 });
-  }) as typeof fetch;
-
-  const { status } = await kmaProvider.read();
-  assert.equal(status.availability, "ok");
-});
-
 test("short-term forecast rejects a response whose declared size exceeds the limit", async () => {
   process.env.KMA_SHORT_TERM_API_KEY = SHORT_TERM_KEY;
   globalThis.fetch = (async () => new Response(okJson([...NCST_ITEMS, ...FCST_ITEMS]), {
@@ -204,75 +169,35 @@ test("short-term forecast rejects a response whose declared size exceeds the lim
   assert.equal(status.availability, "error");
 });
 
-test("warnings work when the short-term key is absent", async () => {
-  process.env.KMA_WARNING_API_KEY = WARNING_KEY;
-  // KMA_SHORT_TERM_API_KEY intentionally unset.
-  installFetch({ warning: { body: okJson([]) } });
-  const status = await getKmaWarningStatus();
-  assert.equal(status.availability, "ok");
-  assert.match(status.message, /특보 없음/);
-});
-
-test("neither service reads the obsolete KMA_API_KEY", async () => {
+test("the forecast service does not read the obsolete KMA_API_KEY", async () => {
   process.env.KMA_API_KEY = OBSOLETE_KEY; // only the old var is set
-  installFetch({}); // both default to OK-empty if called
+  installFetch({}); // defaults to OK-empty if called
 
   const { status: shortTerm } = await kmaProvider.read();
-  const warning = await getKmaWarningStatus();
 
   assert.equal(shortTerm.availability, "needs-config");
   assert.deepEqual(shortTerm.missingEnvVars, ["KMA_SHORT_TERM_API_KEY"]);
-  assert.equal(warning.availability, "needs-config");
-  assert.deepEqual(warning.missingEnvVars, ["KMA_WARNING_API_KEY"]);
   // No network call should have been attempted with only the obsolete key set.
   assert.equal(calls.length, 0);
 });
 
-// ── Safe statuses when keys are missing ──────────────────────────────────────
+// ── Safe status when the key is missing ──────────────────────────────────────
 
-test("missing keys produce safe needs-config statuses (no throw, no crash)", async () => {
+test("a missing key produces a safe needs-config status (no throw, no crash)", async () => {
   const { status: shortTerm } = await kmaProvider.read();
-  const warning = await getKmaWarningStatus();
   assert.equal(shortTerm.availability, "needs-config");
-  assert.equal(warning.availability, "needs-config");
-  // Warning reads must resolve to [] (never throw) when unconfigured.
-  assert.deepEqual(await getKmaWarnings(), []);
 });
 
-test("empty-success warning status differs from authorization-failure status", async () => {
-  // Empty success → ok / "no active warnings"
-  process.env.KMA_WARNING_API_KEY = WARNING_KEY;
-  installFetch({ warning: { body: okJson([]) } });
-  const okStatus = await getKmaWarningStatus();
-  assert.equal(okStatus.availability, "ok");
+// ── The key value never leaks into a status or response ──────────────────────
 
-  clearCache();
-
-  // Authorization failure (non-JSON forbidden) → error, NOT "no warnings"
-  installFetch({ warning: { status: 200, body: `<returnReasonCode>30</returnReasonCode>` } });
-  const forbiddenStatus = await getKmaWarningStatus();
-  assert.equal(forbiddenStatus.availability, "error");
-  assert.notEqual(okStatus.availability, forbiddenStatus.availability);
-});
-
-// ── No key value ever leaks into a status or warning result ──────────────────
-
-test("no status or response contains either key value", async () => {
+test("no status or response contains the key value", async () => {
   process.env.KMA_SHORT_TERM_API_KEY = SHORT_TERM_KEY;
-  process.env.KMA_WARNING_API_KEY = WARNING_KEY;
-  // Force both services into the error path (which builds messages from details).
-  installFetch({
-    shortTerm: { status: 200, body: `<returnReasonCode>30</returnReasonCode>` },
-    warning: { status: 200, body: `<returnReasonCode>30</returnReasonCode>` },
-  });
+  // Force the service into the error path, which builds messages from details.
+  installFetch({ shortTerm: { status: 200, body: `<returnReasonCode>30</returnReasonCode>` } });
 
   const { status: shortTerm } = await kmaProvider.read();
-  clearCache();
-  const warning = await getKmaWarningStatus();
-  const warnings = await getKmaWarnings();
 
-  const haystack = JSON.stringify({ shortTerm, warning, warnings });
+  const haystack = JSON.stringify({ shortTerm });
   assert.ok(!haystack.includes(SHORT_TERM_KEY), "short-term key leaked");
-  assert.ok(!haystack.includes(WARNING_KEY), "warning key leaked");
   assert.ok(!haystack.includes("serviceKey"), "raw serviceKey param leaked");
 });

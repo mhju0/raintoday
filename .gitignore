@@ -24,13 +24,6 @@
 .DS_Store
 *.pem
 
-# precipitation source-reliability batch outputs live on reliability-state
-/data/reliability/*.json
-/data/reliability/*.jsonl
-
-# radar georeference cache (built once from the KMA latlon grids; regenerable)
-/data/radar/
-
 # debug
 npm-debug.log*
 yarn-debug.log*
@@ -49,11 +42,6 @@ yarn-error.log*
 next-env.d.ts
 
 # local design/research artifacts; canonical public docs remain trackable
-/docs/*PLAN*.md
-/docs/*RUNBOOK*.md
-/docs/descent-recon.md
-/docs/cinematic-plates.md
-/docs/shot-prompts.md
 /docs/design/
 /docs/superpowers/
 
@@ -66,14 +54,13 @@ next-env.d.ts
 .codex/
 .worktrees/
 .aider*
-CLAUDE.md
 AGENTS.md
 GEMINI.md
 skills-lock.json
 .github/copilot-instructions.md
 
-# Local source-media archives are not used by the runtime.
-/public/cinematic/generated/
+# Local source-media archive for the retired cinematic scene. The scene and its
+# code are gone; these clips are kept on disk deliberately and stay out of git.
 /public/cinematic/locations/
 
 # The raw SGIS boundary package is an offline generator input, never a runtime

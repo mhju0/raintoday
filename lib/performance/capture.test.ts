@@ -57,7 +57,7 @@ test("fixed-cohort capture freezes the serving blend and is idempotent", async (
     return [
       snapshot("open-meteo", 80, 7),
       snapshot("kma", 40),
-      snapshot("airkorea", null),
+      snapshot("met-norway", null),
     ];
   };
 
