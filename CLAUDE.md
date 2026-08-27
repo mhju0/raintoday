@@ -10,6 +10,7 @@
 - `npx tsc --noEmit` — strict TypeScript check.
 - `npm test` — Node's native runner over `lib/**/*.test.ts`, then the focused TSX/JSDOM component suite.
 - `npm run build` — production build; `next/font` needs network access to fetch Geist and Noto Sans KR during a clean build.
+- `npm run service:health` — checks the deployed service (page, forecast, administrative search) and Pirate Weather's remaining quota against the pipeline's projected burn. Runs every six hours from `service-health.yml`; nothing else watches the served path, and production keys live in a different store than the scheduled jobs' secrets.
 
 The application works without environment variables. Copy `.env.example` to `.env.local` only to enable optional server-side providers. Never expose provider keys through `NEXT_PUBLIC_*`, logs, errors, fixtures, or responses.
 
