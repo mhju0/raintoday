@@ -1,6 +1,6 @@
 # Local forecast performance
 
-`lib/performance/` scores every eligible KMA ASOS station and feeds `/api/local-forecast`. It is the newer of the repository's two precipitation-scoring pipelines; `lib/reliability/` is the older single-station one. They share a vocabulary and the bounded-weight contract but not an implementation — see [ADR 0004](../../docs/adr/0004-two-precipitation-scoring-pipelines.md).
+`lib/performance/` scores every eligible KMA ASOS station and feeds `/api/local-forecast`. It is now the only precipitation-scoring pipeline in the repository. A second one — `lib/reliability/`, which scored the single 서울 108 station with an online Hedge update and published to the `reliability-state` branch — was retired once the routes that read it were gone. Its pure day-scoring module survives here as `precipSkill.ts`, because seed evidence still depends on it.
 
 ## Two evidence classes
 
@@ -55,9 +55,9 @@ Each provider is seeded from the model that actually drives it:
 | Pirate Weather | `gfs_seamless` |
 | WeatherAPI | *not seeded* |
 
-WeatherAPI publishes no model lineage with a public forecast archive. It is omitted rather than given a guessed proxy, and keeps a neutral share so it is still blended. MET Norway is absent for a different reason: it is no longer compared at all, because it publishes no precipitation probability for Korea.
+WeatherAPI publishes no model lineage with a public forecast archive. It is omitted rather than given a guessed proxy, and keeps a neutral share so it is still blended. MET Norway is absent for a different reason: it is no longer compared at all, because it publishes no precipitation probability for Korea. `PrecipProviderId` still admits `met-norway` so historical capture and seed rows stay readable, but `PERFORMANCE_PROVIDERS` narrows both scoring and display to the four providers actually blended — a service's measured performance must never appear beside a forecast it had no part in.
 
-Archives publish no probability, so seed rows carry an amount only. They are scored with `lib/reliability/score.ts` — rain/no-rain with an asymmetric miss penalty, plus an amount term on days it actually rained — and weighted through the same bounded floor/cap projection the live path uses.
+Archives publish no probability, so seed rows carry an amount only. They are scored with `precipSkill.ts` — rain/no-rain with an asymmetric miss penalty, plus an amount term on days it actually rained — and weighted through the same bounded floor/cap projection the live path uses.
 
 ## Commands
 
@@ -81,6 +81,7 @@ npm run performance:catalog                     # regenerate the fallback statio
 | `performance.ts` | Scoring, evidence gates, bounded weights, benchmark, mode resolution |
 | `seed.ts` | Rebuild retrospective day-ahead evidence from public archives |
 | `seedScore.ts` | Pure amount-based seed scoring and capped seed weights |
+| `precipSkill.ts` | Pure rain/no-rain and amount skill for one source-day; `seedScore.ts` is its only caller |
 | `backfill.ts` | One-shot offline backfill orchestration |
 | `stationCatalog.ts` | Generated fallback ASOS catalog — never hand-edited |
 | `capture.ts` | Freeze one station/cohort prediction |

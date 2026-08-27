@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR 0008
 ---
 
 # Keep `lib/reliability/` running, unread, and revisit on 2026-10-01
@@ -98,3 +98,24 @@ superseded entirely and that path goes quiet. The revisit therefore lands just a
 deciding on what the flip reveals, not for deferring again.
 
 This record is otherwise unchanged and remains accepted.
+
+## Superseded, 2026-08-27, by [ADR 0008](./0008-retire-the-second-scoring-pipeline-and-the-retired-scene.md)
+
+`lib/reliability/`, its two CLI entry points and the `precip-reliability` workflow are
+deleted. **The revisit this record scheduled will not happen**, and issue #88 is answered
+in ADR 0008 rather than here.
+
+That is the same date the amendment above moved the revisit to 2026-10-01, which is worth
+stating plainly rather than leaving a reader to reconcile: the date moved first, and the
+pipeline was then deleted the same day as part of a sweep of everything no served route
+reached. ADR 0008 does not claim either of the two questions above was answered. The
+served pipeline is still on seed evidence, so the ordering comparison was still
+unavailable; that record argues the question changed shape, and states what the deletion
+costs.
+
+Two findings here outlive the decision and are carried forward:
+
+- `score.ts` and `types.ts` are served, through `lib/performance/seedScore.ts`, while
+  evidence is in seed mode. They survive the deletion as `lib/performance/precipSkill.ts`.
+- The converged state — 111 scored events over 32 dates — stays readable on
+  `reliability-state`. Nothing writes to that branch any more.

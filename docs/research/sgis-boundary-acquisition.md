@@ -2,6 +2,12 @@
 
 **Status:** acquisition checkpoint complete; the authoritative package satisfies the documented island and usage gates
 
+> **Status superseded, 2026-08-27.** The package was accepted and the containment check shipped —
+> see [ADR 0003](../adr/0003-korean-service-area-boundary.md), `lib/locationServiceArea.ts` and
+> `scripts/generate-service-area.ts`. The `KOREA_BOUNDS` launch rectangle this document compares
+> against no longer exists. **The provenance, terms and update procedure below are unchanged and
+> remain the reference for regenerating the asset.**
+
 **Retrieved:** 2026-08-15 KST
 
 **Purpose:** record the exact provenance, terms, structure, and verified coverage of the official boundary package selected in [`korea-location-production-readiness.md`](./korea-location-production-readiness.md), so the service-area validator for issue #28 can be generated and regenerated deterministically.
@@ -126,7 +132,7 @@ Mainland controls (서울, 부산, 강릉) also pass.
 
 **Non-service points — all correctly rejected:** 개성 (DPRK), 대마도 (Japan), 후쿠오카 (Japan), 이어도, and open-water points in the Yellow Sea, Korea Strait, and East Sea.
 
-[Verified] 개성 (37.97N, 126.55E) and 대마도 (34.40N, 129.30E) are both admitted by the current `KOREA_BOUNDS` rectangle in [`lib/location.ts`](../../lib/location.ts) and both rejected by this geometry. This is the concrete correctness gain issue #28 requires.
+[Verified] 개성 (37.97N, 126.55E) and 대마도 (34.40N, 129.30E) were both admitted by the `KOREA_BOUNDS` launch rectangle this geometry replaced — that symbol is no longer in the tree, see [ADR 0003](../adr/0003-korean-service-area-boundary.md) — and both are rejected by this geometry. This is the concrete correctness gain issue #28 requires.
 
 ### Enclave holes
 

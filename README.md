@@ -21,7 +21,7 @@ The interface is Korean, for Korean users. The captions below describe what each
 
 ![Today and tomorrow as two cards, over the two evidence cards](public/screenshots/outlook.webp)
 
-*Today and tomorrow are different calculations, so they are different surfaces and each card carries its own method tag — performance weighting is scored on next-day forecasts only and never claimed for today. Below them: every provider with the figure it actually gave, drawn as its own bar so the bar tracks the number beside it, and the influence that figure was granted stated separately; then the six-day outlook that is always an equal average. The station the evidence comes from is named once, where the scoring is explained.*
+*Today and tomorrow are different calculations, so they are different surfaces and each card carries its own method tag — performance weighting is scored on next-day forecasts only and never claimed for today. Below them: every provider with the figure it actually gave, drawn as its own bar so the bar tracks the number beside it, and the influence that figure was granted stated separately; then the longer outlook, which returns to a plain equal average from the day after tomorrow. The station the evidence comes from is named once, where the scoring is explained.*
 
 <img src="public/screenshots/mobile.webp" alt="The same forecast on a phone" width="320">
 
@@ -40,10 +40,12 @@ The interface is Korean, for Korean users. The captions below describe what each
 
 The [`local-performance`](.github/workflows/local-performance.yml) workflow runs at fixed 06:10 and 18:10 KST cohorts. For every active KMA ASOS station it can read, one run:
 
-1. stores yesterday's completed daily precipitation observation;
+1. stores one completed daily precipitation observation — yesterday for the 18 KST cohort, two days back for the 06 KST one;
 2. captures each available provider's next-day rain probability and amount;
 3. freezes the adaptive and equal-weight outputs before the outcome exists;
 4. writes the immutable capture and corrected station-day observation to PostgreSQL.
+
+The two cohorts deliberately read different days. ASOS compiles a calendar day's summary some hours after midnight, not at it, so at 06 KST most of yesterday's rows do not exist yet — and a day the record has not compiled answers exactly the same NODATA as a station that has no row at all. Reading yesterday at 06 KST therefore recorded absences that were nothing of the kind. The early cohort reaches one day further back: both cohorts then read a published day, every date still gets two reads, and the later one is a real second chance rather than a premature one.
 
 The station catalog is the run's only call to KMA apihub — the captures read the weather providers and the observations read data.go.kr — so an apihub outage no longer discards a cohort that never needed it. The catalog read backs off across three attempts, and if it still fails the run proceeds on the stations already recorded, reports `catalogSource: "store"`, and applies no activation or retirement until a catalog read succeeds again.
 
@@ -86,7 +88,7 @@ The forecast is the site, so it is served at `/`:
 3. read the shape of the next 24 hours on a horizontal time axis — eight 3-hour blocks from a single named provider;
 4. compare today and tomorrow, each tagged with how it was calculated;
 5. inspect the Station Match, each provider's probability and influence, and the longer outlook;
-6. inspect recent Brier scores, misses, and false alarms per provider.
+6. inspect the evidence the weighting rests on — recent Brier scores, misses and false alarms per provider when live evidence is driving it, the wet-day miss rate when seed evidence is.
 
 There is no ambient scene behind any of it. The page is one vertical read, and its only control is "위치 바꾸기".
 
@@ -116,20 +118,21 @@ flowchart TB
 Important boundaries:
 
 - `lib/location.ts` validates Korean coordinates and converts them to KMA grid coordinates.
-- `lib/providers/*` reads normalized provider snapshots at a requested location.
+- `lib/providers/*` reads normalized provider snapshots at a requested location; `lib/providers/registry.ts` holds the single ordered list of compared providers, and the first one that answers becomes the comparison primary.
 - `lib/performance/performance.ts` owns scoring, evidence gates, bounded weights, and the Prospective Benchmark.
 - `lib/performance/store.ts` defines persistence; `lib/performance/postgres.ts` is the production adapter.
 - `lib/performance/capture.ts` freezes one station/cohort prediction; `lib/performance/batch.ts` orchestrates the nationwide bounded run.
 - `lib/localForecast.ts` combines exact-coordinate forecasts with nearby-station evidence without persisting user coordinates.
 - `lib/performance/influence.ts` derives Effective Influence and the blend it produces, for both the capture and serving paths.
-- `lib/performance/seed.ts` rebuilds retrospective day-ahead evidence from public archives; `lib/performance/seedScore.ts` scores it; `lib/performance/backfill.ts` orchestrates the one-shot offline run.
+- `lib/performance/seed.ts` rebuilds retrospective day-ahead evidence from public archives; `lib/performance/seedScore.ts` scores it through the pure daily skill function in `lib/performance/precipSkill.ts`; `lib/performance/backfill.ts` orchestrates the one-shot offline run.
 - `lib/localForecastView.ts` projects that response onto the flat contract `/api/local-forecast` returns, so the page never reads the domain model directly.
 - `lib/forecast/blocks.ts` folds a now-anchored hourly series into eight 3-hour blocks; `lib/forecast/rainWindow.ts` reads the rain window out of them. A block with no published probability stays null rather than 0%, and an unpublished block ends a run rather than extending it.
 - `app/api/local-forecast` and `app/api/locations/search` are rate-limited HTTP adapters.
+- `lib/quotaRunway.ts` turns an upstream provider's remaining monthly quota into a runway, which the service-health check reads.
 
-The forecast is served at `/`. The retired `/atmosphere` and `/diagnostics` routes redirect there. The original cinematic Seoul sky scene is unrouted, and the `/api/sky` and `/api/weather` endpoints it read were removed on 2026-08-22; its components are kept in the repository but no longer have data behind them.
+The served surface is small and closed: `/`, `/api/local-forecast`, `/api/locations/search`, `/icon.svg` and `/opengraph-image`, plus a 404. The retired `/atmosphere` and `/diagnostics` paths answer real HTTP redirects to `/`, independent of JavaScript; every other path 404s.
 
-오늘비 runs a **second, older scoring pipeline** alongside the one above. `lib/reliability/` scores a single station (서울 108) with an online update, persists to the `reliability-state` branch, and feeds the Sky snapshot assembler that the retired scene used; `lib/performance/` scores every eligible station in batch and feeds `/api/local-forecast`, which is the only one of the two that now reaches a visitor. They share a vocabulary and a bounded-weight contract but not an implementation, and are deliberately not merged — see [ADR 0004](docs/adr/0004-two-precipitation-scoring-pipelines.md) and its 2026-08-22 amendment. The unread pipeline is kept running rather than retired, and the decision is revisited on 2026-10-01 — see [ADR 0007](docs/adr/0007-keep-the-unread-reliability-pipeline.md).
+오늘비 grew out of a cinematic Seoul-only sky scene, and for a while carried a second, single-station precipitation-scoring pipeline beside the served one. Both are gone from the tree, together with the radar renderer and the air-quality reading that only that scene ever displayed. `lib/performance/` is now the only scoring pipeline in the repository, and it is the one a visitor reads. What was tried and why it was dropped is kept in [`docs/adr/`](docs/adr/) rather than in the code.
 
 ## Documents
 
@@ -137,10 +140,9 @@ The forecast is served at `/`. The retired `/atmosphere` and `/diagnostics` rout
 | --- | --- |
 | [`CONTEXT.md`](CONTEXT.md) | Domain glossary: Forecast Location, Station Match, Capture Cohort, Effective Influence, and the rest |
 | [`docs/weather-sources.md`](docs/weather-sources.md) | Provider contracts, configuration, cache behavior, failure modes, and attribution |
-| [`docs/adr/`](docs/adr/) | Decision records: reliability state, Korean location selection, service-area boundary, the two scoring pipelines and why the unread one is kept, and the two station gates |
+| [`docs/adr/`](docs/adr/) | Decision records: Korean location selection, the service-area boundary, the two station gates, and the retired second scoring pipeline |
 | [`docs/research/`](docs/research/) | Source evidence: the SGIS boundary package's provenance, nationwide station coverage, why the AWS network is not adopted, and the elevation gate |
 | [`lib/performance/README.md`](lib/performance/README.md) | The nationwide pipeline: live captures, retrospective seed evidence, and the mode gate |
-| [`lib/reliability/README.md`](lib/reliability/README.md) | The single-station precipitation-scoring pipeline |
 
 ## Stack
 
@@ -148,10 +150,11 @@ The forecast is served at `/`. The retired `/atmosphere` and `/diagnostics` rout
 | --- | --- |
 | App | Next.js 16, React 19, TypeScript |
 | Styling | Tailwind CSS 4 and custom responsive CSS |
-| Forecasts | Open-Meteo, KMA, Pirate Weather, WeatherAPI |
+| Forecasts | Open-Meteo, KMA, Pirate Weather, WeatherAPI — in that order |
 | Ground truth | KMA ASOS daily precipitation |
 | Persistence | PostgreSQL via Postgres.js |
-| Scheduling | GitHub Actions at fixed KST cohorts |
+| Scheduling | GitHub Actions: fixed KST evidence cohorts, and a six-hourly service check |
+| Production dependencies | `next`, `react`, `react-dom`, `postgres`, and nothing else |
 
 ## Run locally
 
@@ -168,9 +171,9 @@ Open [http://localhost:3000](http://localhost:3000). Open-Meteo provides a keyle
 To collect regional performance, configure:
 
 - `PERFORMANCE_DATABASE_URL`: a standard PostgreSQL connection URL;
-- `KMA_APIHUB_KEY`: subscribed to the KMA surface-observation station catalog;
+- `KMA_APIHUB_KEY`: subscribed to the KMA surface-observation station catalog, which is all this key is used for;
 - `KMA_OBSERVATION_API_KEY`: subscribed to the KMA ASOS daily service;
-- optional provider credentials listed in [`.env.example`](.env.example).
+- optional provider credentials listed in [`.env.example`](.env.example), which declares every variable the code reads and nothing else.
 
 Then run one fixed cohort:
 

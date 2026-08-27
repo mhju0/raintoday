@@ -9,12 +9,9 @@ const contentSecurityPolicy = [
   "form-action 'self'",
   `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.basemaps.cartocdn.com",
+  "img-src 'self' data:",
   "font-src 'self' data:",
   `connect-src 'self'${isProduction ? "" : " ws: wss:"}`,
-  "worker-src 'self' blob:",
-  "media-src 'self'",
-  "manifest-src 'self'",
   ...(isProduction ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 

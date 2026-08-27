@@ -1,5 +1,22 @@
 # Korea-wide city, district, and neighborhood search research
 
+> **Status line superseded, 2026-08-27.** The line below records where this document stood
+> when it was written; it is kept for provenance, not as current state. Its primary
+> recommendation shipped. Kakao Local address search behind a server route was decided in
+> [ADR 0002](../adr/0002-korean-location-selection.md) and validated by the credentialed
+> matrix, which now lives in the repository as `scripts/location-matrix.ts`
+> (`npm run location:matrix`); issue #34, the release gate, is closed. The Open-Meteo
+> Geocoding baseline this report measures under "Current 오늘비 baseline and precision
+> limits" — the two-character minimum, the eight Korean results, the hard-coded city alias
+> table, and the `강남구` → `강남구렁고개` defect — no longer exists: `lib/locationSearch.ts`
+> calls Kakao address search and coordinate-to-region and nothing else. Recommendations 2
+> and 3 (NAVER Cloud Maps, MOIS augmentation) were not taken, and recommendation 4's
+> Open-Meteo fallback was not retained, because blending an incomparable second source is
+> exactly what that recommendation warned against. The 100 km observation-station figure
+> cited under precision limits was settled separately by
+> [ADR 0005](../adr/0005-station-proximity-is-language-not-eligibility.md). **Everything
+> below is unchanged.**
+
 **Status:** research complete; Kakao implementation pending credentialed matrix validation
 
 **Researched:** 2026-08-14

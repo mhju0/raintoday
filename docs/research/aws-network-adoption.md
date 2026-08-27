@@ -213,12 +213,16 @@ algorithm set as ASOS. Moot for this decision.
 
 Found while establishing the above; none is caused by AWS.
 
-- [Verified] `lib/performance/kma.ts:149` and `lib/reliability/groundTruth.ts:82` both read a
-  blank `sumRn` as `0` mm. This is deliberate and documented — ASOS leaves the field blank on
-  dry days — but it means a genuine outage rendered blank is indistinguishable from a dry day.
+- [Verified] `lib/performance/kma.ts:174` reads a blank `sumRn` as `0` mm. This is deliberate
+  and documented — ASOS leaves the field blank on dry days — but it means a genuine outage rendered blank is indistinguishable from a dry day.
   Worth hardening; no mis-scoring incident is evidenced.
 - [Verified] `sumRn = 0.0` co-occurs with a non-zero `sumRnDur` on 36–70 days per station per
   year at most stations — days where precipitation demonstrably occurred but the amount rounds
   to zero. `sumRnDur` is an available independent wet/dry signal this project does not use.
-- [Unknown] Which daily boundary `AsosDalyInfoService` `dateCd=DAY` `sumRn` uses. KMA guidance
-  names 00–24, 09–09 and 21–21 conventions. This affects the **existing** ground truth.
+- [Verified] Which daily boundary `AsosDalyInfoService` `dateCd=DAY` `sumRn` uses. Recorded as
+  unknown when this document was written — KMA guidance names 00–24, 09–09 and 21–21
+  conventions — and **answered on 2026-08-23**: `sumRn` is the 00:00–24:00 KST calendar day,
+  proved by KMA publishing the 09:00–09:00 total as a *separate* field, `n99Rn`, rather than by
+  inference. Measured over 3,650 station-days; see
+  [`../weather-sources.md`](../weather-sources.md). The existing ground truth is on the
+  boundary this project assumed.

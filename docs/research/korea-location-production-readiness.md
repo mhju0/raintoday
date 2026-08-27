@@ -1,5 +1,29 @@
 # Korea-wide location production readiness
 
+> **Status line superseded, 2026-08-27.** The line below records where this document stood
+> when it was written; it is kept for provenance, not as current state. **Both release gates
+> it names are closed.**
+>
+> - *Credentialed Kakao validation.* Issue #34, the release gate, is closed. The part of
+>   section 1's matrix that needs a live credential runs from `scripts/location-matrix.ts`
+>   (`npm run location:matrix`), which exercises the hierarchy, 시 + 구, legal/administrative
+>   split and numbered-행정동 cases against the real provider. `KAKAO_REST_API_KEY` is
+>   server-only and the browser calls `/api/locations/search`.
+> - *Boundary-asset inspection.* The package was acquired and inspected — see
+>   [`sgis-boundary-acquisition.md`](./sgis-boundary-acquisition.md) — and accepted in
+>   [ADR 0003](../adr/0003-korean-service-area-boundary.md), which records the 2025-06-30
+>   vintage, the simplification bound, the runtime cost, and the island corpus that
+>   `lib/locationServiceArea.test.ts` now pins. The rectangle is gone.
+>
+> ADR 0003 also answers most of section 4's SGIS entries, including island completeness,
+> asset size, boundary-date semantics, and avoiding the OpenAPI at runtime. The Kakao cache
+> question is answered too, and the answer is *no cache*: `app/api/locations/search/route.ts`
+> serves `no-store` and records why — Kakao's terms bar replicating results without approval,
+> and a frequency-cutting cache reads as a temporary database their operating policy forbids.
+> Kakao's exact text-result attribution wording and its Local per-second limit are still not
+> recorded as answered, and no reviewed contract defines a bare `REGION` coordinate, so the
+> product keeps its representative-point language. **Everything below is unchanged.**
+
 **Status:** implementation recommendation complete; credentialed Kakao validation and boundary-asset inspection remain release gates
 
 **Researched:** 2026-08-15

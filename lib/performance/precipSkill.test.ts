@@ -15,7 +15,7 @@ import {
   quantitativeSkill,
   RAIN_THRESHOLD_MM,
   scoreSourceDay,
-} from "./score.ts";
+} from "./precipSkill.ts";
 
 test("predictedRain prefers amount, falls back to POP, else null", () => {
   // amount wins when present

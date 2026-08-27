@@ -4,13 +4,8 @@ import {
   forecastLocationCacheKey,
   type ForecastLocation,
 } from "../location.ts";
-import type { DailyForecast, ProviderSnapshot, WeatherProviderStatus } from "../types.ts";
+import type { ProviderSnapshot, WeatherProviderStatus } from "../types.ts";
 import type { NormalizedForecast, WeatherProvider } from "./base.ts";
-
-export interface AvailableProviderDaily {
-  source: WeatherProvider["id"];
-  daily: DailyForecast[];
-}
 
 export interface ProviderMessages {
   ok: string;
@@ -98,18 +93,4 @@ export function createWeatherProvider(definition: WeatherProviderDefinition): We
       }
     },
   };
-}
-
-/**
- * Read one provider's daily forecast for callers that intentionally omit an
- * unavailable or failing optional source from a consensus or batch run.
- */
-export async function readAvailableProviderDaily(
-  provider: WeatherProvider,
-  location: ForecastLocation = DEFAULT_FORECAST_LOCATION,
-): Promise<AvailableProviderDaily | null> {
-  const snapshot = await provider.read(location);
-  return snapshot.status.availability === "ok"
-    ? { source: snapshot.id, daily: snapshot.daily }
-    : null;
 }

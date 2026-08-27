@@ -7,6 +7,22 @@ committed in `39f7e0a` and the 2025-06-30 SGIS service-area geometry in
 This document is evidence and a recommendation. It is **not** a decision — no scoring
 or station-eligibility change may ship until a decision record supersedes it.
 
+> **Status superseded, 2026-08-27.** The decision record this document waited for now
+> exists, and issue #29 is closed.
+> [ADR 0005](../adr/0005-station-proximity-is-language-not-eligibility.md) took
+> recommendations 1–3: eligibility is unchanged at `maxDistanceKm: 100`, and the record calls
+> for a `proximity` dimension that would select the *wording* — local at ≤ 25 km, regional
+> above it — rather than the evidence. **That dimension is not implemented**: `git grep
+> proximity` finds nothing under `lib/`, `components/` or `app/`, and the page still uses the
+> local wording at every eligible distance. Recommendation 4 was already amended in
+> place below by [`aws-network-adoption.md`](./aws-network-adoption.md), which rules AWS out
+> on gauge resolution rather than on the quality-control worry stated here. Recommendation 5
+> — the elevation risk this document called the real unquantified one — was measured in
+> [`station-elevation-gate.md`](./station-elevation-gate.md) and decided in
+> [ADR 0006](../adr/0006-the-elevation-gate-is-non-binding.md): the bound never fires where
+> people are, so it stays as it is and no elevation supply is added. The "Still open in #29"
+> list at the end is therefore historical. **The measurements below are unchanged.**
+
 ## Method
 
 Land points were sampled on a 0.02° grid (~1.8 km meridional) across the bounding box

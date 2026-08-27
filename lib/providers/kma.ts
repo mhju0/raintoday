@@ -1,40 +1,35 @@
-import { cachedFetch } from "../cache.ts";
 import { readResponseBytes } from "../httpResponse.ts";
 import type { ForecastLocation } from "../location.ts";
-import { CACHE_TTL_MS, SEOUL } from "../seoul.ts";
+import { CACHE_TTL_MS } from "../providerCache.ts";
 import type {
   CurrentWeather,
   DailyForecast,
   HourlyForecast,
-  NormalizedWarning,
-  WeatherProviderStatus,
 } from "../types";
-import { conditionFromKma, extractWarnings, tmFcToIso } from "./kma-mapping.ts";
+import { conditionFromKma } from "./kma-mapping.ts";
 import { createWeatherProvider } from "./read.ts";
 
 /**
  * 기상청 (Korea Meteorological Administration) — optional provider.
  *
- * Uses the official open APIs from 공공데이터포털 (data.go.kr). The keys are free.
- * The two services are SEPARATE 활용신청 (application approvals) on data.go.kr and
- * therefore use TWO INDEPENDENT environment variables — each service is optional
- * and verified on its own:
+ * Uses the official 단기예보 조회서비스 (VilageFcstInfoService_2.0) from 공공데이터포털
+ * (data.go.kr), a free 활용신청:
  *
  *  - KMA_SHORT_TERM_API_KEY → VilageFcstInfoService_2.0 (단기예보 조회서비스)
  *      · getUltraSrtNcst (초단기실황): live obs → current
  *      · getVilageFcst   (단기예보):   3-day → hourly + daily
- *  - KMA_WARNING_API_KEY    → WthrWrnInfoService (기상특보 조회서비스)
- *      · getWthrWrnList   (기상특보):   official warnings
  *
- * Both the "Encoding" and "Decoding" key formats work; keys are used
- * server-side only and are never logged, serialized, or returned to the client.
- * A missing short-term key disables only obs/forecast; a missing warning key
- * disables only warnings; neither is ever required for the public scene
- * (Open-Meteo is the zero-key fallback).
+ * There was a second, independent service here — WthrWrnInfoService (기상특보), with
+ * its own 활용신청 and its own key. Its only consumer was the retired cinematic
+ * scene, so it was removed with it; nothing served ever displayed a warning.
+ *
+ * Both the "Encoding" and "Decoding" key formats work; the key is used
+ * server-side only and is never logged, serialized, or returned to the client.
+ * A missing key disables only the KMA enrichment — Open-Meteo is the zero-key
+ * fallback, so the forecast still answers.
  */
 
 const API_BASE = "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0";
-const WARN_BASE = "https://apis.data.go.kr/1360000/WthrWrnInfoService";
 const KMA_RESPONSE_MAX_BYTES = 2 * 1024 * 1024;
 
 /**
@@ -51,11 +46,6 @@ function normalizeServiceKey(raw: string | undefined): string | null {
 /** Short-term forecast service key (VilageFcstInfoService_2.0) — obs/forecast only. */
 function shortTermServiceKey(): string | null {
   return normalizeServiceKey(process.env.KMA_SHORT_TERM_API_KEY);
-}
-
-/** Weather-warning service key (WthrWrnInfoService) — 기상특보 only. */
-function warningServiceKey(): string | null {
-  return normalizeServiceKey(process.env.KMA_WARNING_API_KEY);
 }
 
 /**
@@ -327,140 +317,6 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
   };
 
   return { current, hourly, daily };
-}
-
-/**
- * Official 특보 (warnings) from WthrWrnInfoService/getWthrWrnList for the Seoul
- * station. The list endpoint returns issuance bulletins; we keep only the most
- * recent one (it states the current status) and run the defensive text parser.
- *
- * Uses KMA_WARNING_API_KEY — a SEPARATE data.go.kr 활용신청 from the short-term
- * forecast service. An empty list from a successful call is a legitimate
- * "no active warnings" result and is returned as []; an authorization failure,
- * rate limit, or malformed response throws a typed KmaError so the status layer
- * can report it honestly (and is NOT silently turned into "no warnings").
- */
-async function fetchWarnings(): Promise<NormalizedWarning[]> {
-  const key = warningServiceKey();
-  if (!key) throw new KmaError("forbidden", "KMA_WARNING_API_KEY not configured");
-
-  const to = ymd(kstNow());
-  const past = kstNow();
-  past.setUTCDate(past.getUTCDate() - 2);
-  const from = ymd(past);
-
-  const params = new URLSearchParams({
-    serviceKey: key,
-    dataType: "JSON",
-    numOfRows: "50",
-    pageNo: "1",
-    stnId: String(SEOUL.kmaWarningStn),
-    fromTmFc: from,
-    toTmFc: to,
-  });
-  const res = await fetch(`${WARN_BASE}/getWthrWrnList?${params}`, {
-    signal: AbortSignal.timeout(10_000),
-  });
-  const bytes = await readResponseBytes(res, { maxBytes: KMA_RESPONSE_MAX_BYTES });
-  const text = new TextDecoder().decode(bytes);
-  const c = classifyKmaResponse(res.status, text);
-
-  if (c.class === "empty") return []; // NODATA → no active warnings (a real success)
-  if (c.class !== "ok") {
-    // forbidden | rate-limited | error — propagate, never swallow into [].
-    throw new KmaError(c.class, `KMA warning getWthrWrnList: ${c.detail}`);
-  }
-
-  const items = (c.json?.response.body?.items?.item ?? []) as Record<string, unknown>[];
-  if (items.length === 0) return []; // OK with zero rows → no active warnings
-
-  const tmOf = (it: Record<string, unknown>): string =>
-    typeof it.tmFc === "string" ? it.tmFc : typeof it.tmFc === "number" ? String(it.tmFc) : "";
-  const latestTm = items.map(tmOf).sort().at(-1) ?? "";
-  const latest = items.filter((it) => tmOf(it) === latestTm);
-
-  const out: NormalizedWarning[] = [];
-  const seen = new Set<string>();
-  for (const it of latest) {
-    const blob = Object.values(it)
-      .filter((v): v is string => typeof v === "string")
-      .join("\n");
-    for (const w of extractWarnings(blob, {
-      issuedAt: tmFcToIso(latestTm || null),
-      area: SEOUL.nameKo,
-    })) {
-      if (seen.has(w.id)) continue;
-      seen.add(w.id);
-      out.push(w);
-    }
-  }
-  return out;
-}
-
-function getWarningsCached() {
-  return cachedFetch("kma-warnings", CACHE_TTL_MS, fetchWarnings);
-}
-
-/**
- * Independent status for the 기상특보 (warning) capability. Reported separately
- * from the short-term forecast status so a missing/forbidden warning key never
- * disables obs/forecast, and vice versa. Distinguishes:
- *   needs-config (no key) · ok (live, incl. "no active warnings") · error (auth/rate/etc.)
- */
-export async function getKmaWarningStatus(): Promise<WeatherProviderStatus> {
-  const base: WeatherProviderStatus = {
-    id: "kma",
-    name: "기상청 특보 (KMA 기상특보)",
-    availability: "ok",
-    message: "대한민국 기상청 공식 기상특보",
-    missingEnvVars: [],
-    lastUpdated: null,
-    fromCache: false,
-  };
-  if (!warningServiceKey()) {
-    return {
-      ...base,
-      availability: "needs-config",
-      missingEnvVars: ["KMA_WARNING_API_KEY"],
-      message: "기상특보 조회서비스 키가 없습니다 (data.go.kr 활용신청 필요)",
-    };
-  }
-  try {
-    const result = await getWarningsCached();
-    const count = result.value.length;
-    return {
-      ...base,
-      fromCache: result.fromCache,
-      stale: result.stale,
-      message: result.stale
-        ? "일시적 연결 오류 — 최근 캐시 데이터 표시 중"
-        : count > 0
-          ? `발효 중인 특보 ${count}건`
-          : "발효 중인 특보 없음",
-    };
-  } catch (err) {
-    const klass = err instanceof KmaError ? err.klass : "error";
-    return {
-      ...base,
-      availability: "error",
-      message:
-        klass === "forbidden"
-          ? "기상특보 키가 승인되지 않았습니다 (활용신청 상태를 확인하세요)"
-          : klass === "rate-limited"
-            ? "기상특보 API 호출 한도를 초과했습니다"
-            : "기상특보 API 호출에 실패했습니다",
-    };
-  }
-}
-
-/** Independent fail-safe read for the authoritative warning feed. */
-export async function getKmaWarnings(): Promise<NormalizedWarning[]> {
-  if (!warningServiceKey()) return [];
-  try {
-    return (await getWarningsCached()).value;
-  } catch {
-    return []; // a warning fetch error must never disable forecast data
-  }
 }
 
 export const kmaProvider = createWeatherProvider({

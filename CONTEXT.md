@@ -45,7 +45,7 @@ One retrospective day-ahead provider forecast, rebuilt from a public archive and
 _Avoid_: Backfilled capture, historical forecast, synthetic sample
 
 **Recent Performance Profile**:
-The cohort-specific provider metrics, evidence state, effective weights, and prospective benchmark for one Observation Station.
+The cohort-specific provider metrics, evidence state, effective weights, prospective benchmark, and any retrospective seed evidence for one Observation Station.
 _Avoid_: Accuracy ranking, trained model
 
 **Effective Influence**:
@@ -61,5 +61,5 @@ The adaptive and equal-weight probabilities frozen before outcomes and later sco
 _Avoid_: Backtest, simulated improvement
 
 **Benchmark Suspension**:
-The state that prevents learned influence when the prospective adaptive blend regresses against equal weighting or lacks enough fair comparisons.
+The state that prevents learned influence when the prospective adaptive blend regresses against equal weighting or lacks enough fair comparisons. A live verdict, so Seed Comparisons never lift it.
 _Avoid_: Provider failure, no forecast
