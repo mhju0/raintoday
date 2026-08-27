@@ -60,7 +60,7 @@ Two consequences follow:
 - **The gate's blocker moves.** It named issue #29, which is now closed — the
   nationwide coverage evidence exists and produced
   [ADR 0005](./0005-station-proximity-is-language-not-eligibility.md). Consolidation now
-  waits on the 2026-09-18 revisit in ADR 0007, which is the point at which the two
+  waits on the 2026-10-01 revisit in ADR 0007, which is the point at which the two
   pipelines will have learned enough at the same time to be compared on outcomes rather
   than on synthetic sweeps. That comparison, not a refactor, is what should pick a
   projection policy.
