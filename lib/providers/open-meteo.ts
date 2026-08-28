@@ -35,6 +35,7 @@ interface OpenMeteoResponse {
     time: string[];
     temperature_2m: number[];
     precipitation_probability: (number | null)[];
+    precipitation: (number | null)[];
     weather_code: number[];
     wind_speed_10m: number[];
     relative_humidity_2m: number[];
@@ -73,7 +74,7 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
     current:
       "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,snowfall,weather_code,cloud_cover,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day,visibility",
     hourly:
-      "temperature_2m,precipitation_probability,weather_code,wind_speed_10m,relative_humidity_2m",
+      "temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,relative_humidity_2m",
     daily:
       "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset",
   });
@@ -121,6 +122,7 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
         time: toKstIso(t),
         temperature: data.hourly.temperature_2m[idx],
         precipitationProbability: data.hourly.precipitation_probability[idx] ?? null,
+        precipitationAmount: data.hourly.precipitation?.[idx] ?? null,
         windSpeed: data.hourly.wind_speed_10m[idx],
         humidity: data.hourly.relative_humidity_2m[idx],
         condition: conditionFromWmoCode(data.hourly.weather_code[idx]),

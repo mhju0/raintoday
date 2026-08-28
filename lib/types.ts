@@ -46,6 +46,12 @@ export interface HourlyForecast {
   time: string;
   temperature: number;
   precipitationProbability: number | null;
+  /**
+   * Forecast precipitation amount for the hour (mm). Optional enrichment
+   * populated by sources that publish one (Open-Meteo); other providers omit
+   * it and the timeline's mm lane shows an honest gap instead of a zero.
+   */
+  precipitationAmount?: number | null;
   windSpeed: number | null;
   humidity: number | null;
   condition: WeatherCondition;

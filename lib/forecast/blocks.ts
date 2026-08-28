@@ -64,6 +64,12 @@ export interface ForecastBlock {
   tempLow: number;
   /** Max non-null precipitation probability, or `null` when every hour is null. */
   precipMax: number | null;
+  /**
+   * Sum of the hours that publish a precipitation amount (mm), or `null` — not
+   * 0 — when no hour in the block carries one. A published 0 is a real dry
+   * hour and keeps the sum honest at 0.
+   */
+  precipSumMm: number | null;
   /** Representative condition for the day/night glyph (see selection rule below). */
   condition: WeatherCondition;
   /** ISO time of the block's midpoint entry (block 0: entries[0]) — for the glyph face. */
@@ -80,6 +86,11 @@ function buildBlock(entries: HourlyForecast[], index: number): ForecastBlock {
     .map((e) => e.precipitationProbability)
     .filter((p): p is number => p != null);
   const precipMax = probs.length > 0 ? Math.max(...probs) : null;
+
+  const amounts = entries
+    .map((e) => e.precipitationAmount)
+    .filter((a): a is number => a != null);
+  const precipSumMm = amounts.length > 0 ? amounts.reduce((sum, a) => sum + a, 0) : null;
 
   // Block 0 anchors on its first (current) hour; later blocks on their midpoint.
   const midIdx = index === 0 ? 0 : Math.floor((entries.length - 1) / 2);
@@ -109,6 +120,7 @@ function buildBlock(entries: HourlyForecast[], index: number): ForecastBlock {
     tempHigh,
     tempLow,
     precipMax,
+    precipSumMm,
     condition,
     representativeTime: midEntry.time,
   };

@@ -81,6 +81,12 @@ export interface LocalForecastTimelineBlock {
   endHour: number;
   /** Highest probability in the block. Null — never 0 — when no hour carries one. */
   precipMax: number | null;
+  /**
+   * Amount (mm) summed over the hours that publish one, from the same provider
+   * as the probability series. Null — never 0 — when none do, so the mm lane
+   * shows a gap rather than a fabricated dry hour.
+   */
+  precipSumMm: number | null;
   condition: WeatherCondition;
   /** At or above the umbrella threshold, so the ribbon marks it as rain. */
   wet: boolean;
@@ -220,6 +226,7 @@ export function toLocalForecastView(response: LocalForecastResponse): LocalForec
             startHour: block.startHour,
             endHour: block.endHour,
             precipMax: block.precipMax,
+            precipSumMm: block.precipSumMm,
             condition: block.condition,
             wet: block.precipMax !== null && block.precipMax >= RAIN_ONSET_PROBABILITY,
             // Tag only where the KST date actually turns over, so the ribbon
