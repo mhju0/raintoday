@@ -17,15 +17,15 @@ The interface is Korean, for Korean users. The captions below describe what each
 
 ![The rain window as a sentence, above the 24-hour time axis](public/screenshots/forecast.webp)
 
-*The heading answers when, not whether — a probability alone cannot tell someone leaving at 09:00 from someone leaving at 21:00. The ribbon is eight 3-hour blocks on a plain 0–100% scale, with the umbrella threshold drawn at the value it names and the rain window marked across every block it covers. It is one provider's hourly series and says so, because the day figures below it are a blend of several. A block nobody published is hatched and shows a dash, never 0%.*
+*The heading answers when, not whether — a probability alone cannot tell someone leaving at 09:00 from someone leaving at 21:00, and it carries the window's own total amount, because 90% × 1mm and 50% × 20mm are different mornings. The ribbon is eight 3-hour blocks on a plain 0–100% scale, with the umbrella threshold drawn at the value it names and the rain window marked across every block it covers; beneath the bars, a second lane carries each block's own precipitation amount in the palette's third colour — the same provider's hourly amounts, on the lane's own mm scale, never the probability's axis. It is one provider's hourly series and says so, because the day figures below it are a blend of several. A block nobody published is hatched and shows a dash, never 0% — in either band.*
 
 ![Today and tomorrow as two cards, over the two evidence cards](public/screenshots/outlook.webp)
 
-*Today and tomorrow are different calculations, so they are different surfaces and each card carries its own method tag — performance weighting is scored on next-day forecasts only and never claimed for today. Below them: every provider with the figure it actually gave, drawn as its own bar so the bar tracks the number beside it, and the influence that figure was granted stated separately; then the longer outlook, which returns to a plain equal average from the day after tomorrow. The station the evidence comes from is named once, where the scoring is explained.*
+*Today and tomorrow are different calculations, so they are different surfaces and each card carries its own method tag — performance weighting is scored on next-day forecasts only and never claimed for today. On each card the amount stands beside the probability at equal weight, with its own provider count (fewer services publish an amount than a probability), and tomorrow's spread is attributed to the members that said it — 많으면/적으면 with provider names. Below them: every provider with the figure it actually gave, drawn as its own bar so the bar tracks the number beside it, and the influence that figure was granted stated separately; then the longer outlook, which returns to a plain equal average from the day after tomorrow. The station the evidence comes from is named once, where the scoring is explained.*
 
 <img src="public/screenshots/mobile.webp" alt="The same forecast on a phone" width="320">
 
-*On a phone the sentence and both day cards stay whole; only the ribbon scrolls sideways, so nobody has to swipe to get the answer. The location bar stays pinned through the full scroll.*
+*On a phone the sentence and both day cards stay whole; only the ribbon scrolls sideways, so nobody has to swipe to get the answer. A sparkline miniature of the timeline pins to the top through the full scroll — the graph is the navigation — carrying the 한눈에 ⇄ 전체 근거 toggle that folds the evidence into a one-screen read and remembers the choice.*
 
 ## Product contract
 
@@ -85,12 +85,12 @@ The forecast is the site, so it is served at `/`:
 
 1. choose precise browser location or search for a Korean place;
 2. read when rain starts and stops, as one sentence;
-3. read the shape of the next 24 hours on a horizontal time axis — eight 3-hour blocks from a single named provider;
+3. read the shape of the next 24 hours on a horizontal time axis — eight 3-hour blocks from a single named provider, probability above and that provider's own per-block amounts on a second lane below;
 4. compare today and tomorrow, each tagged with how it was calculated;
 5. inspect the Station Match, each provider's probability and influence, and the longer outlook;
 6. inspect the evidence the weighting rests on — recent Brier scores, misses and false alarms per provider when live evidence is driving it, the wet-day miss rate when seed evidence is.
 
-There is no ambient scene behind any of it. The page is one vertical read, and its only control is "위치 바꾸기".
+There is no ambient scene behind any of it. The page is one vertical read whose graph is also its navigation: a miniature of the timeline stays pinned while the evidence scrolls, carrying the 한눈에 ⇄ 전체 근거 density toggle, and the timeline itself can be scrubbed (pointer or arrow keys) for one block's full reading. Beyond those and "위치 바꾸기" there is nothing to operate.
 
 ## Architecture
 

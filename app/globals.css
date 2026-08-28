@@ -30,8 +30,9 @@ html {
 
 .local-forecast-page {
   /* The ambient scene is gone: this page is read, not looked at. One flat
-     ground, two panel tones, and colour reserved for the two things that carry
-     meaning — rain (blue) and the rain window itself (amber). */
+     ground, two panel tones, and colour reserved for the three things that
+     carry meaning — the chance of rain (blue), the amount of rain (teal),
+     and the rain window itself (amber). */
   --local-bg: #0b0f14;
   --local-panel: #121820;
   --local-panel-2: #171f29;
