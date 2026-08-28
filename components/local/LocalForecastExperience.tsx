@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CONDITION_LABELS_KO } from "@/lib/conditions";
 import { periodNameForHour } from "@/lib/forecast/blocks";
 import type { TimelineReading } from "@/lib/forecast/rainWindow";
@@ -994,6 +994,32 @@ function ForecastDashboard({ forecast, selection, onReset }: {
 
   const amountRange = forecast.tomorrowAmountRange ?? null;
 
+  // The scrub readout (D-08): a lens over one block — every value it shows is
+  // already printed in that block's column, so the floating card is a reading
+  // aid, not the only access, and stays aria-hidden. Pointer sweeps it along
+  // the grid; arrow keys walk it; Escape (or leaving) clears it.
+  const [scrubIndex, setScrubIndex] = useState<number | null>(null);
+  const scrubTo = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0 || blocks.length === 0) return;
+    const x = Math.min(Math.max(event.clientX - rect.left, 0), rect.width - 1);
+    setScrubIndex(Math.min(blocks.length - 1, Math.floor((x / rect.width) * blocks.length)));
+  };
+  const scrubByKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      setScrubIndex(null);
+      return;
+    }
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    event.preventDefault();
+    const delta = event.key === "ArrowRight" ? 1 : -1;
+    setScrubIndex((current) => {
+      const base = current ?? (delta === 1 ? -1 : blocks.length);
+      return Math.min(blocks.length - 1, Math.max(0, base + delta));
+    });
+  };
+  const scrubbed = scrubIndex !== null ? blocks[scrubIndex] ?? null : null;
+
   // The chooser this replaced is gone from the DOM, so without this the whole
   // swap leaves focus on <body> and a keyboard user restarts from the top.
   useEffect(() => {
@@ -1114,7 +1140,33 @@ function ForecastDashboard({ forecast, selection, onReset }: {
           </div>
 
           <div className="local-ribbon-scroll">
-            <div className="local-ribbon-grid" style={{ "--cols": blocks.length } as CSSProperties}>
+            {/* is-sweeping: the one arrival animation (D-08) — the recorder
+                prints its trace left→right in block steps, then never moves
+                again. CSS-driven, so prefers-reduced-motion strips it whole. */}
+            <div
+              className="local-ribbon-grid is-sweeping"
+              style={{ "--cols": blocks.length } as CSSProperties}
+              tabIndex={0}
+              aria-label="시간대 블록 탐색 · 좌우 화살표로 이동"
+              onPointerMove={scrubTo}
+              onPointerDown={scrubTo}
+              onPointerLeave={() => setScrubIndex(null)}
+              onKeyDown={scrubByKey}
+              onBlur={() => setScrubIndex(null)}
+            >
+              {scrubbed && scrubIndex !== null && (
+                <div
+                  className="local-ribbon-readout"
+                  aria-hidden
+                  style={{ left: `${((scrubIndex + 0.5) / blocks.length) * 100}%` }}
+                >
+                  <b>{scrubbed.label} {scrubbed.rangeLabel}{scrubbed.wet ? " · 비 구간" : ""}</b>
+                  <span>
+                    {scrubbed.precipMax === null ? "확률 미발표" : `확률 ${Math.round(scrubbed.precipMax)}%`}
+                    {scrubbed.precipSumMm != null && ` · 강수 ${formatMm(scrubbed.precipSumMm)}mm`}
+                  </span>
+                </div>
+              )}
               {blocks.map((block, index) => {
                 const probability = block.precipMax;
                 const empty = probability === null;
@@ -1123,7 +1175,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
                 const role = empty ? "dry" : isOnset ? "onset" : isPeak ? "peak" : block.wet ? "wet" : "dry";
                 return (
                   <div
-                    className={`local-ribbon-col${block.wet ? " is-wet" : ""}${block.dayTag ? " is-daybreak" : ""}`}
+                    className={`local-ribbon-col${block.wet ? " is-wet" : ""}${block.dayTag ? " is-daybreak" : ""}${scrubIndex === index ? " is-scrubbed" : ""}`}
                     key={block.rangeLabel}
                   >
                     {block.dayTag && <span className="local-ribbon-daytag">{block.dayTag}</span>}

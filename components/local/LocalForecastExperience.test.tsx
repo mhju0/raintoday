@@ -1591,3 +1591,58 @@ test("without an hourly series there is no minibar to pin", async () => {
   assert.equal(view.container.querySelector(".local-minibar"), null);
   await view.cleanup();
 });
+
+test("arrow keys scrub the ribbon and read out each block's full truth", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        blocks: [
+          { label: "지금", rangeLabel: "9–12시", startHour: 9, endHour: 12, precipMax: 10, precipSumMm: 0, condition: "cloudy", wet: false, dayTag: null },
+          { label: "오후", rangeLabel: "12–15시", startHour: 12, endHour: 15, precipMax: 75, precipSumMm: 1.7, condition: "rain", wet: true, dayTag: null },
+          { label: "저녁", rangeLabel: "18–21시", startHour: 18, endHour: 21, precipMax: null, precipSumMm: null, condition: "rain", wet: false, dayTag: null },
+        ],
+      }),
+    })),
+  );
+  const grid = view.container.querySelector<HTMLElement>(".local-ribbon-grid");
+  assert.ok(grid);
+  assert.equal(view.container.querySelector(".local-ribbon-readout"), null, "no readout until asked");
+
+  const press = async (key: string) => {
+    grid.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+
+  await press("ArrowRight");
+  let readout = view.container.querySelector(".local-ribbon-readout")?.textContent ?? "";
+  assert.match(readout, /지금 9–12시/);
+  assert.match(readout, /확률 10%/);
+  assert.match(readout, /강수 0mm/, "a published 0 reads as a real 0");
+
+  await press("ArrowRight");
+  readout = view.container.querySelector(".local-ribbon-readout")?.textContent ?? "";
+  assert.match(readout, /오후 12–15시/);
+  assert.match(readout, /강수 1\.7mm/);
+
+  await press("ArrowRight");
+  readout = view.container.querySelector(".local-ribbon-readout")?.textContent ?? "";
+  assert.match(readout, /확률 미발표/, "a gap is read as a gap, never a value");
+  assert.doesNotMatch(readout, /강수/, "no amount claim where none was published");
+
+  await press("Escape");
+  assert.equal(view.container.querySelector(".local-ribbon-readout"), null);
+  await view.cleanup();
+});
+
+test("the ribbon sweeps in like a chart recorder, as a class reduced-motion can kill", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  assert.ok(
+    view.container.querySelector(".local-ribbon-grid.is-sweeping"),
+    "the sweep is CSS-driven so prefers-reduced-motion strips it entirely",
+  );
+  await view.cleanup();
+});
