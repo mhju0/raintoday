@@ -1074,6 +1074,10 @@ test("the chooser stays on screen while a forecast loads", async () => {
   assert.ok(chooser, "the chooser is still mounted under the overlay");
   assert.ok(chooser?.className.includes("is-busy"));
   assert.ok(view.container.querySelector(".local-loading.is-overlay"));
+  assert.ok(
+    view.container.querySelector(".local-loading .local-instrument-empty.is-waiting"),
+    "the wait shows the empty instrument, never per-provider progress",
+  );
 
   await act(async () => {
     release?.();
@@ -1644,5 +1648,15 @@ test("the ribbon sweeps in like a chart recorder, as a class reduced-motion can 
     view.container.querySelector(".local-ribbon-grid.is-sweeping"),
     "the sweep is CSS-driven so prefers-reduced-motion strips it entirely",
   );
+  await view.cleanup();
+});
+
+
+test("the chooser previews the instrument it is about to fill, empty and honest", async () => {
+  const view = await mountChooser(async () => Response.json({ results: [] }));
+  const preview = view.container.querySelector(".local-chooser .local-instrument-empty");
+  assert.ok(preview, "the empty timeline frame previews the product");
+  assert.ok(!preview.className.includes("is-waiting"), "nothing is loading yet, so nothing pulses");
+  assert.match(preview.textContent ?? "", /위치를 고르면 여기 그려집니다/);
   await view.cleanup();
 });

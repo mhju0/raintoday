@@ -542,10 +542,6 @@ html {
   color: var(--local-ink-2);
 }
 
-.local-loading-rule {
-  height: 1px;
-  background: var(--local-line);
-}
 
 .local-loading-note {
   font-family: var(--local-mono);
@@ -599,6 +595,83 @@ html {
   color: var(--local-dim);
 }
 
+/* ---- the empty instrument: the timeline's frame before any data ----
+   Shared by the chooser (a still preview) and the loading screen (pulsing as
+   one whole — the response arrives once, so the frame waiting is the only
+   honest animation). */
+
+.local-instrument-empty {
+  border: 1px solid var(--local-line-2);
+  border-radius: 3px;
+  background: var(--local-panel);
+  padding: 0.9rem 1.1rem;
+}
+
+.local-chooser-copy .local-instrument-empty {
+  margin-top: 1.6rem;
+}
+
+.local-loading .local-instrument-empty {
+  width: min(100%, 34rem);
+  justify-self: stretch;
+  margin-block: 0.5rem 0.2rem;
+}
+
+.local-instrument-empty-lab {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-family: var(--local-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  color: var(--local-dim);
+  margin-bottom: 0.6rem;
+}
+
+.local-instrument-empty-grid {
+  height: 72px;
+  border-bottom: 1px solid var(--local-line-2);
+  background-image:
+    repeating-linear-gradient(
+      to top,
+      color-mix(in srgb, var(--local-ink) 8%, transparent) 0 1px,
+      transparent 1px 25%
+    ),
+    repeating-linear-gradient(
+      to right,
+      color-mix(in srgb, var(--local-ink) 5%, transparent) 0 1px,
+      transparent 1px 12.5%
+    );
+  display: grid;
+  place-items: center;
+}
+
+.local-instrument-empty-grid span {
+  font-family: var(--local-mono);
+  font-size: 0.68rem;
+  color: var(--local-dim);
+}
+
+@keyframes local-instrument-wait {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.local-instrument-empty.is-waiting .local-instrument-empty-grid {
+  animation: local-instrument-wait 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .local-instrument-empty.is-waiting .local-instrument-empty-grid {
+    animation: none;
+  }
+}
+
 .local-loading {
   min-height: calc(100svh - 5.5rem);
   display: grid;
@@ -611,10 +684,6 @@ html {
   color: var(--local-ink);
 }
 
-.local-loading-rule {
-  align-self: stretch;
-  justify-self: stretch;
-}
 
 .local-dashboard {
   width: min(100% - 2.5rem, 1180px);

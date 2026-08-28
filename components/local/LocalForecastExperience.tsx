@@ -456,6 +456,19 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             <small>3시간 블록 8개로 비가 시작되고 그치는 때</small>
           </div>
         </dl>
+
+        {/* The instrument the visitor is about to fill: the dashboard's
+            timeline frame, empty. A preview of the product that claims no
+            data — gridlines and a sentence, nothing else. */}
+        <div className="local-instrument-empty" aria-hidden>
+          <div className="local-instrument-empty-lab">
+            <span>시간대 강수확률 · 강수량</span>
+            <span>0–100% · MM</span>
+          </div>
+          <div className="local-instrument-empty-grid">
+            <span>위치를 고르면 여기 그려집니다</span>
+          </div>
+        </div>
       </div>
 
       <div className="local-location-actions">
@@ -1579,7 +1592,18 @@ export default function LocalForecastExperience() {
               per-provider state — the API answers once, so a row that claimed
               to know which of them had replied would be inventing it. */}
           <p className="local-loading-names">{COMPARED_PROVIDER_NAMES.join(" · ")}</p>
-          <span className="local-loading-rule" aria-hidden />
+          {/* The empty instrument, pulsing as one whole: the response arrives
+              once, so the only honest animation is the frame waiting — never a
+              per-provider progress row. */}
+          <div className="local-instrument-empty is-waiting" aria-hidden>
+            <div className="local-instrument-empty-lab">
+              <span>시간대 강수확률 · 강수량</span>
+              <span>0–100% · MM</span>
+            </div>
+            <div className="local-instrument-empty-grid">
+              <span>응답한 서비스를 한 번에 그립니다</span>
+            </div>
+          </div>
           <p className="local-loading-note">
             응답하지 않는 서비스는 비교에서 빠집니다. 값을 지어내지 않습니다.
           </p>
