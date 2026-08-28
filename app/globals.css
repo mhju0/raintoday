@@ -1270,6 +1270,129 @@ html {
   color: var(--local-mm-ink);
 }
 
+/* ---- chart recorder: the pinned mini-ribbon and its density toggle ---- */
+
+.local-minibar {
+  position: sticky;
+  top: 0.55rem;
+  z-index: 40;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.local-minibar-in {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  border: 1px solid var(--local-line-2);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--local-bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  padding: 0.45rem 0.8rem;
+}
+
+.local-minibar-k {
+  font-family: var(--local-mono);
+  font-size: var(--t-label);
+  color: var(--local-dim);
+  letter-spacing: 0.1em;
+}
+
+.local-minibar-spark {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 22px;
+  min-width: 5rem;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.local-minibar-spark i {
+  flex: 1;
+  height: var(--h);
+  background: var(--local-accent);
+  border-radius: 1px;
+  opacity: 0.5;
+}
+
+.local-minibar-spark i.is-wet {
+  opacity: 1;
+}
+
+/* An unpublished block stays a hatched slot even at minimap scale. */
+.local-minibar-spark i.is-na {
+  height: 100%;
+  background: repeating-linear-gradient(
+    135deg,
+    transparent 0 4px,
+    var(--local-line) 4px 6px
+  );
+  opacity: 1;
+}
+
+.local-minibar-sum {
+  font-family: var(--local-mono);
+  font-size: var(--t-label);
+  color: var(--local-ink-2);
+  white-space: nowrap;
+}
+
+.local-minibar-tgl {
+  font: inherit;
+  font-family: var(--local-mono);
+  font-size: var(--t-label);
+  color: var(--local-amber);
+  background: transparent;
+  border: 1px solid var(--local-amber-deep);
+  border-radius: 3px;
+  padding: 0.3rem 0.75rem;
+  min-height: 2.2rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.local-minibar-tgl:hover {
+  background: color-mix(in srgb, var(--local-amber) 12%, transparent);
+}
+
+@media (max-width: 640px) {
+  .local-minibar-sum {
+    display: none;
+  }
+}
+
+/* ---- co-equal day numbers: the chance and the amount, side by side ---- */
+
+.local-day-nums {
+  display: flex;
+  align-items: baseline;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+}
+
+.local-day-mm b {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--local-mm-ink);
+}
+
+.local-day-mm b.is-na {
+  color: var(--local-dim);
+  font-weight: 400;
+}
+
+.local-day-mm small {
+  display: block;
+  font-family: var(--local-mono);
+  font-size: 0.68rem;
+  color: var(--local-dim);
+  margin-top: 0.15rem;
+  max-width: 30em;
+}
+
 .local-ribbon-swipe {
   display: none;
   padding-top: 0.5rem;

@@ -1421,12 +1421,14 @@ test("the amount says how many services it came from when that is not the card's
     })),
   );
 
-  const rows = [...view.container.querySelectorAll(".local-day-row")].map(
-    (row) => row.textContent ?? "",
+  const mms = [...view.container.querySelectorAll(".local-day-mm")].map(
+    (cell) => cell.textContent ?? "",
   );
-  assert.match(rows[0], /2\.7 mm · 2곳/, "an amount from fewer services says so");
-  assert.match(rows[1], /0\.7 mm(?! · )/, "when the counts agree the tag already covers it");
-  assert.doesNotMatch(rows[1], /4곳/, "no redundant marker when nothing is being narrowed");
+  assert.match(mms[0], /2\.7mm/);
+  assert.match(mms[0], /2곳 평균 · 확률은 4곳/, "an amount from fewer services says so");
+  assert.match(mms[1], /0\.7mm/);
+  assert.match(mms[1], /4곳 평균/);
+  assert.doesNotMatch(mms[1], /확률은/, "no redundant marker when nothing is being narrowed");
 });
 
 test("the verdict sentence carries the window's own total, and the mm lane rides the ribbon", async () => {
@@ -1516,5 +1518,76 @@ test("a run that outruns the series never claims a total amount", async () => {
   );
   const heading = view.container.querySelector("#forecast-heading")?.textContent ?? "";
   assert.doesNotMatch(heading, /모두/, "more rain may fall after the series ends — a total would over-claim");
+  await view.cleanup();
+});
+
+test("the tomorrow card attributes its amount range to the providers that said it", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      tomorrowAmountRange: { minMm: 1, minName: "WeatherAPI", maxMm: 9, maxName: "Pirate Weather" },
+    })),
+  );
+  const cells = [...view.container.querySelectorAll(".local-day-mm")].map((c) => c.textContent ?? "");
+  // cells[0] is today (plain count), cells[1] is tomorrow (the range).
+  assert.match(cells[1], /많으면 9mm \(Pirate Weather\)/);
+  assert.match(cells[1], /적으면 1mm \(WeatherAPI\)/);
+  await view.cleanup();
+});
+
+test("한눈에 folds the evidence, remembers the choice, and 전체 근거 brings it back", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  window.localStorage.removeItem("raintoday.view-density.v1");
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  // Full read by default: the influence card and the evidence section are there.
+  assert.ok(view.container.querySelector(".local-evidence-cards"));
+  assert.ok(view.container.querySelector(".local-evidence-section"));
+
+  const toggle = view.container.querySelector<HTMLButtonElement>(".local-minibar-tgl");
+  assert.ok(toggle, "the density toggle lives in the pinned mini-ribbon");
+  assert.equal(toggle.getAttribute("aria-pressed"), "false");
+  assert.equal(toggle.textContent, "한눈에 보기");
+
+  toggle.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(view.container.querySelector(".local-evidence-cards"), null, "한눈에 folds the blend evidence");
+  assert.equal(view.container.querySelector(".local-evidence-section"), null, "한눈에 folds the score section");
+  assert.ok(view.container.querySelector(".local-ribbon"), "the graph itself never folds");
+  assert.equal(toggle.getAttribute("aria-pressed"), "true");
+  assert.equal(toggle.textContent, "전체 근거 보기");
+  assert.equal(window.localStorage.getItem("raintoday.view-density.v1"), "glance");
+
+  toggle.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(view.container.querySelector(".local-evidence-section"), "전체 근거 unfolds everything");
+  assert.equal(window.localStorage.getItem("raintoday.view-density.v1"), "full");
+  window.localStorage.removeItem("raintoday.view-density.v1");
+  await view.cleanup();
+});
+
+test("the minibar miniatures the ribbon and answers at a glance", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  const spark = view.container.querySelector(".local-minibar-spark");
+  assert.ok(spark, "the sparkline is the nav");
+  assert.equal(spark.querySelectorAll("i").length, 3, "one bar per ribbon block — it is that graph's miniature");
+  assert.match(
+    view.container.querySelector(".local-minibar-sum")?.textContent ?? "",
+    /75% · 밤 9시까지/,
+    "the pinned bar keeps the answer readable while the evidence scrolls",
+  );
+  await view.cleanup();
+});
+
+test("without an hourly series there is no minibar to pin", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload()),
+  );
+  assert.equal(view.container.querySelector(".local-minibar"), null);
   await view.cleanup();
 });

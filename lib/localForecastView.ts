@@ -108,6 +108,18 @@ export interface LocalForecastTimelineView {
   reading: TimelineReading;
 }
 
+/**
+ * The spread behind tomorrow's blended amount, attributed to the providers that
+ * said it. Min/max of named members — never percentile language, which n≤4
+ * cannot honestly support. Null under two amount publishers or when they agree.
+ */
+export interface LocalForecastAmountRange {
+  minMm: number;
+  minName: string;
+  maxMm: number;
+  maxName: string;
+}
+
 export interface LocalForecastView {
   generatedAt: string;
   locationName: string;
@@ -123,6 +135,8 @@ export interface LocalForecastView {
    *  retrospective archive evidence at capped influence, not measured local skill. */
   blendMode: "learned" | "equal" | "seed";
   comparedProviderCount: number;
+  /** See LocalForecastAmountRange — the 많으면/적으면 line on the tomorrow card. */
+  tomorrowAmountRange: LocalForecastAmountRange | null;
   /** Time-of-day precipitation shape for the hero. Null when no provider publishes hourly. */
   timeline: LocalForecastTimelineView | null;
   influence: LocalForecastProviderInfluence[];
@@ -258,6 +272,22 @@ export function toLocalForecastView(response: LocalForecastResponse): LocalForec
           ? "learned"
           : "equal",
     comparedProviderCount: response.providers.filter((provider) => provider.available).length,
+    tomorrowAmountRange: (() => {
+      const rows = response.providers.filter(
+        (provider): provider is typeof provider & { amountMm: number } =>
+          provider.available && provider.amountMm != null,
+      );
+      if (rows.length < 2) return null;
+      const min = rows.reduce((a, b) => (b.amountMm < a.amountMm ? b : a));
+      const max = rows.reduce((a, b) => (b.amountMm > a.amountMm ? b : a));
+      if (min.amountMm === max.amountMm) return null;
+      return {
+        minMm: min.amountMm,
+        minName: displayName(min.id),
+        maxMm: max.amountMm,
+        maxName: displayName(max.id),
+      };
+    })(),
     timeline,
     influence: Object.entries(response.effectiveInfluence)
       .sort((a, b) => b[1] - a[1])

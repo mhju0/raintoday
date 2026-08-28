@@ -51,6 +51,8 @@ export const COMPARED_PROVIDER_NAMES = [
 export const VERIFICATION_STATION_COUNT = 97;
 
 const STORED_LOCATION_KEY = "raintoday.last-location.v1";
+/** 한눈에/전체 근거 (design ledger D-09) — remembered per device. */
+const DENSITY_KEY = "raintoday.view-density.v1";
 /** Pre-rename key. Read once so a returning visitor keeps their place. */
 const LEGACY_LOCATION_KEY = "seoulsky.last-location.v1";
 /** What the server returns when a device coordinate could not be named. */
@@ -842,16 +844,16 @@ function formatRange(high: number | null, low: number | null): string {
  * the amount does not have. When the two counts agree the tag is already accurate,
  * so the marker would be noise.
  */
-function formatAmount(
-  amountMm: number | null,
-  amountProviderCount: number,
-  comparedProviderCount: number,
-): string {
-  if (amountMm === null) return "—";
-  const value = `${amountMm.toFixed(1)} mm`;
-  return amountProviderCount > 0 && amountProviderCount !== comparedProviderCount
-    ? `${value} · ${amountProviderCount}곳`
-    : value;
+/**
+ * The small print under a card's mm figure. The provider count is the amount's
+ * own — fewer services publish an amount than a probability, and one count
+ * printed over both numbers would claim a consensus the amount does not have.
+ */
+function amountMeta(amountProviderCount: number, comparedProviderCount: number): string {
+  if (amountProviderCount <= 0) return "양을 발표한 서비스 없음";
+  return amountProviderCount === comparedProviderCount
+    ? `${amountProviderCount}곳 평균`
+    : `${amountProviderCount}곳 평균 · 확률은 ${comparedProviderCount}곳`;
 }
 
 /**
@@ -961,6 +963,37 @@ function ForecastDashboard({ forecast, selection, onReset }: {
     ? Math.max(2, Math.ceil(Math.max(...laneAmounts.filter((a): a is number => a !== null))))
     : 0;
 
+  // 한눈에/전체 근거 (D-09). The toggle lives in the pinned mini-ribbon, so a
+  // page with no timeline has no toggle and simply shows everything.
+  const [glance, setGlance] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(DENSITY_KEY) === "glance";
+    } catch {
+      return false;
+    }
+  });
+  const toggleGlance = () => {
+    setGlance((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem(DENSITY_KEY, next ? "glance" : "full");
+      } catch {
+        // Persistence is a convenience; losing it must not break the toggle.
+      }
+      return next;
+    });
+  };
+
+  // What the pinned bar says while the big graph is off screen: the run's own
+  // numbers, already derived — never a new claim.
+  const minibarSummary = run
+    ? `${Math.round(run.peakProbability)}%${
+        run.endsWithinWindow ? ` · ${clockLabel(run.endHour)}까지` : " · 예보 끝까지"
+      }${run.sumMm != null ? ` · ${formatMm(run.sumMm)}mm` : ""}`
+    : "비 소식 없음";
+
+  const amountRange = forecast.tomorrowAmountRange ?? null;
+
   // The chooser this replaced is gone from the DOM, so without this the whole
   // swap leaves focus on <body> and a keyboard user restarts from the top.
   useEffect(() => {
@@ -1033,6 +1066,41 @@ function ForecastDashboard({ forecast, selection, onReset }: {
           {laterRun && ` 이후 ${laterRun.startsTomorrow ? "내일 " : ""}${laterRun.startHour}시부터 다시 비 구간입니다.`}
         </p>
       </section>
+
+      {/* The graph is the nav (D-09): a miniature of the ribbon pins to the top
+          while the page scrolls, with the density toggle riding beside it. */}
+      {timeline && (
+        <div className="local-minibar">
+          <div className="local-minibar-in">
+            <span className="local-minibar-k" aria-hidden>24H</span>
+            <button
+              type="button"
+              className="local-minibar-spark"
+              aria-label="맨 위 타임라인으로 이동"
+              onClick={() => headingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            >
+              {blocks.map((block) => block.precipMax === null
+                ? <i key={block.rangeLabel} className="is-na" />
+                : (
+                  <i
+                    key={block.rangeLabel}
+                    className={block.wet ? "is-wet" : undefined}
+                    style={{ "--h": `${Math.max(8, Math.round(block.precipMax))}%` } as CSSProperties}
+                  />
+                ))}
+            </button>
+            <span className="local-minibar-sum">{minibarSummary}</span>
+            <button
+              type="button"
+              className="local-minibar-tgl"
+              aria-pressed={glance}
+              onClick={toggleGlance}
+            >
+              {glance ? "전체 근거 보기" : "한눈에 보기"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {timeline && (
         <section className="local-ribbon" aria-labelledby="ribbon-heading">
@@ -1131,13 +1199,20 @@ function ForecastDashboard({ forecast, selection, onReset }: {
               </h2>
               <span className="local-tag">{forecast.comparedProviderCount}개 서비스 동일 비중</span>
             </div>
-            <p className="local-day-value">
-              {today.precipitationProbability === null
-                ? "—"
-                : <>{Math.round(today.precipitationProbability)}<span>%</span></>}
-            </p>
+            <div className="local-day-nums">
+              <p className="local-day-value">
+                {today.precipitationProbability === null
+                  ? "—"
+                  : <>{Math.round(today.precipitationProbability)}<span>%</span></>}
+              </p>
+              <p className="local-day-mm">
+                {today.precipitationAmountMm === null
+                  ? <b className="is-na">—</b>
+                  : <b>{formatMm(today.precipitationAmountMm)}mm</b>}
+                <small>{amountMeta(today.amountProviderCount, forecast.comparedProviderCount)}</small>
+              </p>
+            </div>
             <p className="local-day-row">
-              <span>{formatAmount(today.precipitationAmountMm, today.amountProviderCount, forecast.comparedProviderCount)}</span>
               <span>{formatRange(today.temperatureMax, today.temperatureMin)}</span>
               <span>{CONDITION_LABELS_KO[today.condition]}</span>
             </p>
@@ -1164,13 +1239,26 @@ function ForecastDashboard({ forecast, selection, onReset }: {
               {weighted ? (seeded ? "과거 기록 가중" : "성능 가중") : "동일 비중"}
             </span>
           </div>
-          <p className="local-day-value">
-            {tomorrow.precipitationProbability === null
-              ? "—"
-              : <>{Math.round(tomorrow.precipitationProbability)}<span>%</span></>}
-          </p>
+          <div className="local-day-nums">
+            <p className="local-day-value">
+              {tomorrow.precipitationProbability === null
+                ? "—"
+                : <>{Math.round(tomorrow.precipitationProbability)}<span>%</span></>}
+            </p>
+            <p className="local-day-mm">
+              {tomorrow.precipitationAmountMm === null
+                ? <b className="is-na">—</b>
+                : <b>{formatMm(tomorrow.precipitationAmountMm)}mm</b>}
+              <small>
+                {amountMeta(tomorrow.amountProviderCount, forecast.comparedProviderCount)}
+                {/* The extremes are named members, not percentiles — n≤4 cannot
+                    honestly support interval language. */}
+                {amountRange &&
+                  ` · 많으면 ${formatMm(amountRange.maxMm)}mm (${amountRange.maxName}) · 적으면 ${formatMm(amountRange.minMm)}mm (${amountRange.minName})`}
+              </small>
+            </p>
+          </div>
           <p className="local-day-row">
-            <span>{formatAmount(tomorrow.precipitationAmountMm, tomorrow.amountProviderCount, forecast.comparedProviderCount)}</span>
             <span>{formatRange(tomorrow.temperatureMax, tomorrow.temperatureMin)}</span>
             <span>{CONDITION_LABELS_KO[tomorrow.condition]}</span>
           </p>
@@ -1185,6 +1273,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
         </section>
       </div>
 
+      {!glance && (<>
       <div className="local-evidence-cards">
         <section className="local-card" aria-labelledby="influence-heading">
           <div className="local-card-head">
@@ -1248,6 +1337,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
       </div>
 
       <PerformanceEvidence evidence={forecast.evidence} cohortLabel={forecast.cohortLabel} />
+      </>)}
 
       <footer className="local-footer">
         <p>출처 Open-Meteo · 기상청 · Pirate Weather · WeatherAPI 중 응답한 서비스 · 모든 시각 KST</p>
