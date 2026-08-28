@@ -94,3 +94,52 @@ test("readTimeline: empty series reads as nothing at all", () => {
   const reading = readTimeline([], 40);
   assert.deepEqual(reading, { firstRun: null, laterRun: null, peak: null });
 });
+
+// --- the run's own total amount (the sentence's "— 모두 X mm" clause) --------
+
+/** Per-block spec: one probability and three per-hour amounts. */
+function hourlyMm(
+  startKstHour: number,
+  blocks: { p: number | null; mm: (number | null | undefined)[] }[],
+): HourlyForecast[] {
+  const base = Date.parse(`2026-06-19T${String(startKstHour).padStart(2, "0")}:00:00+09:00`);
+  return blocks.flatMap((block, bi) =>
+    block.mm.map((amount, hi) => ({
+      time: new Date(base + (bi * 3 + hi) * 3600_000).toISOString(),
+      temperature: 20,
+      precipitationProbability: block.p,
+      precipitationAmount: amount,
+      windSpeed: null,
+      humidity: null,
+      condition: "rain" as const,
+    })),
+  );
+}
+
+test("readTimeline: sumMm totals the run when every block published an amount", () => {
+  const blocks = buildForecastBlocks(hourlyMm(9, [
+    { p: 60, mm: [1, 0.5, 0.2] },
+    { p: 55, mm: [0.4, 0, 0] },
+    { p: 10, mm: [0, 0, 0] },
+  ]));
+  const reading = readTimeline(blocks, 40);
+  assert.equal(reading.firstRun?.sumMm, 2.1);
+});
+
+test("readTimeline: sumMm is null when any run block lacks amounts — a partial total under-claims the window it names", () => {
+  const blocks = buildForecastBlocks(hourlyMm(9, [
+    { p: 60, mm: [1, 1, 1] },
+    { p: 55, mm: [null, null, null] },
+  ]));
+  const reading = readTimeline(blocks, 40);
+  assert.equal(reading.firstRun?.sumMm, null);
+});
+
+test("readTimeline: sumMm rounds float drift to one decimal", () => {
+  const blocks = buildForecastBlocks(hourlyMm(9, [
+    { p: 60, mm: [0.1, 0.1, 0.1] },
+    { p: 55, mm: [0.1, 0.1, 0.1] },
+  ]));
+  const reading = readTimeline(blocks, 40);
+  assert.equal(reading.firstRun?.sumMm, 0.6);
+});

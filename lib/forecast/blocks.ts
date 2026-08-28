@@ -90,7 +90,12 @@ function buildBlock(entries: HourlyForecast[], index: number): ForecastBlock {
   const amounts = entries
     .map((e) => e.precipitationAmount)
     .filter((a): a is number => a != null);
-  const precipSumMm = amounts.length > 0 ? amounts.reduce((sum, a) => sum + a, 0) : null;
+  // Rounded to one decimal at source: hourly floats drift (0.1+0.1+0.1) and a
+  // stored 0.30000000000000004 would leak into the response and the lane.
+  const precipSumMm =
+    amounts.length > 0
+      ? Math.round(amounts.reduce((sum, a) => sum + a, 0) * 10) / 10
+      : null;
 
   // Block 0 anchors on its first (current) hour; later blocks on their midpoint.
   const midIdx = index === 0 ? 0 : Math.floor((entries.length - 1) / 2);

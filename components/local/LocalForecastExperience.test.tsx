@@ -1428,3 +1428,93 @@ test("the amount says how many services it came from when that is not the card's
   assert.match(rows[1], /0\.7 mm(?! · )/, "when the counts agree the tag already covers it");
   assert.doesNotMatch(rows[1], /4곳/, "no redundant marker when nothing is being narrowed");
 });
+
+test("the verdict sentence carries the window's own total, and the mm lane rides the ribbon", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        blocks: [
+          { label: "지금", rangeLabel: "9–12시", startHour: 9, endHour: 12, precipMax: 10, precipSumMm: 0, condition: "cloudy", wet: false, dayTag: null },
+          { label: "오후", rangeLabel: "12–15시", startHour: 12, endHour: 15, precipMax: 75, precipSumMm: 1.7, condition: "rain", wet: true, dayTag: null },
+          { label: "저녁", rangeLabel: "18–21시", startHour: 18, endHour: 21, precipMax: 40, precipSumMm: 0.4, condition: "rain", wet: true, dayTag: null },
+        ],
+        reading: {
+          firstRun: {
+            startIndex: 1, endIndex: 2, startHour: 12, endHour: 21, startLabel: "오후",
+            startsTomorrow: false, durationHours: 6, endsWithinWindow: true, peakProbability: 75,
+            sumMm: 2.1,
+          },
+          laterRun: null,
+          peak: { probability: 75, rangeLabel: "12–15시", startsTomorrow: false },
+        },
+      }),
+    })),
+  );
+  // The total is the run's own sum from the ribbon's provider — the same claim
+  // as the window itself, never the blended day amount.
+  assert.equal(
+    view.container.querySelector("#forecast-heading")?.textContent,
+    "비는 오후 12시부터, 밤 9시까지 — 모두 2.1mm",
+  );
+  assert.equal(view.container.querySelectorAll(".local-ribbon-mm").length, 3);
+  const label = view.container.querySelector(".local-ribbon-mmlab")?.textContent ?? "";
+  assert.match(label, /같은 출처/, "the lane must say it shares the ribbon's source");
+  assert.match(label, /0–2mm/, "the lane wears its own scale, never the probability's");
+  await view.cleanup();
+});
+
+test("the mm lane keeps a gap hatched and a published zero real", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        blocks: [
+          { label: "지금", rangeLabel: "9–12시", startHour: 9, endHour: 12, precipMax: 10, precipSumMm: null, condition: "cloudy", wet: false, dayTag: null },
+          { label: "오후", rangeLabel: "12–15시", startHour: 12, endHour: 15, precipMax: 75, precipSumMm: 0, condition: "rain", wet: true, dayTag: null },
+          { label: "저녁", rangeLabel: "18–21시", startHour: 18, endHour: 21, precipMax: 40, precipSumMm: 1.2, condition: "rain", wet: true, dayTag: null },
+        ],
+      }),
+    })),
+  );
+  const cells = [...view.container.querySelectorAll(".local-ribbon-mm")];
+  assert.equal(cells.length, 3);
+  assert.equal(cells[0].querySelector(".local-ribbon-mmval")?.textContent, "—");
+  assert.ok(cells[0].querySelector(".local-ribbon-mmtrack.is-na"), "no published amount is a hatched gap");
+  assert.equal(cells[1].querySelector(".local-ribbon-mmval")?.textContent, "0");
+  assert.ok(cells[1].querySelector(".local-ribbon-mmtrack i.is-zero"), "a published 0 keeps a real tick");
+  assert.equal(cells[2].querySelector(".local-ribbon-mmval")?.textContent, "1.2");
+  await view.cleanup();
+});
+
+test("a series with no published amounts shows no mm lane at all", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  assert.equal(view.container.querySelector(".local-ribbon-mm"), null);
+  assert.equal(view.container.querySelector(".local-ribbon-mmlab"), null);
+  await view.cleanup();
+});
+
+test("a run that outruns the series never claims a total amount", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        reading: {
+          firstRun: {
+            startIndex: 1, endIndex: 2, startHour: 12, endHour: 21, startLabel: "오후",
+            startsTomorrow: false, durationHours: 6, endsWithinWindow: false, peakProbability: 75,
+            sumMm: 5,
+          },
+          laterRun: null,
+          peak: { probability: 75, rangeLabel: "12–15시", startsTomorrow: false },
+        },
+      }),
+    })),
+  );
+  const heading = view.container.querySelector("#forecast-heading")?.textContent ?? "";
+  assert.doesNotMatch(heading, /모두/, "more rain may fall after the series ends — a total would over-claim");
+  await view.cleanup();
+});

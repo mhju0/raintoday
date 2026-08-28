@@ -881,6 +881,11 @@ function clockLabel(hour: number): string {
   return `${period} ${hour % 12 === 0 ? 12 : hour % 12}시`;
 }
 
+/** "2.6", "0", "12" — one decimal at most, no trailing zero, for mm figures. */
+function formatMm(mm: number): string {
+  return String(Math.round(mm * 10) / 10);
+}
+
 /** The rain window as the sentence the page leads with. */
 function RainSentence({ run, endsTomorrow }: {
   run: TimelineReading["firstRun"];
@@ -898,6 +903,13 @@ function RainSentence({ run, endsTomorrow }: {
       비는 <b>{onset}</b>
       <span className="local-answer-dim">, </span>
       <b>{endsTomorrow && !run.startsTomorrow ? "내일 " : ""}{clockLabel(run.endHour)}까지</b>
+      {/* The total is the run's own sum from the ribbon's provider — the same
+          claim as the window itself. It appears only when the series saw the
+          rain stop AND every block in the run published an amount: an open run
+          or a partial sum would claim a total the data never stated. */}
+      {run.sumMm != null && (
+        <span className="local-answer-mm">{" — 모두 "}<b>{formatMm(run.sumMm)}mm</b></span>
+      )}
     </>
   );
 }
@@ -939,6 +951,15 @@ function ForecastDashboard({ forecast, selection, onReset }: {
     .map((provider) => provider.probability)
     .filter((probability): probability is number => probability !== null);
   const influenceMax = Math.max(...forecast.influence.map((p) => p.influence), 0);
+
+  // The mm lane exists only when the ribbon's own provider published amounts.
+  // Its scale is the lane's, never the probability's: capped to the wettest
+  // block, floored at 2mm so a drizzle day doesn't render 0.2mm as a tower.
+  const laneAmounts = blocks.map((block) => block.precipSumMm ?? null);
+  const laneVisible = laneAmounts.some((amount) => amount !== null);
+  const laneCapMm = laneVisible
+    ? Math.max(2, Math.ceil(Math.max(...laneAmounts.filter((a): a is number => a !== null))))
+    : 0;
 
   // The chooser this replaced is gone from the DOM, so without this the whole
   // swap leaves focus on <body> and a keyboard user restarts from the top.
@@ -1064,6 +1085,24 @@ function ForecastDashboard({ forecast, selection, onReset }: {
                       </span>
                       <span className="local-ribbon-hint">{blockHint(block, role)}</span>
                     </span>
+                    {laneVisible && (
+                      <span className="local-ribbon-mm">
+                        <span className={`local-ribbon-mmval${block.precipSumMm == null ? " is-na" : ""}`}>
+                          {block.precipSumMm == null ? "—" : formatMm(block.precipSumMm)}
+                        </span>
+                        <span
+                          className={`local-ribbon-mmtrack${block.precipSumMm == null ? " is-na" : ""}`}
+                          aria-hidden
+                        >
+                          {block.precipSumMm != null && (
+                            <i
+                              className={block.precipSumMm === 0 ? "is-zero" : undefined}
+                              style={{ "--h": `${Math.min(100, Math.round((block.precipSumMm / laneCapMm) * 100))}%` } as CSSProperties}
+                            />
+                          )}
+                        </span>
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -1072,6 +1111,12 @@ function ForecastDashboard({ forecast, selection, onReset }: {
               {blocks.map((block) => <span key={block.rangeLabel}>{block.startHour}</span>)}
               <span>{blocks[blocks.length - 1].endHour}시</span>
             </div>
+            {laneVisible && (
+              <div className="local-ribbon-mmlab">
+                <span><i aria-hidden />강수량 mm · 같은 출처 · 확률과 다른 축</span>
+                <span>0–{laneCapMm}mm</span>
+              </div>
+            )}
           </div>
           <p className="local-ribbon-swipe">← 옆으로 밀어 24시간 전체 보기</p>
         </section>

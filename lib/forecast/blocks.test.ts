@@ -168,6 +168,9 @@ test("buildForecastBlocks: precipSumMm sums the hours that publish an amount", (
   const ts = seq(9, 3).map((e) => e.time);
   const [block] = buildForecastBlocks([hmm(ts[0], 1.5), hmm(ts[1], 0.25), hmm(ts[2], 0.75)]);
   assert.equal(block.precipSumMm, 2.5);
+  // Float drift is rounded at source — 0.30000000000000004 must never reach the response.
+  const [drift] = buildForecastBlocks([hmm(ts[0], 0.1), hmm(ts[1], 0.1), hmm(ts[2], 0.1)]);
+  assert.equal(drift.precipSumMm, 0.3);
 });
 
 test("buildForecastBlocks: precipSumMm is null — never 0 — when no hour publishes an amount", () => {
