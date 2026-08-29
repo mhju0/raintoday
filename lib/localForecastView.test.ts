@@ -391,3 +391,57 @@ test("live evidence never leaves stale seed rows beside it", () => {
   assert.equal(view.blendMode, "learned");
   assert.deepEqual(view.evidence.seedScores, [], "the seed is superseded, not shown alongside");
 });
+
+// --- the attributed amount range on the tomorrow card ------------------------
+
+test("tomorrowAmountRange attributes the extremes to the providers that said them", () => {
+  const view = toLocalForecastView(
+    response({
+      providers: [
+        { id: "kma", name: "기상청 단기예보 (KMA)", probability: 50, amountMm: null, available: true },
+        { id: "open-meteo", name: "Open-Meteo", probability: 80, amountMm: 5, available: true },
+        { id: "weather-api", name: "WeatherAPI", probability: 60, amountMm: 1, available: true },
+        { id: "pirate-weather", name: "Pirate Weather", probability: 70, amountMm: 9, available: true },
+      ],
+    }),
+  );
+  assert.deepEqual(view.tomorrowAmountRange, {
+    minMm: 1,
+    minName: "WeatherAPI",
+    maxMm: 9,
+    maxName: "Pirate Weather",
+  });
+});
+
+test("tomorrowAmountRange is null under two amount publishers, or when they agree", () => {
+  // The base fixture has a single amount publisher — min/max of one is theater.
+  assert.equal(toLocalForecastView(response()).tomorrowAmountRange, null);
+  const agreeing = toLocalForecastView(
+    response({
+      providers: [
+        { id: "open-meteo", name: "Open-Meteo", probability: 80, amountMm: 5, available: true },
+        { id: "weather-api", name: "WeatherAPI", probability: 60, amountMm: 5, available: true },
+      ],
+    }),
+  );
+  assert.equal(agreeing.tomorrowAmountRange, null);
+});
+
+test("an unavailable provider's amount never reaches the range", () => {
+  const view = toLocalForecastView(
+    response({
+      providers: [
+        { id: "open-meteo", name: "Open-Meteo", probability: 80, amountMm: 5, available: true },
+        { id: "weather-api", name: "WeatherAPI", probability: 60, amountMm: 2, available: true },
+        // Omitted from consensus by the Snapshot boundary; its amount is not evidence.
+        { id: "pirate-weather", name: "Pirate Weather", probability: null, amountMm: 99, available: false },
+      ],
+    }),
+  );
+  assert.deepEqual(view.tomorrowAmountRange, {
+    minMm: 2,
+    minName: "WeatherAPI",
+    maxMm: 5,
+    maxName: "Open-Meteo",
+  });
+});

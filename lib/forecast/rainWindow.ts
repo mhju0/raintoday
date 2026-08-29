@@ -33,6 +33,12 @@ export interface RainWindowRun {
   endsWithinWindow: boolean;
   /** Highest probability inside this run. */
   peakProbability: number;
+  /**
+   * Total amount (mm) across the run, from the same provider as the blocks —
+   * only when every block in the run published one. A partial sum would
+   * under-claim the window this run names, so it is null instead.
+   */
+  sumMm: number | null;
 }
 
 export interface TimelineReading {
@@ -56,6 +62,7 @@ function blockHours(block: ForecastBlock): number {
 
 function buildRun(blocks: ForecastBlock[], startIndex: number, endIndex: number): RainWindowRun {
   const run = blocks.slice(startIndex, endIndex + 1);
+  const amounts = run.map((block) => block.precipSumMm);
   return {
     startIndex,
     endIndex,
@@ -66,6 +73,9 @@ function buildRun(blocks: ForecastBlock[], startIndex: number, endIndex: number)
     durationHours: run.reduce((total, block) => total + blockHours(block), 0),
     endsWithinWindow: endIndex < blocks.length - 1,
     peakProbability: Math.max(...run.map((block) => block.precipMax ?? 0)),
+    sumMm: amounts.every((amount): amount is number => amount != null)
+      ? Math.round(amounts.reduce((total, amount) => total + amount, 0) * 10) / 10
+      : null,
   };
 }
 

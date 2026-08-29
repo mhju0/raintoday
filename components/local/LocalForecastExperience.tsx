@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CONDITION_LABELS_KO } from "@/lib/conditions";
 import { periodNameForHour } from "@/lib/forecast/blocks";
 import type { TimelineReading } from "@/lib/forecast/rainWindow";
@@ -51,6 +51,8 @@ export const COMPARED_PROVIDER_NAMES = [
 export const VERIFICATION_STATION_COUNT = 97;
 
 const STORED_LOCATION_KEY = "raintoday.last-location.v1";
+/** 한눈에/전체 근거 (design ledger D-09) — remembered per device. */
+const DENSITY_KEY = "raintoday.view-density.v1";
 /** Pre-rename key. Read once so a returning visitor keeps their place. */
 const LEGACY_LOCATION_KEY = "seoulsky.last-location.v1";
 /** What the server returns when a device coordinate could not be named. */
@@ -454,6 +456,19 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             <small>3시간 블록 8개로 비가 시작되고 그치는 때</small>
           </div>
         </dl>
+
+        {/* The instrument the visitor is about to fill: the dashboard's
+            timeline frame, empty. A preview of the product that claims no
+            data — gridlines and a sentence, nothing else. */}
+        <div className="local-instrument-empty" aria-hidden>
+          <div className="local-instrument-empty-lab">
+            <span>시간대 강수확률 · 강수량</span>
+            <span>0–100% · MM</span>
+          </div>
+          <div className="local-instrument-empty-grid">
+            <span>위치를 고르면 여기 그려집니다</span>
+          </div>
+        </div>
       </div>
 
       <div className="local-location-actions">
@@ -842,16 +857,16 @@ function formatRange(high: number | null, low: number | null): string {
  * the amount does not have. When the two counts agree the tag is already accurate,
  * so the marker would be noise.
  */
-function formatAmount(
-  amountMm: number | null,
-  amountProviderCount: number,
-  comparedProviderCount: number,
-): string {
-  if (amountMm === null) return "—";
-  const value = `${amountMm.toFixed(1)} mm`;
-  return amountProviderCount > 0 && amountProviderCount !== comparedProviderCount
-    ? `${value} · ${amountProviderCount}곳`
-    : value;
+/**
+ * The small print under a card's mm figure. The provider count is the amount's
+ * own — fewer services publish an amount than a probability, and one count
+ * printed over both numbers would claim a consensus the amount does not have.
+ */
+function amountMeta(amountProviderCount: number, comparedProviderCount: number): string {
+  if (amountProviderCount <= 0) return "양을 발표한 서비스 없음";
+  return amountProviderCount === comparedProviderCount
+    ? `${amountProviderCount}곳 평균`
+    : `${amountProviderCount}곳 평균 · 확률은 ${comparedProviderCount}곳`;
 }
 
 /**
@@ -881,6 +896,11 @@ function clockLabel(hour: number): string {
   return `${period} ${hour % 12 === 0 ? 12 : hour % 12}시`;
 }
 
+/** "2.6", "0", "12" — one decimal at most, no trailing zero, for mm figures. */
+function formatMm(mm: number): string {
+  return String(Math.round(mm * 10) / 10);
+}
+
 /** The rain window as the sentence the page leads with. */
 function RainSentence({ run, endsTomorrow }: {
   run: TimelineReading["firstRun"];
@@ -898,6 +918,13 @@ function RainSentence({ run, endsTomorrow }: {
       비는 <b>{onset}</b>
       <span className="local-answer-dim">, </span>
       <b>{endsTomorrow && !run.startsTomorrow ? "내일 " : ""}{clockLabel(run.endHour)}까지</b>
+      {/* The total is the run's own sum from the ribbon's provider — the same
+          claim as the window itself. It appears only when the series saw the
+          rain stop AND every block in the run published an amount: an open run
+          or a partial sum would claim a total the data never stated. */}
+      {run.sumMm != null && (
+        <span className="local-answer-mm">{" — 모두 "}<b>{formatMm(run.sumMm)}mm</b></span>
+      )}
     </>
   );
 }
@@ -939,6 +966,72 @@ function ForecastDashboard({ forecast, selection, onReset }: {
     .map((provider) => provider.probability)
     .filter((probability): probability is number => probability !== null);
   const influenceMax = Math.max(...forecast.influence.map((p) => p.influence), 0);
+
+  // The mm lane exists only when the ribbon's own provider published amounts.
+  // Its scale is the lane's, never the probability's: capped to the wettest
+  // block, floored at 2mm so a drizzle day doesn't render 0.2mm as a tower.
+  const laneAmounts = blocks.map((block) => block.precipSumMm ?? null);
+  const laneVisible = laneAmounts.some((amount) => amount !== null);
+  const laneCapMm = laneVisible
+    ? Math.max(2, Math.ceil(Math.max(...laneAmounts.filter((a): a is number => a !== null))))
+    : 0;
+
+  // 한눈에/전체 근거 (D-09). The toggle lives in the pinned mini-ribbon, so a
+  // page with no timeline has no toggle and simply shows everything.
+  const [glance, setGlance] = useState<boolean>(() => {
+    try {
+      return window.localStorage.getItem(DENSITY_KEY) === "glance";
+    } catch {
+      return false;
+    }
+  });
+  const toggleGlance = () => {
+    setGlance((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem(DENSITY_KEY, next ? "glance" : "full");
+      } catch {
+        // Persistence is a convenience; losing it must not break the toggle.
+      }
+      return next;
+    });
+  };
+
+  // What the pinned bar says while the big graph is off screen: the run's own
+  // numbers, already derived — never a new claim.
+  const minibarSummary = run
+    ? `${Math.round(run.peakProbability)}%${
+        run.endsWithinWindow ? ` · ${clockLabel(run.endHour)}까지` : " · 예보 끝까지"
+      }${run.sumMm != null ? ` · ${formatMm(run.sumMm)}mm` : ""}`
+    : "비 소식 없음";
+
+  const amountRange = forecast.tomorrowAmountRange ?? null;
+
+  // The scrub readout (D-08): a lens over one block — every value it shows is
+  // already printed in that block's column, so the floating card is a reading
+  // aid, not the only access, and stays aria-hidden. Pointer sweeps it along
+  // the grid; arrow keys walk it; Escape (or leaving) clears it.
+  const [scrubIndex, setScrubIndex] = useState<number | null>(null);
+  const scrubTo = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0 || blocks.length === 0) return;
+    const x = Math.min(Math.max(event.clientX - rect.left, 0), rect.width - 1);
+    setScrubIndex(Math.min(blocks.length - 1, Math.floor((x / rect.width) * blocks.length)));
+  };
+  const scrubByKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      setScrubIndex(null);
+      return;
+    }
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    event.preventDefault();
+    const delta = event.key === "ArrowRight" ? 1 : -1;
+    setScrubIndex((current) => {
+      const base = current ?? (delta === 1 ? -1 : blocks.length);
+      return Math.min(blocks.length - 1, Math.max(0, base + delta));
+    });
+  };
+  const scrubbed = scrubIndex !== null ? blocks[scrubIndex] ?? null : null;
 
   // The chooser this replaced is gone from the DOM, so without this the whole
   // swap leaves focus on <body> and a keyboard user restarts from the top.
@@ -1013,6 +1106,41 @@ function ForecastDashboard({ forecast, selection, onReset }: {
         </p>
       </section>
 
+      {/* The graph is the nav (D-09): a miniature of the ribbon pins to the top
+          while the page scrolls, with the density toggle riding beside it. */}
+      {timeline && (
+        <div className="local-minibar">
+          <div className="local-minibar-in">
+            <span className="local-minibar-k" aria-hidden>24H</span>
+            <button
+              type="button"
+              className="local-minibar-spark"
+              aria-label="맨 위 타임라인으로 이동"
+              onClick={() => headingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            >
+              {blocks.map((block) => block.precipMax === null
+                ? <i key={block.rangeLabel} className="is-na" />
+                : (
+                  <i
+                    key={block.rangeLabel}
+                    className={block.wet ? "is-wet" : undefined}
+                    style={{ "--h": `${Math.max(8, Math.round(block.precipMax))}%` } as CSSProperties}
+                  />
+                ))}
+            </button>
+            <span className="local-minibar-sum">{minibarSummary}</span>
+            <button
+              type="button"
+              className="local-minibar-tgl"
+              aria-pressed={glance}
+              onClick={toggleGlance}
+            >
+              {glance ? "전체 근거 보기" : "한눈에 보기"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {timeline && (
         <section className="local-ribbon" aria-labelledby="ribbon-heading">
           <div className="local-ribbon-head">
@@ -1025,7 +1153,33 @@ function ForecastDashboard({ forecast, selection, onReset }: {
           </div>
 
           <div className="local-ribbon-scroll">
-            <div className="local-ribbon-grid" style={{ "--cols": blocks.length } as CSSProperties}>
+            {/* is-sweeping: the one arrival animation (D-08) — the recorder
+                prints its trace left→right in block steps, then never moves
+                again. CSS-driven, so prefers-reduced-motion strips it whole. */}
+            <div
+              className="local-ribbon-grid is-sweeping"
+              style={{ "--cols": blocks.length } as CSSProperties}
+              tabIndex={0}
+              aria-label="시간대 블록 탐색 · 좌우 화살표로 이동"
+              onPointerMove={scrubTo}
+              onPointerDown={scrubTo}
+              onPointerLeave={() => setScrubIndex(null)}
+              onKeyDown={scrubByKey}
+              onBlur={() => setScrubIndex(null)}
+            >
+              {scrubbed && scrubIndex !== null && (
+                <div
+                  className="local-ribbon-readout"
+                  aria-hidden
+                  style={{ left: `${((scrubIndex + 0.5) / blocks.length) * 100}%` }}
+                >
+                  <b>{scrubbed.label} {scrubbed.rangeLabel}{scrubbed.wet ? " · 비 구간" : ""}</b>
+                  <span>
+                    {scrubbed.precipMax === null ? "확률 미발표" : `확률 ${Math.round(scrubbed.precipMax)}%`}
+                    {scrubbed.precipSumMm != null && ` · 강수 ${formatMm(scrubbed.precipSumMm)}mm`}
+                  </span>
+                </div>
+              )}
               {blocks.map((block, index) => {
                 const probability = block.precipMax;
                 const empty = probability === null;
@@ -1034,7 +1188,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
                 const role = empty ? "dry" : isOnset ? "onset" : isPeak ? "peak" : block.wet ? "wet" : "dry";
                 return (
                   <div
-                    className={`local-ribbon-col${block.wet ? " is-wet" : ""}${block.dayTag ? " is-daybreak" : ""}`}
+                    className={`local-ribbon-col${block.wet ? " is-wet" : ""}${block.dayTag ? " is-daybreak" : ""}${scrubIndex === index ? " is-scrubbed" : ""}`}
                     key={block.rangeLabel}
                   >
                     {block.dayTag && <span className="local-ribbon-daytag">{block.dayTag}</span>}
@@ -1064,6 +1218,24 @@ function ForecastDashboard({ forecast, selection, onReset }: {
                       </span>
                       <span className="local-ribbon-hint">{blockHint(block, role)}</span>
                     </span>
+                    {laneVisible && (
+                      <span className="local-ribbon-mm">
+                        <span className={`local-ribbon-mmval${block.precipSumMm == null ? " is-na" : ""}`}>
+                          {block.precipSumMm == null ? "—" : formatMm(block.precipSumMm)}
+                        </span>
+                        <span
+                          className={`local-ribbon-mmtrack${block.precipSumMm == null ? " is-na" : ""}`}
+                          aria-hidden
+                        >
+                          {block.precipSumMm != null && (
+                            <i
+                              className={block.precipSumMm === 0 ? "is-zero" : undefined}
+                              style={{ "--h": `${Math.min(100, Math.round((block.precipSumMm / laneCapMm) * 100))}%` } as CSSProperties}
+                            />
+                          )}
+                        </span>
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -1072,6 +1244,12 @@ function ForecastDashboard({ forecast, selection, onReset }: {
               {blocks.map((block) => <span key={block.rangeLabel}>{block.startHour}</span>)}
               <span>{blocks[blocks.length - 1].endHour}시</span>
             </div>
+            {laneVisible && (
+              <div className="local-ribbon-mmlab">
+                <span><i aria-hidden />강수량 mm · 같은 출처 · 확률과 다른 축</span>
+                <span>0–{laneCapMm}mm</span>
+              </div>
+            )}
           </div>
           <p className="local-ribbon-swipe">← 옆으로 밀어 24시간 전체 보기</p>
         </section>
@@ -1086,13 +1264,20 @@ function ForecastDashboard({ forecast, selection, onReset }: {
               </h2>
               <span className="local-tag">{forecast.comparedProviderCount}개 서비스 동일 비중</span>
             </div>
-            <p className="local-day-value">
-              {today.precipitationProbability === null
-                ? "—"
-                : <>{Math.round(today.precipitationProbability)}<span>%</span></>}
-            </p>
+            <div className="local-day-nums">
+              <p className="local-day-value">
+                {today.precipitationProbability === null
+                  ? "—"
+                  : <>{Math.round(today.precipitationProbability)}<span>%</span></>}
+              </p>
+              <p className="local-day-mm">
+                {today.precipitationAmountMm === null
+                  ? <b className="is-na">—</b>
+                  : <b>{formatMm(today.precipitationAmountMm)}mm</b>}
+                <small>{amountMeta(today.amountProviderCount, forecast.comparedProviderCount)}</small>
+              </p>
+            </div>
             <p className="local-day-row">
-              <span>{formatAmount(today.precipitationAmountMm, today.amountProviderCount, forecast.comparedProviderCount)}</span>
               <span>{formatRange(today.temperatureMax, today.temperatureMin)}</span>
               <span>{CONDITION_LABELS_KO[today.condition]}</span>
             </p>
@@ -1119,13 +1304,26 @@ function ForecastDashboard({ forecast, selection, onReset }: {
               {weighted ? (seeded ? "과거 기록 가중" : "성능 가중") : "동일 비중"}
             </span>
           </div>
-          <p className="local-day-value">
-            {tomorrow.precipitationProbability === null
-              ? "—"
-              : <>{Math.round(tomorrow.precipitationProbability)}<span>%</span></>}
-          </p>
+          <div className="local-day-nums">
+            <p className="local-day-value">
+              {tomorrow.precipitationProbability === null
+                ? "—"
+                : <>{Math.round(tomorrow.precipitationProbability)}<span>%</span></>}
+            </p>
+            <p className="local-day-mm">
+              {tomorrow.precipitationAmountMm === null
+                ? <b className="is-na">—</b>
+                : <b>{formatMm(tomorrow.precipitationAmountMm)}mm</b>}
+              <small>
+                {amountMeta(tomorrow.amountProviderCount, forecast.comparedProviderCount)}
+                {/* The extremes are named members, not percentiles — n≤4 cannot
+                    honestly support interval language. */}
+                {amountRange &&
+                  ` · 많으면 ${formatMm(amountRange.maxMm)}mm (${amountRange.maxName}) · 적으면 ${formatMm(amountRange.minMm)}mm (${amountRange.minName})`}
+              </small>
+            </p>
+          </div>
           <p className="local-day-row">
-            <span>{formatAmount(tomorrow.precipitationAmountMm, tomorrow.amountProviderCount, forecast.comparedProviderCount)}</span>
             <span>{formatRange(tomorrow.temperatureMax, tomorrow.temperatureMin)}</span>
             <span>{CONDITION_LABELS_KO[tomorrow.condition]}</span>
           </p>
@@ -1140,6 +1338,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
         </section>
       </div>
 
+      {!glance && (<>
       <div className="local-evidence-cards">
         <section className="local-card" aria-labelledby="influence-heading">
           <div className="local-card-head">
@@ -1203,6 +1402,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
       </div>
 
       <PerformanceEvidence evidence={forecast.evidence} cohortLabel={forecast.cohortLabel} />
+      </>)}
 
       <footer className="local-footer">
         <p>출처 Open-Meteo · 기상청 · Pirate Weather · WeatherAPI 중 응답한 서비스 · 모든 시각 KST</p>
@@ -1392,7 +1592,18 @@ export default function LocalForecastExperience() {
               per-provider state — the API answers once, so a row that claimed
               to know which of them had replied would be inventing it. */}
           <p className="local-loading-names">{COMPARED_PROVIDER_NAMES.join(" · ")}</p>
-          <span className="local-loading-rule" aria-hidden />
+          {/* The empty instrument, pulsing as one whole: the response arrives
+              once, so the only honest animation is the frame waiting — never a
+              per-provider progress row. */}
+          <div className="local-instrument-empty is-waiting" aria-hidden>
+            <div className="local-instrument-empty-lab">
+              <span>시간대 강수확률 · 강수량</span>
+              <span>0–100% · MM</span>
+            </div>
+            <div className="local-instrument-empty-grid">
+              <span>응답한 서비스를 한 번에 그립니다</span>
+            </div>
+          </div>
           <p className="local-loading-note">
             응답하지 않는 서비스는 비교에서 빠집니다. 값을 지어내지 않습니다.
           </p>

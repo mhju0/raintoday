@@ -1074,6 +1074,10 @@ test("the chooser stays on screen while a forecast loads", async () => {
   assert.ok(chooser, "the chooser is still mounted under the overlay");
   assert.ok(chooser?.className.includes("is-busy"));
   assert.ok(view.container.querySelector(".local-loading.is-overlay"));
+  assert.ok(
+    view.container.querySelector(".local-loading .local-instrument-empty.is-waiting"),
+    "the wait shows the empty instrument, never per-provider progress",
+  );
 
   await act(async () => {
     release?.();
@@ -1421,10 +1425,238 @@ test("the amount says how many services it came from when that is not the card's
     })),
   );
 
-  const rows = [...view.container.querySelectorAll(".local-day-row")].map(
-    (row) => row.textContent ?? "",
+  const mms = [...view.container.querySelectorAll(".local-day-mm")].map(
+    (cell) => cell.textContent ?? "",
   );
-  assert.match(rows[0], /2\.7 mm · 2곳/, "an amount from fewer services says so");
-  assert.match(rows[1], /0\.7 mm(?! · )/, "when the counts agree the tag already covers it");
-  assert.doesNotMatch(rows[1], /4곳/, "no redundant marker when nothing is being narrowed");
+  assert.match(mms[0], /2\.7mm/);
+  assert.match(mms[0], /2곳 평균 · 확률은 4곳/, "an amount from fewer services says so");
+  assert.match(mms[1], /0\.7mm/);
+  assert.match(mms[1], /4곳 평균/);
+  assert.doesNotMatch(mms[1], /확률은/, "no redundant marker when nothing is being narrowed");
+});
+
+test("the verdict sentence carries the window's own total, and the mm lane rides the ribbon", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        blocks: [
+          { label: "지금", rangeLabel: "9–12시", startHour: 9, endHour: 12, precipMax: 10, precipSumMm: 0, condition: "cloudy", wet: false, dayTag: null },
+          { label: "오후", rangeLabel: "12–15시", startHour: 12, endHour: 15, precipMax: 75, precipSumMm: 1.7, condition: "rain", wet: true, dayTag: null },
+          { label: "저녁", rangeLabel: "18–21시", startHour: 18, endHour: 21, precipMax: 40, precipSumMm: 0.4, condition: "rain", wet: true, dayTag: null },
+        ],
+        reading: {
+          firstRun: {
+            startIndex: 1, endIndex: 2, startHour: 12, endHour: 21, startLabel: "오후",
+            startsTomorrow: false, durationHours: 6, endsWithinWindow: true, peakProbability: 75,
+            sumMm: 2.1,
+          },
+          laterRun: null,
+          peak: { probability: 75, rangeLabel: "12–15시", startsTomorrow: false },
+        },
+      }),
+    })),
+  );
+  // The total is the run's own sum from the ribbon's provider — the same claim
+  // as the window itself, never the blended day amount.
+  assert.equal(
+    view.container.querySelector("#forecast-heading")?.textContent,
+    "비는 오후 12시부터, 밤 9시까지 — 모두 2.1mm",
+  );
+  assert.equal(view.container.querySelectorAll(".local-ribbon-mm").length, 3);
+  const label = view.container.querySelector(".local-ribbon-mmlab")?.textContent ?? "";
+  assert.match(label, /같은 출처/, "the lane must say it shares the ribbon's source");
+  assert.match(label, /0–2mm/, "the lane wears its own scale, never the probability's");
+  await view.cleanup();
+});
+
+test("the mm lane keeps a gap hatched and a published zero real", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        blocks: [
+          { label: "지금", rangeLabel: "9–12시", startHour: 9, endHour: 12, precipMax: 10, precipSumMm: null, condition: "cloudy", wet: false, dayTag: null },
+          { label: "오후", rangeLabel: "12–15시", startHour: 12, endHour: 15, precipMax: 75, precipSumMm: 0, condition: "rain", wet: true, dayTag: null },
+          { label: "저녁", rangeLabel: "18–21시", startHour: 18, endHour: 21, precipMax: 40, precipSumMm: 1.2, condition: "rain", wet: true, dayTag: null },
+        ],
+      }),
+    })),
+  );
+  const cells = [...view.container.querySelectorAll(".local-ribbon-mm")];
+  assert.equal(cells.length, 3);
+  assert.equal(cells[0].querySelector(".local-ribbon-mmval")?.textContent, "—");
+  assert.ok(cells[0].querySelector(".local-ribbon-mmtrack.is-na"), "no published amount is a hatched gap");
+  assert.equal(cells[1].querySelector(".local-ribbon-mmval")?.textContent, "0");
+  assert.ok(cells[1].querySelector(".local-ribbon-mmtrack i.is-zero"), "a published 0 keeps a real tick");
+  assert.equal(cells[2].querySelector(".local-ribbon-mmval")?.textContent, "1.2");
+  await view.cleanup();
+});
+
+test("a series with no published amounts shows no mm lane at all", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  assert.equal(view.container.querySelector(".local-ribbon-mm"), null);
+  assert.equal(view.container.querySelector(".local-ribbon-mmlab"), null);
+  await view.cleanup();
+});
+
+test("a run that outruns the series never claims a total amount", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        reading: {
+          firstRun: {
+            startIndex: 1, endIndex: 2, startHour: 12, endHour: 21, startLabel: "오후",
+            startsTomorrow: false, durationHours: 6, endsWithinWindow: false, peakProbability: 75,
+            sumMm: 5,
+          },
+          laterRun: null,
+          peak: { probability: 75, rangeLabel: "12–15시", startsTomorrow: false },
+        },
+      }),
+    })),
+  );
+  const heading = view.container.querySelector("#forecast-heading")?.textContent ?? "";
+  assert.doesNotMatch(heading, /모두/, "more rain may fall after the series ends — a total would over-claim");
+  await view.cleanup();
+});
+
+test("the tomorrow card attributes its amount range to the providers that said it", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      tomorrowAmountRange: { minMm: 1, minName: "WeatherAPI", maxMm: 9, maxName: "Pirate Weather" },
+    })),
+  );
+  const cells = [...view.container.querySelectorAll(".local-day-mm")].map((c) => c.textContent ?? "");
+  // cells[0] is today (plain count), cells[1] is tomorrow (the range).
+  assert.match(cells[1], /많으면 9mm \(Pirate Weather\)/);
+  assert.match(cells[1], /적으면 1mm \(WeatherAPI\)/);
+  await view.cleanup();
+});
+
+test("한눈에 folds the evidence, remembers the choice, and 전체 근거 brings it back", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  window.localStorage.removeItem("raintoday.view-density.v1");
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  // Full read by default: the influence card and the evidence section are there.
+  assert.ok(view.container.querySelector(".local-evidence-cards"));
+  assert.ok(view.container.querySelector(".local-evidence-section"));
+
+  const toggle = view.container.querySelector<HTMLButtonElement>(".local-minibar-tgl");
+  assert.ok(toggle, "the density toggle lives in the pinned mini-ribbon");
+  assert.equal(toggle.getAttribute("aria-pressed"), "false");
+  assert.equal(toggle.textContent, "한눈에 보기");
+
+  toggle.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(view.container.querySelector(".local-evidence-cards"), null, "한눈에 folds the blend evidence");
+  assert.equal(view.container.querySelector(".local-evidence-section"), null, "한눈에 folds the score section");
+  assert.ok(view.container.querySelector(".local-ribbon"), "the graph itself never folds");
+  assert.equal(toggle.getAttribute("aria-pressed"), "true");
+  assert.equal(toggle.textContent, "전체 근거 보기");
+  assert.equal(window.localStorage.getItem("raintoday.view-density.v1"), "glance");
+
+  toggle.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(view.container.querySelector(".local-evidence-section"), "전체 근거 unfolds everything");
+  assert.equal(window.localStorage.getItem("raintoday.view-density.v1"), "full");
+  window.localStorage.removeItem("raintoday.view-density.v1");
+  await view.cleanup();
+});
+
+test("the minibar miniatures the ribbon and answers at a glance", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  const spark = view.container.querySelector(".local-minibar-spark");
+  assert.ok(spark, "the sparkline is the nav");
+  assert.equal(spark.querySelectorAll("i").length, 3, "one bar per ribbon block — it is that graph's miniature");
+  assert.match(
+    view.container.querySelector(".local-minibar-sum")?.textContent ?? "",
+    /75% · 밤 9시까지/,
+    "the pinned bar keeps the answer readable while the evidence scrolls",
+  );
+  await view.cleanup();
+});
+
+test("without an hourly series there is no minibar to pin", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload()),
+  );
+  assert.equal(view.container.querySelector(".local-minibar"), null);
+  await view.cleanup();
+});
+
+test("arrow keys scrub the ribbon and read out each block's full truth", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        blocks: [
+          { label: "지금", rangeLabel: "9–12시", startHour: 9, endHour: 12, precipMax: 10, precipSumMm: 0, condition: "cloudy", wet: false, dayTag: null },
+          { label: "오후", rangeLabel: "12–15시", startHour: 12, endHour: 15, precipMax: 75, precipSumMm: 1.7, condition: "rain", wet: true, dayTag: null },
+          { label: "저녁", rangeLabel: "18–21시", startHour: 18, endHour: 21, precipMax: null, precipSumMm: null, condition: "rain", wet: false, dayTag: null },
+        ],
+      }),
+    })),
+  );
+  const grid = view.container.querySelector<HTMLElement>(".local-ribbon-grid");
+  assert.ok(grid);
+  assert.equal(view.container.querySelector(".local-ribbon-readout"), null, "no readout until asked");
+
+  const press = async (key: string) => {
+    grid.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+
+  await press("ArrowRight");
+  let readout = view.container.querySelector(".local-ribbon-readout")?.textContent ?? "";
+  assert.match(readout, /지금 9–12시/);
+  assert.match(readout, /확률 10%/);
+  assert.match(readout, /강수 0mm/, "a published 0 reads as a real 0");
+
+  await press("ArrowRight");
+  readout = view.container.querySelector(".local-ribbon-readout")?.textContent ?? "";
+  assert.match(readout, /오후 12–15시/);
+  assert.match(readout, /강수 1\.7mm/);
+
+  await press("ArrowRight");
+  readout = view.container.querySelector(".local-ribbon-readout")?.textContent ?? "";
+  assert.match(readout, /확률 미발표/, "a gap is read as a gap, never a value");
+  assert.doesNotMatch(readout, /강수/, "no amount claim where none was published");
+
+  await press("Escape");
+  assert.equal(view.container.querySelector(".local-ribbon-readout"), null);
+  await view.cleanup();
+});
+
+test("the ribbon sweeps in like a chart recorder, as a class reduced-motion can kill", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  assert.ok(
+    view.container.querySelector(".local-ribbon-grid.is-sweeping"),
+    "the sweep is CSS-driven so prefers-reduced-motion strips it entirely",
+  );
+  await view.cleanup();
+});
+
+
+test("the chooser previews the instrument it is about to fill, empty and honest", async () => {
+  const view = await mountChooser(async () => Response.json({ results: [] }));
+  const preview = view.container.querySelector(".local-chooser .local-instrument-empty");
+  assert.ok(preview, "the empty timeline frame previews the product");
+  assert.ok(!preview.className.includes("is-waiting"), "nothing is loading yet, so nothing pulses");
+  assert.match(preview.textContent ?? "", /위치를 고르면 여기 그려집니다/);
+  await view.cleanup();
 });

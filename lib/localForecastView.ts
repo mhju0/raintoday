@@ -81,6 +81,12 @@ export interface LocalForecastTimelineBlock {
   endHour: number;
   /** Highest probability in the block. Null — never 0 — when no hour carries one. */
   precipMax: number | null;
+  /**
+   * Amount (mm) summed over the hours that publish one, from the same provider
+   * as the probability series. Null — never 0 — when none do, so the mm lane
+   * shows a gap rather than a fabricated dry hour.
+   */
+  precipSumMm: number | null;
   condition: WeatherCondition;
   /** At or above the umbrella threshold, so the ribbon marks it as rain. */
   wet: boolean;
@@ -102,6 +108,18 @@ export interface LocalForecastTimelineView {
   reading: TimelineReading;
 }
 
+/**
+ * The spread behind tomorrow's blended amount, attributed to the providers that
+ * said it. Min/max of named members — never percentile language, which n≤4
+ * cannot honestly support. Null under two amount publishers or when they agree.
+ */
+export interface LocalForecastAmountRange {
+  minMm: number;
+  minName: string;
+  maxMm: number;
+  maxName: string;
+}
+
 export interface LocalForecastView {
   generatedAt: string;
   locationName: string;
@@ -117,6 +135,8 @@ export interface LocalForecastView {
    *  retrospective archive evidence at capped influence, not measured local skill. */
   blendMode: "learned" | "equal" | "seed";
   comparedProviderCount: number;
+  /** See LocalForecastAmountRange — the 많으면/적으면 line on the tomorrow card. */
+  tomorrowAmountRange: LocalForecastAmountRange | null;
   /** Time-of-day precipitation shape for the hero. Null when no provider publishes hourly. */
   timeline: LocalForecastTimelineView | null;
   influence: LocalForecastProviderInfluence[];
@@ -220,6 +240,7 @@ export function toLocalForecastView(response: LocalForecastResponse): LocalForec
             startHour: block.startHour,
             endHour: block.endHour,
             precipMax: block.precipMax,
+            precipSumMm: block.precipSumMm,
             condition: block.condition,
             wet: block.precipMax !== null && block.precipMax >= RAIN_ONSET_PROBABILITY,
             // Tag only where the KST date actually turns over, so the ribbon
@@ -251,6 +272,22 @@ export function toLocalForecastView(response: LocalForecastResponse): LocalForec
           ? "learned"
           : "equal",
     comparedProviderCount: response.providers.filter((provider) => provider.available).length,
+    tomorrowAmountRange: (() => {
+      const rows = response.providers.filter(
+        (provider): provider is typeof provider & { amountMm: number } =>
+          provider.available && provider.amountMm != null,
+      );
+      if (rows.length < 2) return null;
+      const min = rows.reduce((a, b) => (b.amountMm < a.amountMm ? b : a));
+      const max = rows.reduce((a, b) => (b.amountMm > a.amountMm ? b : a));
+      if (min.amountMm === max.amountMm) return null;
+      return {
+        minMm: min.amountMm,
+        minName: displayName(min.id),
+        maxMm: max.amountMm,
+        maxName: displayName(max.id),
+      };
+    })(),
     timeline,
     influence: Object.entries(response.effectiveInfluence)
       .sort((a, b) => b[1] - a[1])

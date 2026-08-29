@@ -147,3 +147,48 @@ test("buildForecastBlocks: startDate is the KST calendar date the block opens on
   assert.equal(blocks[0].startDate, "2026-06-19");
   assert.equal(blocks[1].startDate, "2026-06-20");
 });
+
+// --- per-block precipitation amount (the timeline's mm lane) -----------------
+
+const hmm = (
+  time: string,
+  amount: number | null | undefined,
+  probability: number | null = 50,
+): HourlyForecast => ({
+  time,
+  temperature: 20,
+  precipitationProbability: probability,
+  precipitationAmount: amount,
+  windSpeed: null,
+  humidity: null,
+  condition: "rain",
+});
+
+test("buildForecastBlocks: precipSumMm sums the hours that publish an amount", () => {
+  const ts = seq(9, 3).map((e) => e.time);
+  const [block] = buildForecastBlocks([hmm(ts[0], 1.5), hmm(ts[1], 0.25), hmm(ts[2], 0.75)]);
+  assert.equal(block.precipSumMm, 2.5);
+  // Float drift is rounded at source — 0.30000000000000004 must never reach the response.
+  const [drift] = buildForecastBlocks([hmm(ts[0], 0.1), hmm(ts[1], 0.1), hmm(ts[2], 0.1)]);
+  assert.equal(drift.precipSumMm, 0.3);
+});
+
+test("buildForecastBlocks: precipSumMm is null — never 0 — when no hour publishes an amount", () => {
+  const ts = seq(9, 3).map((e) => e.time);
+  const [omitted] = buildForecastBlocks(seq(9, 3)); // fixture h() sets no amount at all
+  assert.equal(omitted.precipSumMm, null);
+  const allNull = buildForecastBlocks([hmm(ts[0], null), hmm(ts[1], null), hmm(ts[2], null)]);
+  assert.equal(allNull[0].precipSumMm, null);
+});
+
+test("buildForecastBlocks: a published 0mm is a real dry hour, not a gap", () => {
+  const ts = seq(9, 3).map((e) => e.time);
+  const [block] = buildForecastBlocks([hmm(ts[0], 0), hmm(ts[1], null), hmm(ts[2], null)]);
+  assert.equal(block.precipSumMm, 0);
+});
+
+test("buildForecastBlocks: precipSumMm ignores unpublished hours inside a wet block", () => {
+  const ts = seq(9, 3).map((e) => e.time);
+  const [block] = buildForecastBlocks([hmm(ts[0], 2), hmm(ts[1], undefined), hmm(ts[2], 0.5)]);
+  assert.equal(block.precipSumMm, 2.5);
+});
