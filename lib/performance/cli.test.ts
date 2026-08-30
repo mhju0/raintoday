@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-import { resolveCaptureCohort, SCHEDULE_COHORTS } from "./cli.ts";
+import {
+  CAPTURE_FAULT_TOLERANCE,
+  cohortRunFailed,
+  resolveCaptureCohort,
+  SCHEDULE_COHORTS,
+} from "./cli.ts";
 
 test("manual capture cohort takes precedence over schedule metadata", () => {
   assert.equal(
@@ -90,4 +95,90 @@ test("the capture workflow retries on a fresh runner, identically credentialled"
     secretsOf("capture"),
     "the retry job's credentials have drifted from the first attempt's",
   );
+});
+
+/**
+ * A capture fault stores nothing, so a handful of them is missing data, never
+ * wrong data. Failing the whole cohort over three transient provider blips out
+ * of 97 stations trains the reader to ignore the alert — which is the same way
+ * #103's daily red runs stopped meaning anything. The alarm belongs to an
+ * outage; a blip is reported and survived.
+ */
+test("a cohort survives a few faulted stations and fails on an outage", () => {
+  const base = {
+    stationCount: 97,
+    observationsStored: 97,
+    observationsAbsent: 0,
+    observationsFailed: 0,
+    capturesInserted: 94,
+    capturesExisting: 0,
+    capturesSkipped: 0,
+    capturesFaulted: 0,
+    failures: [],
+    catalogSource: "kma" as const,
+    catalogError: null,
+  };
+
+  assert.equal(cohortRunFailed({ ...base, capturesFaulted: 0 }), false, "a clean run passes");
+  assert.equal(
+    cohortRunFailed({ ...base, capturesFaulted: 3 }),
+    false,
+    "3 of 97 is a blip, not an outage",
+  );
+  assert.equal(
+    cohortRunFailed({ ...base, capturesInserted: 0, capturesFaulted: 97 }),
+    true,
+    "a whole cohort that could not be captured must go red",
+  );
+  assert.equal(
+    cohortRunFailed({ ...base, capturesFaulted: Math.ceil(97 * CAPTURE_FAULT_TOLERANCE) + 1 }),
+    true,
+    "just past the tolerance is an outage",
+  );
+});
+
+test("a failed observation still fails the cohort at any count", () => {
+  // Unchanged by the capture tolerance: observations kept zero tolerance before
+  // it and have not been noisy. #87 is why their alarm stays loud.
+  const result = {
+    stationCount: 97,
+    observationsStored: 96,
+    observationsAbsent: 0,
+    observationsFailed: 1,
+    capturesInserted: 97,
+    capturesExisting: 0,
+    capturesSkipped: 0,
+    capturesFaulted: 0,
+    failures: [{
+      stationId: "108",
+      phase: "observation" as const,
+      kind: "error" as const,
+      message: "fetch failed",
+    }],
+    catalogSource: "kma" as const,
+    catalogError: null,
+  };
+  assert.equal(cohortRunFailed(result), true);
+});
+
+test("a failure that is neither an observation nor a tolerated capture fault fails the run", () => {
+  const result = {
+    stationCount: 97,
+    observationsStored: 97,
+    observationsAbsent: 0,
+    observationsFailed: 0,
+    capturesInserted: 96,
+    capturesExisting: 0,
+    capturesSkipped: 0,
+    capturesFaulted: 0,
+    failures: [{
+      stationId: "108",
+      phase: "capture" as const,
+      kind: "error" as const,
+      message: "boom",
+    }],
+    catalogSource: "kma" as const,
+    catalogError: null,
+  };
+  assert.equal(cohortRunFailed(result), true, "an unexpected capture error is not a fault blip");
 });

@@ -29,12 +29,19 @@ export interface CaptureStationInput {
   readForecasts?: (location: ForecastLocation) => Promise<ProviderSnapshot[]>;
 }
 
+/** A compared provider that could not be read, with the reason it reported. */
+export interface FaultedProvider {
+  provider: PrecipProviderId;
+  /** The provider's own explanation. Never carries a key; see WeatherProviderStatus. */
+  message: string;
+}
+
 export interface CaptureStationResult {
   status: "inserted" | "existing" | "skipped" | "faulted";
   reason: "captured" | "already-captured" | "no-next-day-probability" | "provider-fault";
   capture: ForecastCapture | null;
   /** Compared providers whose read failed. Non-empty exactly when `faulted`. */
-  faultedProviders: PrecipProviderId[];
+  faultedProviders: FaultedProvider[];
 }
 
 function koreanDate(date: Date): string {
@@ -89,7 +96,10 @@ export async function captureStationForecast(
       PRECIP_PROVIDERS.has(snapshot.id as PrecipProviderId) &&
       snapshot.status.availability === "error"
     )
-    .map((snapshot) => snapshot.id as PrecipProviderId);
+    .map((snapshot) => ({
+      provider: snapshot.id as PrecipProviderId,
+      message: snapshot.status.message,
+    }));
   if (faultedProviders.length > 0) {
     return { status: "faulted", reason: "provider-fault", capture: null, faultedProviders };
   }
