@@ -81,6 +81,7 @@ test("nationwide batch stores yesterday's observation before an idempotent next-
     capturesInserted: 2,
     capturesExisting: 0,
     capturesSkipped: 0,
+    capturesFaulted: 0,
     failures: [],
     catalogSource: "kma",
     catalogError: null,
@@ -252,4 +253,54 @@ test("the 06 cohort reads a day ASOS has already published rather than yesterday
 
   assert.equal(await readObservationDate("06", new Date("2026-08-25T06:10:00+09:00")), "2026-08-23");
   assert.equal(await readObservationDate("18", new Date("2026-08-25T18:10:00+09:00")), "2026-08-24");
+});
+
+test("a cohort that could not reach a provider fails rather than storing a short capture", async () => {
+  const store = new InMemoryPerformanceStore();
+  const kmaDown: ProviderSnapshot = {
+    id: "kma",
+    status: {
+      id: "kma",
+      name: "기상청",
+      availability: "error",
+      message: "fetch failed",
+      missingEnvVars: [],
+      lastUpdated: null,
+      fromCache: false,
+    },
+    current: null,
+    hourly: [],
+    daily: [],
+  };
+
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store,
+    fetchStations: async () => stations,
+    fetchObservation: async (stationId) => ({
+      status: "observed",
+      observation: {
+        stationId,
+        date: "2026-08-12",
+        observedMm: 0,
+        observedAt: "2026-08-13T18:10:00+09:00",
+        source: "kma-asos",
+      },
+    }),
+    readForecasts: async () => [forecastSnapshot(), kmaDown],
+  });
+
+  assert.equal(result.capturesInserted, 0, "no station may store a KMA-less capture");
+  assert.equal(result.capturesFaulted, stations.length);
+  assert.equal(
+    result.failures.filter((failure) => failure.phase === "capture").length,
+    stations.length,
+    "every faulted capture must be reported, so the run goes red",
+  );
+  assert.ok(
+    result.failures.some((failure) => failure.message.includes("kma")),
+    "the failure names the provider that could not be read",
+  );
+  assert.deepEqual(await store.loadCaptures(stations[0].id, "18"), []);
 });

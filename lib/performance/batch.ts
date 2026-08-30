@@ -21,6 +21,8 @@ export interface PerformanceBatchResult {
   capturesInserted: number;
   capturesExisting: number;
   capturesSkipped: number;
+  /** Stations whose capture was refused because a provider read failed. */
+  capturesFaulted: number;
   failures: PerformanceBatchFailure[];
   /** Where the run's station list came from. `store` means the cohort ran degraded. */
   catalogSource: "kma" | "store";
@@ -113,6 +115,7 @@ export async function runPerformanceBatch(
     capturesInserted: 0,
     capturesExisting: 0,
     capturesSkipped: 0,
+    capturesFaulted: 0,
     failures: [],
     catalogSource,
     catalogError,
@@ -163,6 +166,16 @@ export async function runPerformanceBatch(
         if (capture.status === "inserted") result.capturesInserted += 1;
         if (capture.status === "existing") result.capturesExisting += 1;
         if (capture.status === "skipped") result.capturesSkipped += 1;
+        if (capture.status === "faulted") {
+          // The capture was refused, not merely empty. Reporting it as a failure is
+          // what keeps a run that reached no provider from finishing green.
+          result.capturesFaulted += 1;
+          result.failures.push({
+            stationId: station.id,
+            phase: "capture",
+            message: `could not read ${capture.faultedProviders.join(", ")}`,
+          });
+        }
       } catch (error) {
         result.failures.push({
           stationId: station.id,

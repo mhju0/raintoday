@@ -136,3 +136,86 @@ test("insufficient historical evidence keeps all current providers equally weigh
 
   assert.deepEqual(result.capture?.frozenBlend.influence, { "open-meteo": 0.5, kma: 0.5 });
 });
+
+test("a provider that faulted is never frozen as a provider with nothing to publish", async () => {
+  // The 18 KST cohort spent three evenings storing 97 captures whose KMA entry was
+  // simply missing, because a runner could not reach Korea at all. A capture short
+  // one provider by fault reads exactly like one short a provider that published
+  // nothing, and `saveCapture` never overwrites, so a retry could not repair it.
+  const store = new InMemoryPerformanceStore();
+  await store.syncStations([station], "2026-08-13");
+  const faulted = snapshot("kma", null);
+  faulted.status.availability = "error";
+  faulted.status.message = "fetch failed";
+  faulted.daily = [];
+
+  const result = await captureStationForecast({
+    station,
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store,
+    readForecasts: async () => [
+      snapshot("open-meteo", 80, 7),
+      faulted,
+      snapshot("pirate-weather", 55),
+      snapshot("weather-api", 60),
+    ],
+  });
+
+  assert.equal(result.status, "faulted");
+  assert.equal(result.reason, "provider-fault");
+  assert.equal(result.capture, null);
+  assert.deepEqual(result.faultedProviders, ["kma"]);
+  assert.deepEqual(
+    await store.loadCaptures(station.id, "18"),
+    [],
+    "a degraded capture must not be stored, so a fresh runner can still write a whole one",
+  );
+});
+
+test("a provider missing its credentials is an absence, not a fault", async () => {
+  // `needs-config` is permanent and honest: the key is not there, and no retry on
+  // any runner will make it appear. Refusing the capture for it would leave a local
+  // or partially configured deployment unable to capture anything at all.
+  const store = new InMemoryPerformanceStore();
+  await store.syncStations([station], "2026-08-13");
+  const unconfigured = snapshot("weather-api", null);
+  unconfigured.status.availability = "needs-config";
+  unconfigured.status.missingEnvVars = ["WEATHERAPI_KEY"];
+  unconfigured.daily = [];
+
+  const result = await captureStationForecast({
+    station,
+    cohort: "06",
+    now: new Date("2026-08-13T06:10:00+09:00"),
+    store,
+    readForecasts: async () => [snapshot("open-meteo", 80), snapshot("kma", 40), unconfigured],
+  });
+
+  assert.equal(result.status, "inserted");
+  assert.deepEqual(result.faultedProviders, []);
+  assert.deepEqual(
+    result.capture?.providers.map((forecast) => forecast.provider),
+    ["open-meteo", "kma"],
+  );
+});
+
+test("a provider outside the compared set cannot fault a capture", async () => {
+  // MET Norway is in the id union for stored history only. A snapshot for a
+  // provider the capture would never freeze must not be able to fail the run.
+  const store = new InMemoryPerformanceStore();
+  await store.syncStations([station], "2026-08-13");
+  const stranger = snapshot("met-norway", null);
+  stranger.status.availability = "error";
+
+  const result = await captureStationForecast({
+    station,
+    cohort: "06",
+    now: new Date("2026-08-13T06:10:00+09:00"),
+    store,
+    readForecasts: async () => [snapshot("open-meteo", 80), snapshot("kma", 40), stranger],
+  });
+
+  assert.equal(result.status, "inserted");
+  assert.deepEqual(result.faultedProviders, []);
+});
