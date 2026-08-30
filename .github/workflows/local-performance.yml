@@ -25,6 +25,14 @@ permissions:
 jobs:
   capture:
     runs-on: ubuntu-latest
+    outputs:
+      # The first attempt's verdict, published so the retry can read it. The step
+      # below tolerates its own failure so that a run rescued by the retry finishes
+      # green: a red run every time a blackout happens, even one that recovered, is
+      # how a real alert gets trained into background noise. A blackout is still
+      # visible — the failed step, the warning, and the retry job's presence — and
+      # if the retry fails too, the run is red exactly as before.
+      failed: ${{ steps.capture.outcome == 'failure' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -38,6 +46,8 @@ jobs:
         run: npm ci
 
       - name: Capture observations and next-day forecasts
+        id: capture
+        continue-on-error: true
         env:
           PERFORMANCE_DATABASE_URL: ${{ secrets.PERFORMANCE_DATABASE_URL }}
           KMA_APIHUB_KEY: ${{ secrets.KMA_APIHUB_KEY }}
@@ -49,6 +59,10 @@ jobs:
           npm run performance:capture -- \
             --cohort="${{ inputs.cohort }}" \
             --schedule="${{ github.event.schedule }}"
+
+      - name: Report a first attempt that failed
+        if: steps.capture.outcome == 'failure'
+        run: echo "::warning::First capture attempt failed; retrying on a fresh runner."
 
   # A blackout is a property of the runner's egress address, not of the hour. An
   # hourly probe over 2026-08-27..30 lost every Korean host on 3 of 12 rounds — at
@@ -63,7 +77,7 @@ jobs:
   # so this re-runs the whole cohort rather than repairing rows in place.
   retry:
     needs: capture
-    if: failure()
+    if: needs.capture.outputs.failed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

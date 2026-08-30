@@ -70,7 +70,16 @@ test("the capture workflow retries on a fresh runner, identically credentialled"
   };
   const retry = bodyOf("retry");
   assert.match(retry, /needs:\s*capture/, "the retry must follow the first attempt");
-  assert.match(retry, /if:\s*failure\(\)/, "the retry must run only when the first attempt failed");
+  assert.match(
+    retry,
+    /if:\s*needs\.capture\.outputs\.failed == 'true'/,
+    "the retry must run exactly when the first attempt failed",
+  );
+  // The first attempt tolerates its own failure so a rescued run finishes green;
+  // that only works while the output it publishes is the one the retry reads.
+  const capture = bodyOf("capture");
+  assert.match(capture, /failed: \$\{\{ steps\.capture\.outcome == 'failure' \}\}/);
+  assert.match(capture, /id: capture\n\s*continue-on-error: true/);
 
   const secretsOf = (name: string): string[] =>
     Array.from(bodyOf(name).matchAll(/^\s*([A-Z][A-Z0-9_]*):\s*\$\{\{\s*secrets\./gm), (m) => m[1])
