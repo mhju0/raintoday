@@ -83,7 +83,10 @@ test("every mode the profile can hold gets its own sentence", () => {
 
 test("the seed is never described as learned skill", () => {
   const view = buildBehindTheDataView(evidence({ profile: profile({ mode: "seed" }) }));
-  assert.ok(view.status.learningApplied, "the seed does affect the served blend");
+  // It does tilt the blend, but not as learned weighting — so the page must be
+  // able to say "something is tilting this" and "learning is off" at once.
+  assert.equal(view.status.influenceSource, "seed");
+  assert.equal(view.status.learningApplied, false, "the seed is not learned weighting");
   assert.ok(!view.status.label.includes("학습 가중치"), "the seed is not measured live skill");
   assert.ok(
     view.status.detail.includes("과거") && view.status.detail.includes("절반"),
@@ -163,8 +166,50 @@ test("the benchmark offers the single-source comparison that could go against it
     view.benchmarkRows.map((row) => row.label),
     ["성능 반영 평균", "단순 평균", "Open-Meteo 단독", "기상청 단독"],
   );
-  assert.equal(view.benchmarkRows[0].verdict, "사용 중");
+  assert.equal(view.benchmarkRows[0].verdict, "이김");
   assert.equal(view.benchmarkRows[1].verdict, "기준선");
+});
+
+test("the benchmark never claims a verdict it has not reached", () => {
+  // The table is the benchmark's own judgement. With too few comparable captures
+  // it has not ruled, and a row reading "in use" would invent one.
+  const undecided = buildBehindTheDataView(evidence({
+    profile: profile({
+      mode: "seed",
+      prospectiveBenchmark: {
+        sampleCount: 7,
+        adaptiveBrier: 0.223,
+        equalBrier: 0.223,
+        openMeteoBrier: 0.204,
+        kmaBrier: 0.33,
+        status: "insufficient",
+      },
+    }),
+  }));
+  assert.equal(undecided.benchmarkRows[0].verdict, "판정 전");
+
+  const lost = buildBehindTheDataView(evidence({
+    profile: profile({
+      mode: "suspended",
+      reason: "benchmark-regression",
+      prospectiveBenchmark: {
+        sampleCount: 40,
+        adaptiveBrier: 0.19,
+        equalBrier: 0.14,
+        openMeteoBrier: null,
+        kmaBrier: null,
+        status: "regression",
+      },
+    }),
+  }));
+  assert.equal(lost.benchmarkRows[0].verdict, "짐");
+  assert.equal(lost.status.learningApplied, false);
+});
+
+test("only learned modes report learned influence", () => {
+  const sources = (["learned", "ramping", "seed", "suspended", "equal-fallback"] as const)
+    .map((mode) => buildBehindTheDataView(evidence({ profile: profile({ mode }) })).status.influenceSource);
+  assert.deepEqual(sources, ["learned", "learned", "seed", "none", "none"]);
 });
 
 test("an uncomputed benchmark shows no rows rather than dashes", () => {

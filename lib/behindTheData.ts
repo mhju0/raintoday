@@ -29,6 +29,8 @@ export interface BehindTheDataStatus {
   mode: RecentPerformanceProfile["mode"] | "unavailable";
   /** Whether learned weighting is affecting the served forecast right now. */
   learningApplied: boolean;
+  /** What is actually tilting the blend — the seed is not learned weighting. */
+  influenceSource: "learned" | "seed" | "none";
   label: string;
   /** One plain sentence a reader with no background can act on. */
   detail: string;
@@ -53,7 +55,8 @@ export interface BehindTheDataProviderRow {
 export interface BehindTheDataBenchmarkRow {
   label: string;
   brierScore: number;
-  verdict: "사용 중" | "기준선" | "참고";
+  /** The benchmark's judgement, not what is served — the banner says that. */
+  verdict: "이김" | "짐" | "판정 전" | "기준선" | "참고";
 }
 
 export interface BehindTheDataView {
@@ -81,6 +84,7 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
     return {
       mode: "unavailable",
       learningApplied: false,
+      influenceSource: "none",
       label: "성능 기록을 읽을 수 없음",
       detail: evidence.reason === "no-eligible-station"
         ? "이 위치에는 대조할 수 있는 관측소가 없어, 모든 예보 서비스를 똑같은 비중으로 평균합니다."
@@ -98,6 +102,7 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
         ...base,
         mode: "learned",
         learningApplied: true,
+        influenceSource: "learned",
         label: "학습 가중치 사용 중",
         detail: "최근 이 지역에서 더 잘 맞은 서비스에 더 큰 비중을 주고 있습니다. 이 방식이 단순 평균을 이기고 있다고 판정된 상태입니다.",
       };
@@ -106,6 +111,7 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
         ...base,
         mode: "ramping",
         learningApplied: true,
+        influenceSource: "learned",
         label: "학습 가중치 적용 중 · 아직 절반의 세기",
         detail: "증거가 쌓이는 만큼만 단순 평균에서 학습 쪽으로 옮겨가는 중입니다. 표본이 늘수록 반영 폭이 커집니다.",
       };
@@ -113,7 +119,11 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
       return {
         ...base,
         mode: "seed",
-        learningApplied: true,
+        // Not learned weighting: retrospective, amount-only, capped, and it can
+        // never rescue a suspension. Reporting it as learning would be the exact
+        // overstatement this page exists to rule out.
+        learningApplied: false,
+        influenceSource: "seed",
         // The seed is deliberately not described as learning: it is retrospective,
         // scored on amount only, capped, and it can never rescue a suspension.
         label: "과거 기록으로 임시 가중 중",
@@ -124,6 +134,7 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
         ...base,
         mode: "suspended",
         learningApplied: false,
+        influenceSource: "none",
         label: "학습 정지됨",
         detail: profile.reason === "benchmark-regression"
           ? "학습한 가중치가 단순 평균보다 나빴습니다. 그래서 지금은 모든 예보 서비스를 똑같은 비중으로 평균합니다."
@@ -134,6 +145,7 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
         ...base,
         mode: "equal-fallback",
         learningApplied: false,
+        influenceSource: "none",
         label: "똑같은 비중으로 평균 중",
         detail: "이 지역에는 아직 채점된 기록이 없습니다. 모든 예보 서비스를 똑같은 비중으로 평균합니다.",
       };
@@ -154,8 +166,16 @@ function benchmarkRowsOf(profile: RecentPerformanceProfile): BehindTheDataBenchm
   // A benchmark with nothing comparable in it has no rows to show. Printing an
   // empty table with dashes would look like a measurement that came back null.
   if (benchmark.adaptiveBrier === null || benchmark.equalBrier === null) return [];
+  // The verdict is the benchmark's, not the server's: with too few comparable
+  // captures it has not ruled at all, and calling the adaptive row "in use" then
+  // would claim a judgement that has not happened.
+  const adaptiveVerdict = benchmark.status === "passing"
+    ? "이김"
+    : benchmark.status === "regression"
+      ? "짐"
+      : "판정 전";
   const rows: BehindTheDataBenchmarkRow[] = [
-    { label: "성능 반영 평균", brierScore: benchmark.adaptiveBrier, verdict: "사용 중" },
+    { label: "성능 반영 평균", brierScore: benchmark.adaptiveBrier, verdict: adaptiveVerdict },
     { label: "단순 평균", brierScore: benchmark.equalBrier, verdict: "기준선" },
   ];
   // Only the two single-source scores the benchmark actually computes. The

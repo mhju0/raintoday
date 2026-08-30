@@ -1472,6 +1472,13 @@ function ForecastDashboard({ forecast, selection, onReset }: {
             값입니다. 같은 주장이 아닙니다.
           </p>
         )}
+        {/* The only way into the scoring record. A page nothing links to is a
+            page nobody reads, and the claim it carries is the product's. */}
+        <p>
+          <a className="local-footer-link" href="/behind-the-data">
+            이 예보를 어떻게 채점하는가 →
+          </a>
+        </p>
       </footer>
     </main>
   );

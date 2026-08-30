@@ -2133,3 +2133,328 @@ html {
     filter: none;
   }
 }
+
+/* ============================================================
+   /behind-the-data — the scoring record, read top to bottom.
+
+   Same vocabulary as the forecast: one flat ground, mono meta, 3px corners,
+   achromatic separators. No status palette: the three meaning-colours belong
+   to probability, amount and the rain window, and a verdict that borrowed one
+   would be claiming to be one of them. The states are told apart by their
+   words, which is also the only way they survive being read aloud.
+   ============================================================ */
+.btd {
+  width: min(100% - 2.5rem, 46rem);
+  margin: 0 auto;
+  padding: 3.5rem 0 5rem;
+  color: var(--local-ink-2);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.btd p {
+  margin: 0 0 1rem;
+}
+
+.btd-mast h1 {
+  margin: 0.85rem 0 1.1rem;
+  font-size: clamp(1.9rem, 5.5vw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.045em;
+  color: var(--local-ink);
+  text-wrap: balance;
+}
+
+.btd-lede {
+  font-size: 1.05rem;
+  color: var(--local-ink-2);
+}
+
+.btd-lede strong,
+.btd p strong {
+  color: var(--local-ink);
+  font-weight: 600;
+}
+
+/* ---- layer 1: the state ---- */
+.btd-now {
+  margin-top: 2.75rem;
+  padding: 0 0 1.75rem;
+}
+
+.btd-status-label {
+  margin: 0.9rem 0 0.6rem;
+  font-size: clamp(1.5rem, 4.5vw, 2rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  color: var(--local-ink);
+  text-wrap: balance;
+}
+
+.btd-status-detail {
+  font-size: 1.02rem;
+  color: var(--local-ink-2);
+  max-width: 44ch;
+}
+
+.btd-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1rem 1.5rem;
+  margin: 1.6rem 0 1.4rem;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--local-line);
+  border-radius: 3px;
+  background: var(--local-panel);
+}
+
+.btd-meta div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.btd-meta dt {
+  font-family: var(--local-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--local-dim);
+}
+
+.btd-meta dd {
+  margin: 0;
+  color: var(--local-ink);
+  font-size: var(--t-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.btd-plain {
+  max-width: 46ch;
+  color: var(--local-muted);
+  font-size: var(--t-body);
+}
+
+/* ---- layers 2 and 3 ---- */
+.btd-section {
+  margin-top: 2.5rem;
+}
+
+.btd-section h2 {
+  margin: 0.85rem 0 1rem;
+  font-size: 1.45rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--local-ink);
+  text-wrap: balance;
+}
+
+.btd-subhead {
+  margin: 2.25rem 0 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--local-ink);
+}
+
+.btd-rules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: btd-rule;
+  display: grid;
+  gap: 1.4rem;
+}
+
+.btd-rules li {
+  counter-increment: btd-rule;
+  padding-left: 2.2rem;
+  position: relative;
+}
+
+/* The rules are a numbered set of three, not a sequence to work through — the
+   numeral is an index so a reader can cite one, which is why it is quiet. */
+.btd-rules li::before {
+  content: counter(btd-rule);
+  position: absolute;
+  left: 0;
+  top: 0.15rem;
+  font-family: var(--local-mono);
+  font-size: 0.75rem;
+  color: var(--local-dim);
+}
+
+.btd-rules h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--local-ink);
+  letter-spacing: -0.02em;
+}
+
+.btd-rules p {
+  margin: 0;
+  font-size: var(--t-body);
+  color: var(--local-muted);
+}
+
+.btd-facts {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.btd-facts li {
+  padding-left: 1rem;
+  border-left: 1px solid var(--local-line-2);
+  font-size: var(--t-body);
+  color: var(--local-muted);
+}
+
+.btd-facts strong {
+  display: block;
+  color: var(--local-ink);
+  font-weight: 600;
+}
+
+.btd-facts code,
+.btd code {
+  font-family: var(--local-mono);
+  font-size: 0.85em;
+  color: var(--local-ink-2);
+}
+
+/* The one sentence the page exists to deliver. Size carries it, not colour. */
+.btd-line {
+  margin: 1.5rem 0;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--local-line-2);
+  border-radius: 3px;
+  background: var(--local-panel);
+  font-size: 1.08rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--local-ink);
+  text-wrap: balance;
+}
+
+.btd-quote {
+  margin: 1.4rem 0 0;
+  padding-left: 1rem;
+  border-left: 2px solid var(--local-line-2);
+  font-family: var(--local-mono);
+  font-size: 0.92rem;
+  color: var(--local-ink-2);
+}
+
+.btd-quote span {
+  display: block;
+  margin-top: 0.5rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--local-dim);
+}
+
+/* ---- evidence tables ---- */
+.btd-table-scroll {
+  overflow-x: auto;
+  margin: 0 0 0.9rem;
+}
+
+.btd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-body);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.btd-table th,
+.btd-table td {
+  padding: 0.65rem 0.75rem 0.65rem 0;
+  text-align: right;
+  border-bottom: 1px solid var(--local-line);
+}
+
+.btd-table thead th {
+  font-family: var(--local-mono);
+  font-size: 0.66rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--local-dim);
+  border-bottom-color: var(--local-line-2);
+}
+
+.btd-table th[scope="col"]:first-child,
+.btd-table th[scope="row"] {
+  text-align: left;
+  color: var(--local-ink);
+  font-weight: 600;
+}
+
+.btd-note,
+.btd-empty {
+  font-size: var(--t-body);
+  color: var(--local-muted);
+  max-width: 52ch;
+}
+
+.btd-empty {
+  padding: 1rem 1.2rem;
+  border: 1px dashed var(--local-line-2);
+  border-radius: 3px;
+}
+
+/* ---- foot ---- */
+.btd-foot {
+  margin-top: 3rem;
+  font-size: var(--t-body);
+  color: var(--local-muted);
+}
+
+.btd-foot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  justify-content: space-between;
+  margin-top: 1.25rem;
+  font-family: var(--local-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--local-dim);
+}
+
+.btd-foot-meta a {
+  color: var(--local-accent);
+  text-decoration: none;
+}
+
+.btd-foot-meta a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .btd {
+    padding-top: 2.5rem;
+  }
+
+  .btd-meta {
+    padding: 0.95rem 1rem;
+  }
+}
+
+/* The one route out of the forecast: the scoring record behind it. */
+.local-footer-link {
+  color: var(--local-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.local-footer-link:hover,
+.local-footer-link:focus-visible {
+  border-bottom-color: currentColor;
+}
