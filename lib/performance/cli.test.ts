@@ -43,3 +43,42 @@ test("every scheduled cron in the capture workflow resolves to a cohort", () => 
     "capture cohort table and workflow crons have drifted",
   );
 });
+
+/**
+ * A blackout is a property of the runner's egress address, not of the hour: three
+ * probe rounds lost every Korean host at 22:28, 08:15 and 06:29 KST while three
+ * non-Korean controls answered from the same VM. Retrying inside the run cannot
+ * help — the address is fixed for its lifetime — so the recovery is a second job,
+ * which gets its own machine. The two jobs must stay identically credentialled,
+ * because a retry missing one secret would fail in a way that looks like the
+ * outage it exists to survive.
+ */
+test("the capture workflow retries on a fresh runner, identically credentialled", () => {
+  const workflow = readFileSync(
+    join(import.meta.dirname, "..", "..", ".github", "workflows", "local-performance.yml"),
+    "utf8",
+  );
+  const jobsBody = workflow.slice(workflow.indexOf("\njobs:"));
+  const jobNames = Array.from(jobsBody.matchAll(/^ {2}([a-z][\w-]*):$/gm), (m) => m[1]);
+  assert.deepEqual(jobNames, ["capture", "retry"], "capture workflow jobs have drifted");
+
+  const bodyOf = (name: string): string => {
+    const start = jobsBody.indexOf(`\n  ${name}:\n`);
+    const rest = jobsBody.slice(start + 1);
+    const next = rest.slice(1).search(/^ {2}[a-z][\w-]*:$/m);
+    return next < 0 ? rest : rest.slice(0, next + 1);
+  };
+  const retry = bodyOf("retry");
+  assert.match(retry, /needs:\s*capture/, "the retry must follow the first attempt");
+  assert.match(retry, /if:\s*failure\(\)/, "the retry must run only when the first attempt failed");
+
+  const secretsOf = (name: string): string[] =>
+    Array.from(bodyOf(name).matchAll(/^\s*([A-Z][A-Z0-9_]*):\s*\$\{\{\s*secrets\./gm), (m) => m[1])
+      .sort();
+  assert.ok(secretsOf("capture").length > 0, "the capture job reads no secrets");
+  assert.deepEqual(
+    secretsOf("retry"),
+    secretsOf("capture"),
+    "the retry job's credentials have drifted from the first attempt's",
+  );
+});
