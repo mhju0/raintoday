@@ -25,6 +25,14 @@ permissions:
 jobs:
   capture:
     runs-on: ubuntu-latest
+    outputs:
+      # The first attempt's verdict, published so the retry can read it. The step
+      # below tolerates its own failure so that a run rescued by the retry finishes
+      # green: a red run every time a blackout happens, even one that recovered, is
+      # how a real alert gets trained into background noise. A blackout is still
+      # visible — the failed step, the warning, and the retry job's presence — and
+      # if the retry fails too, the run is red exactly as before.
+      failed: ${{ steps.capture.outcome == 'failure' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,6 +44,57 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Capture observations and next-day forecasts
+        id: capture
+        continue-on-error: true
+        env:
+          PERFORMANCE_DATABASE_URL: ${{ secrets.PERFORMANCE_DATABASE_URL }}
+          KMA_APIHUB_KEY: ${{ secrets.KMA_APIHUB_KEY }}
+          KMA_OBSERVATION_API_KEY: ${{ secrets.KMA_OBSERVATION_API_KEY }}
+          KMA_SHORT_TERM_API_KEY: ${{ secrets.KMA_SHORT_TERM_API_KEY }}
+          PIRATE_WEATHER_API_KEY: ${{ secrets.PIRATE_WEATHER_API_KEY }}
+          WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
+        run: |
+          npm run performance:capture -- \
+            --cohort="${{ inputs.cohort }}" \
+            --schedule="${{ github.event.schedule }}"
+
+      - name: Report a first attempt that failed
+        if: steps.capture.outcome == 'failure'
+        run: echo "::warning::First capture attempt failed; retrying on a fresh runner."
+
+  # A blackout is a property of the runner's egress address, not of the hour. An
+  # hourly probe over 2026-08-27..30 lost every Korean host on 3 of 12 rounds — at
+  # 22:28, 08:15 and 06:29 KST — while Open-Meteo, Pirate Weather and WeatherAPI
+  # answered from the same VM in under a second, and all 12 rounds drew a distinct
+  # address. So moving the cron relocates the symptom, and retrying inside the run
+  # cannot work: the address is fixed for its lifetime, and the 2026-08-25 run
+  # retried across 20 minutes without recovering. A second job gets its own
+  # machine, and so an independent draw — roughly 25% failing once becomes 6%.
+  #
+  # Captures are idempotent and are refused outright when a provider read faults,
+  # so this re-runs the whole cohort rather than repairing rows in place.
+  retry:
+    needs: capture
+    if: needs.capture.outputs.failed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Recorded so the remedy audits itself: if a retry ever fails the same way,
+      # this line and the first attempt's say whether the address actually changed.
+      - name: Record this runner's egress address
+        run: echo "egress_ip=$(curl -sS --max-time 10 https://api.ipify.org || echo unknown)"
 
       - name: Capture observations and next-day forecasts
         env:

@@ -30,9 +30,11 @@ export interface CaptureStationInput {
 }
 
 export interface CaptureStationResult {
-  status: "inserted" | "existing" | "skipped";
-  reason: "captured" | "already-captured" | "no-next-day-probability";
+  status: "inserted" | "existing" | "skipped" | "faulted";
+  reason: "captured" | "already-captured" | "no-next-day-probability" | "provider-fault";
   capture: ForecastCapture | null;
+  /** Compared providers whose read failed. Non-empty exactly when `faulted`. */
+  faultedProviders: PrecipProviderId[];
 }
 
 function koreanDate(date: Date): string {
@@ -75,6 +77,22 @@ export async function captureStationForecast(
     longitude: input.station.longitude,
   });
   const snapshots = await (input.readForecasts ?? readAllForecasts)(location);
+  // A provider that could not be read is not a provider with nothing to say — the
+  // same distinction `absent` and a failed read carry on the observation side. A
+  // capture short one provider by fault is indistinguishable from an honest one,
+  // and `saveCapture` never overwrites, so storing it makes the loss permanent:
+  // three evenings of runner egress failure froze 97 KMA-less captures a retry
+  // could never repair. `needs-config` is excluded on purpose; a missing key is
+  // permanent, and no runner will ever supply it.
+  const faultedProviders = snapshots
+    .filter((snapshot) =>
+      PRECIP_PROVIDERS.has(snapshot.id as PrecipProviderId) &&
+      snapshot.status.availability === "error"
+    )
+    .map((snapshot) => snapshot.id as PrecipProviderId);
+  if (faultedProviders.length > 0) {
+    return { status: "faulted", reason: "provider-fault", capture: null, faultedProviders };
+  }
   const forecasts = snapshots.flatMap((snapshot): CapturedProviderForecast[] => {
     if (!PRECIP_PROVIDERS.has(snapshot.id as PrecipProviderId)) return [];
     const daily = snapshot.daily.find((day) => day.date === targetDate);
@@ -86,7 +104,12 @@ export async function captureStationForecast(
     }];
   });
   if (forecasts.length === 0) {
-    return { status: "skipped", reason: "no-next-day-probability", capture: null };
+    return {
+      status: "skipped",
+      reason: "no-next-day-probability",
+      capture: null,
+      faultedProviders,
+    };
   }
 
   const comparisons = await input.store.loadCompletedComparisons(
@@ -123,5 +146,6 @@ export async function captureStationForecast(
     status,
     reason: status === "inserted" ? "captured" : "already-captured",
     capture,
+    faultedProviders,
   };
 }

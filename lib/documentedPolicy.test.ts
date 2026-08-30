@@ -42,6 +42,11 @@ const PINS: { label: string; pattern: RegExp; expected: string }[] = [
     expected: String(policy.decisionThreshold),
   },
   {
+    label: "operating window",
+    pattern: /(\d+)-day (?:operating window|lookback)/g,
+    expected: String(policy.windowDays),
+  },
+  {
     label: "provider influence bounds",
     pattern: /(?:bounded to |bounds? |influence )(\d+)–(\d+)%/g,
     expected: `${policy.weightFloor * 100}–${policy.weightCap * 100}`,
@@ -71,10 +76,13 @@ test("the published policy numbers are the ones the code actually uses", () => {
 
 test("the minimum sample bar is stated as a count, not a window", () => {
   // #89 was filed on the belief that the bar was 30 comparisons *within* the
-  // 30-day window. It is 30 in total. Both numbers are 30, so a reader who
-  // conflates them cannot be corrected by the figure alone.
+  // 30-day window, back when both numbers were 30 and no reader could tell them
+  // apart. They now differ on purpose: the bar is a count of comparisons, the
+  // window is a span of days, and pairing 30 with 30 had quietly demanded a
+  // flawless month of the benchmark. Keep them unequal, so the prose cannot
+  // silently return to conflating them.
   const corpus = DOCUMENTS.map(read).join("\n");
   assert.equal(policy.minimumSamples, 30);
-  assert.equal(policy.windowDays, 30);
+  assert.notEqual(policy.windowDays, policy.minimumSamples);
   assert.match(corpus, /at least 30 comparable captures/);
 });

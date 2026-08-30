@@ -13,7 +13,14 @@ import type {
 } from "./types.ts";
 
 export const DEFAULT_PERFORMANCE_POLICY: PerformancePolicy = {
-  windowDays: 30,
+  // 60, not 30. A cohort completes at most one comparison a day, so a 30-day window
+  // beside a 30-sample bar demanded a flawless month: one missed run — an outage, a
+  // runner that could not reach Korea, a day ASOS never published — put the
+  // benchmark out of reach for another 30 days, and at the observed run-failure
+  // rate it was never reachable at all. Widening costs nothing in recency, because
+  // the half-life below is what enforces that: a 60-day-old comparison already
+  // carries about 5% of a fresh one's weight. The bar itself is untouched.
+  windowDays: 60,
   halfLifeDays: 14,
   reportDays: 7,
   minimumSamples: 30,
