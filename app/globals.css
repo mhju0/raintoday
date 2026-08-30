@@ -1525,7 +1525,7 @@ html {
 .local-receipts {
   margin-top: 2.25rem;
   border: 1px solid var(--local-line);
-  border-radius: 6px;
+  border-radius: 3px;
   background: var(--local-panel);
   padding: 1.4rem 1.4rem 1.6rem;
 }
@@ -1572,7 +1572,7 @@ html {
   font-weight: 600;
 }
 
-.local-stub:hover {
+.local-stub:hover:not(:focus-visible) {
   color: var(--local-ink);
   outline: 1px solid var(--local-line-2);
 }

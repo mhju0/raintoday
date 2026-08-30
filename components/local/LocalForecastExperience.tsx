@@ -704,7 +704,7 @@ function PerformanceEvidence({ evidence, cohortLabel }: {
       <div className="local-section-heading">
         <div>
           <p className="local-kicker">기록 <span>— 근처 관측소로 채점한 성적</span></p>
-          <h2 id="evidence-heading">
+          <h2 id="evidence-heading" tabIndex={-1}>
             {seedRanked.length > 0
               ? <>과거 기록에서<br />누가 더 잘 맞았나</>
               : <>최근 이 지역에서<br />누가 더 잘 맞았나</>}
@@ -1024,7 +1024,12 @@ function ForecastDashboard({ forecast, selection, onReset }: {
   };
   useEffect(() => {
     if (glance || revealTarget.current === null) return;
-    document.getElementById(revealTarget.current)?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    const target = document.getElementById(revealTarget.current);
+    // The stub the user activated just unmounted; without this, focus falls to
+    // <body> and a keyboard user re-tabs the whole page to reach the section
+    // they asked for — the same failure the heading focus above guards against.
+    target?.focus?.({ preventScroll: true });
+    target?.scrollIntoView?.({ behavior: "smooth", block: "start" });
     revealTarget.current = null;
   }, [glance]);
 
@@ -1288,7 +1293,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
         </section>
       )}
 
-      <p className="local-kicker">오늘 · 내일 <span>— 여러 서비스를 섞은 하루 숫자</span></p>
+      <p className="local-kicker">{today ? "오늘 · 내일" : "내일"} <span>— 여러 서비스를 섞은 하루 숫자</span></p>
       <div className="local-days">
         {today && (
           <section className="local-day" aria-labelledby="today-heading">
@@ -1375,19 +1380,19 @@ function ForecastDashboard({ forecast, selection, onReset }: {
       <div className="local-receipts">
       {folded ? (
         <div className="local-stubs">
-          <button type="button" className="local-stub" onClick={() => unfold("influence-heading")}>
+          <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("influence-heading")}>
             <span><b>서비스 {forecast.comparedProviderCount}곳 비교</b>{spreadStub && <> — {spreadStub}</>}</span>
-            <span className="local-stub-go" aria-hidden>펼치기</span>
+            <span className="local-stub-go">펼치기</span>
           </button>
           {forecast.outlook.length > 1 && (
-            <button type="button" className="local-stub" onClick={() => unfold("outlook-heading")}>
+            <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("outlook-heading")}>
               <span><b>{forecast.outlook.length}일 전망</b> — 모레부터는 동일 비중 평균</span>
-              <span className="local-stub-go" aria-hidden>펼치기</span>
+              <span className="local-stub-go">펼치기</span>
             </button>
           )}
-          <button type="button" className="local-stub" onClick={() => unfold("evidence-heading")}>
+          <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("evidence-heading")}>
             <span><b>과거 기록</b> — {forecast.evidence.statusLabel}</span>
-            <span className="local-stub-go" aria-hidden>펼치기</span>
+            <span className="local-stub-go">펼치기</span>
           </button>
         </div>
       ) : (<>
@@ -1395,7 +1400,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
       <div className="local-evidence-cards">
         <section className="local-card" aria-labelledby="influence-heading">
           <div className="local-card-head">
-            <h2 id="influence-heading">서비스 {forecast.comparedProviderCount}곳 · 내일</h2>
+            <h2 id="influence-heading" tabIndex={-1}>서비스 {forecast.comparedProviderCount}곳 · 내일</h2>
             {spread.length > 1 && (
               <b>편차 {Math.round(Math.min(...spread))}–{Math.round(Math.max(...spread))}%</b>
             )}
@@ -1433,7 +1438,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
         {forecast.outlook.length > 1 && (
           <section className="local-card" aria-labelledby="outlook-heading">
             <div className="local-card-head">
-              <h2 id="outlook-heading">{forecast.outlook.length}일 전망</h2>
+              <h2 id="outlook-heading" tabIndex={-1}>{forecast.outlook.length}일 전망</h2>
               <b>동일 비중</b>
             </div>
             <div className="local-week">

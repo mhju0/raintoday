@@ -1653,8 +1653,10 @@ test("the receipts shelf holds exactly what the fold governs", async () => {
   const open = view.container.querySelector(".local-receipts");
   assert.ok(open?.querySelector(".local-evidence-cards"), "unfolded: the shelf holds the evidence cards");
   assert.ok(open?.querySelector(".local-evidence-section"), "…and the record section");
+  const days = view.container.querySelector(".local-days");
+  assert.ok(days, "the day cards render");
   assert.ok(
-    !view.container.querySelector(".local-days")?.closest(".local-receipts"),
+    !days.closest(".local-receipts"),
     "the day cards are the answer, not a receipt — they stay off the shelf",
   );
   window.localStorage.removeItem("raintoday.view-density.v1");
