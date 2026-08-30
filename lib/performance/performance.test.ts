@@ -23,6 +23,8 @@ function dateDaysAgo(daysAgo: number): string {
 interface SeriesOptions {
   days: number;
   cohort?: CaptureCohort;
+  /** Days with no completed comparison — a cohort run that failed that day. */
+  skip?(daysAgo: number): boolean;
   probability(provider: PrecipProviderId, daysAgo: number, wet: boolean): number | null;
   amount?(provider: PrecipProviderId, daysAgo: number, wet: boolean): number | null;
   frozen?(daysAgo: number, wet: boolean): { adaptive: number | null; equal: number | null };
@@ -36,6 +38,7 @@ function series(options: SeriesOptions): {
   const captures: ForecastCapture[] = [];
   const observations: PrecipObservation[] = [];
   for (let daysAgo = options.days; daysAgo >= 1; daysAgo--) {
+    if (options.skip?.(daysAgo)) continue;
     const targetDate = dateDaysAgo(daysAgo);
     const wet = daysAgo % 2 === 0;
     const frozen = options.frozen?.(daysAgo, wet) ?? { adaptive: 50, equal: 50 };
@@ -86,9 +89,9 @@ test("probability performance includes completed dry days", () => {
   assert.ok((provider?.brierScore ?? 0) > 0);
 });
 
-test("operating performance uses a 30-day window with a 14-day recency half-life", () => {
+test("operating performance uses a 60-day window with a 14-day recency half-life", () => {
   const data = series({
-    days: 60,
+    days: 90,
     probability: (provider, daysAgo, wet) => {
       const recent = daysAgo <= 15;
       const openMeteoCorrect = recent;
@@ -109,7 +112,7 @@ test("operating performance uses a 30-day window with a 14-day recency half-life
   const kma = profile.providers.find((entry) => entry.provider === "kma");
   assert.ok(openMeteo && kma);
   assert.ok(openMeteo.brierScore < kma.brierScore);
-  assert.equal(openMeteo.windowSampleCount, 30);
+  assert.equal(openMeteo.windowSampleCount, 60, "the window still bounds a longer history");
   assert.equal(openMeteo.last7Days.sampleCount, 7);
 });
 
@@ -195,7 +198,11 @@ test("benchmark compares adaptive and equal blends on identical captures", () =>
     policy: { ...DEFAULT_PERFORMANCE_POLICY, minimumSamples: 28 },
   });
 
-  assert.equal(profile.prospectiveBenchmark.sampleCount, 28);
+  assert.equal(
+    profile.prospectiveBenchmark.sampleCount,
+    30,
+    "the two captures missing one side of the blend are excluded, the other 30 are not",
+  );
   assert.equal(profile.prospectiveBenchmark.adaptiveBrier, 0.25);
   assert.equal(profile.prospectiveBenchmark.equalBrier, 0.25);
   assert.equal(profile.prospectiveBenchmark.status, "passing");
@@ -218,7 +225,7 @@ test("provider metrics keep amount error separate and never invent missing amoun
 
   const openMeteo = profile.providers.find((entry) => entry.provider === "open-meteo");
   const kma = profile.providers.find((entry) => entry.provider === "kma");
-  assert.equal(openMeteo?.rainyAmountSampleCount, 15);
+  assert.equal(openMeteo?.rainyAmountSampleCount, 30);
   assert.equal(openMeteo?.rainyAmountMae, 2);
   assert.equal(kma?.rainyAmountSampleCount, 0);
   assert.equal(kma?.rainyAmountMae, null);
@@ -485,4 +492,37 @@ test("seed rows for a provider no longer compared are not scored or shown", () =
     false,
     "and must not hold a share of the blend",
   );
+});
+
+/**
+ * The benchmark counts comparisons inside the window, and a cohort can complete at
+ * most one a day. Pairing a 30-day window with a 30-sample bar therefore demanded a
+ * flawless month: a single missed run — a KMA outage, a runner that could not reach
+ * Korea, a day ASOS never published — put `learned` out of reach for another month.
+ * The window is 60 days because the 14-day half-life is what enforces recency: a
+ * 60-day-old comparison already carries about 5% of a fresh one's weight.
+ */
+test("a month with missed runs still reaches the benchmark", () => {
+  const data = series({
+    days: 45,
+    skip: (daysAgo) => daysAgo % 4 === 0,
+    probability: (provider, _daysAgo, wet) =>
+      provider === "open-meteo" ? (wet ? 90 : 10) : wet ? 30 : 70,
+    frozen: (_daysAgo, wet) => ({ adaptive: wet ? 80 : 20, equal: 50 }),
+  });
+  assert.equal(data.captures.length, 34, "the fixture must be gappy, not merely short");
+
+  const profile = buildRecentPerformanceProfile({
+    stationId: "108",
+    cohort: "06",
+    ...data,
+    asOf: AS_OF,
+  });
+
+  assert.ok(
+    profile.prospectiveBenchmark.sampleCount >= DEFAULT_PERFORMANCE_POLICY.minimumSamples,
+    "a quarter of the runs missing must not starve the benchmark",
+  );
+  assert.notEqual(profile.mode, "suspended");
+  assert.equal(profile.reason, "ramping");
 });

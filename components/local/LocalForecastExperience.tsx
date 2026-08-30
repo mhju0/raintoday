@@ -685,7 +685,7 @@ function PerformanceEvidence({ evidence, cohortLabel }: {
     (a, b) => a.misses / Math.max(1, a.wetDays) - b.misses / Math.max(1, b.wetDays),
   );
   // Rank only the providers that actually have a seven-day record, and only
-  // against each other. Falling back to the 30-day score let a provider with no
+  // against each other. Falling back to the 60-day score let a provider with no
   // recent history be labelled "가장 잘 맞음" under a 최근 7일 heading.
   const recent = scores
     .filter((score) => score.last7DaysBrier !== null)
@@ -725,7 +725,7 @@ function PerformanceEvidence({ evidence, cohortLabel }: {
           <strong>
             {seedRanked.length > 0
               ? "과거 예보 기록 · 기간 전체를 같은 비중으로 반영"
-              : "최근 30일 · 최근 예보일수록 크게 반영"}
+              : "최근 60일 · 최근 예보일수록 크게 반영"}
           </strong>
         </div>
         <div>
@@ -794,7 +794,7 @@ function PerformanceEvidence({ evidence, cohortLabel }: {
                 <div className="local-score-row local-score-header" role="row">
                   <span role="columnheader">서비스</span>
                   <span role="columnheader">최근 7일 Brier</span>
-                  <span role="columnheader">30일 Brier</span>
+                  <span role="columnheader">60일 Brier</span>
                   <span role="columnheader">누락 · 오보</span>
                   <span role="columnheader">비 온 날 강수량 오차</span>
                 </div>
