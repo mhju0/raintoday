@@ -1539,34 +1539,126 @@ test("the tomorrow card attributes its amount range to the providers that said i
   await view.cleanup();
 });
 
-test("한눈에 folds the evidence, remembers the choice, and 전체 근거 brings it back", async () => {
+test("a first visit opens at 한눈에, and the toggle still rules the fold (D-11)", async () => {
   window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
   window.localStorage.removeItem("raintoday.view-density.v1");
   const view = await mountExperience(async () =>
     Response.json(forecastPayload({ timeline: timeline() })),
   );
-  // Full read by default: the influence card and the evidence section are there.
-  assert.ok(view.container.querySelector(".local-evidence-cards"));
-  assert.ok(view.container.querySelector(".local-evidence-section"));
+  // Unset preference → the answer without the receipts. The evidence is folded
+  // into honest summary stubs, never into nothing.
+  assert.ok(!view.container.querySelector(".local-evidence-cards"), "first visit folds the blend evidence");
+  assert.ok(!view.container.querySelector(".local-evidence-section"), "first visit folds the score section");
+  assert.ok(view.container.querySelector(".local-stubs"), "the fold leaves summary stubs");
+  assert.ok(view.container.querySelector(".local-ribbon"), "the graph itself never folds");
 
   const toggle = view.container.querySelector<HTMLButtonElement>(".local-minibar-tgl");
   assert.ok(toggle, "the density toggle lives in the pinned mini-ribbon");
+  assert.equal(toggle.getAttribute("aria-pressed"), "true");
+  assert.match(toggle.textContent ?? "", /^전체 근거 보기/, "the toggle is the invitation to expand");
+  assert.match(toggle.textContent ?? "", /비교 \+ 기록/, "the label says what it hides");
+
+  toggle.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(view.container.querySelector(".local-evidence-cards"), "전체 근거 unfolds the blend evidence");
+  assert.ok(view.container.querySelector(".local-evidence-section"), "전체 근거 unfolds the score section");
+  assert.ok(!view.container.querySelector(".local-stubs"), "stubs yield to the real sections");
   assert.equal(toggle.getAttribute("aria-pressed"), "false");
   assert.equal(toggle.textContent, "한눈에 보기");
-
-  toggle.click();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.equal(view.container.querySelector(".local-evidence-cards"), null, "한눈에 folds the blend evidence");
-  assert.equal(view.container.querySelector(".local-evidence-section"), null, "한눈에 folds the score section");
-  assert.ok(view.container.querySelector(".local-ribbon"), "the graph itself never folds");
-  assert.equal(toggle.getAttribute("aria-pressed"), "true");
-  assert.equal(toggle.textContent, "전체 근거 보기");
-  assert.equal(window.localStorage.getItem("raintoday.view-density.v1"), "glance");
-
-  toggle.click();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.ok(view.container.querySelector(".local-evidence-section"), "전체 근거 unfolds everything");
   assert.equal(window.localStorage.getItem("raintoday.view-density.v1"), "full");
+
+  toggle.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(!view.container.querySelector(".local-evidence-section"), "한눈에 folds it again");
+  assert.equal(window.localStorage.getItem("raintoday.view-density.v1"), "glance");
+  window.localStorage.removeItem("raintoday.view-density.v1");
+  await view.cleanup();
+});
+
+test("a stored 전체 근거 choice is never overridden by the first-visit default", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  window.localStorage.setItem("raintoday.view-density.v1", "full");
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  assert.ok(view.container.querySelector(".local-evidence-cards"), "the stored choice wins");
+  assert.ok(!view.container.querySelector(".local-stubs"));
+  window.localStorage.removeItem("raintoday.view-density.v1");
+  await view.cleanup();
+});
+
+test("without a timeline nothing folds, because nothing could unfold it", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  window.localStorage.removeItem("raintoday.view-density.v1");
+  const view = await mountExperience(async () => Response.json(forecastPayload()));
+  // No timeline → no minibar → no toggle. A fold here would be a locked door.
+  assert.ok(!view.container.querySelector(".local-minibar"));
+  assert.ok(view.container.querySelector(".local-evidence-cards"), "the evidence stays reachable");
+  assert.ok(!view.container.querySelector(".local-stubs"));
+  await view.cleanup();
+});
+
+test("the stubs carry the sections' own numbers, and a tap unfolds the real thing", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  window.localStorage.removeItem("raintoday.view-density.v1");
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  const stubs = [...view.container.querySelectorAll<HTMLButtonElement>(".local-stub")];
+  // Default fixture has no outlook, so exactly two stubs: comparison and record.
+  assert.equal(stubs.length, 2);
+  assert.match(stubs[0].textContent ?? "", /서비스 4곳 비교/);
+  assert.match(stubs[0].textContent ?? "", /내일 확률 31–57%/, "the spread is the card's own header value");
+  assert.match(stubs[1].textContent ?? "", /과거 기록/);
+  assert.match(stubs[1].textContent ?? "", /근거 준비 중/, "the record stub repeats the status pill, not a new claim");
+
+  stubs[1].click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.ok(view.container.querySelector(".local-evidence-section"), "tapping a stub unfolds the sections");
+  assert.equal(window.localStorage.getItem("raintoday.view-density.v1"), "full", "unfolding is a remembered choice, like the toggle");
+  window.localStorage.removeItem("raintoday.view-density.v1");
+  await view.cleanup();
+});
+
+test("each stratum opens with a kicker naming whose number it carries (D-11)", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  window.localStorage.setItem("raintoday.view-density.v1", "full");
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  const kickers = [...view.container.querySelectorAll(".local-kicker")].map((k) => k.textContent ?? "");
+  assert.ok(kickers.some((k) => k.startsWith("결론")), "the verdict names itself");
+  assert.ok(
+    kickers.some((k) => k.includes("여러 서비스를 섞은")),
+    "the day cards say they are the blend — the ribbon attribution rule, at first contact",
+  );
+  assert.ok(kickers.some((k) => k.startsWith("근거")), "the evidence stratum is labeled");
+  assert.ok(kickers.some((k) => k.startsWith("기록")), "the record stratum is labeled");
+  window.localStorage.removeItem("raintoday.view-density.v1");
+  await view.cleanup();
+});
+
+test("the receipts shelf holds exactly what the fold governs", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  window.localStorage.removeItem("raintoday.view-density.v1");
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({ timeline: timeline() })),
+  );
+  const shelf = view.container.querySelector(".local-receipts");
+  assert.ok(shelf, "the receipts live on their own shelf");
+  assert.ok(shelf.querySelector(".local-stubs"), "folded: the shelf holds the stubs");
+
+  view.container.querySelector<HTMLButtonElement>(".local-minibar-tgl")?.click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const open = view.container.querySelector(".local-receipts");
+  assert.ok(open?.querySelector(".local-evidence-cards"), "unfolded: the shelf holds the evidence cards");
+  assert.ok(open?.querySelector(".local-evidence-section"), "…and the record section");
+  const days = view.container.querySelector(".local-days");
+  assert.ok(days, "the day cards render");
+  assert.ok(
+    !days.closest(".local-receipts"),
+    "the day cards are the answer, not a receipt — they stay off the shelf",
+  );
   window.localStorage.removeItem("raintoday.view-density.v1");
   await view.cleanup();
 });

@@ -703,8 +703,8 @@ function PerformanceEvidence({ evidence, cohortLabel }: {
     <section className="local-evidence-section" aria-labelledby="evidence-heading">
       <div className="local-section-heading">
         <div>
-          <p className="local-eyebrow">RECENT LOCAL PERFORMANCE</p>
-          <h2 id="evidence-heading">
+          <p className="local-kicker">기록 <span>— 근처 관측소로 채점한 성적</span></p>
+          <h2 id="evidence-heading" tabIndex={-1}>
             {seedRanked.length > 0
               ? <>과거 기록에서<br />누가 더 잘 맞았나</>
               : <>최근 이 지역에서<br />누가 더 잘 맞았나</>}
@@ -966,6 +966,13 @@ function ForecastDashboard({ forecast, selection, onReset }: {
     .map((provider) => provider.probability)
     .filter((probability): probability is number => probability !== null);
   const influenceMax = Math.max(...forecast.influence.map((p) => p.influence), 0);
+  // The comparison stub repeats the influence card's header spread — the same
+  // rounding, the same values, never a new claim.
+  const spreadStub = spread.length > 1
+    ? Math.round(Math.min(...spread)) === Math.round(Math.max(...spread))
+      ? `내일 확률 모두 ${Math.round(spread[0])}%`
+      : `내일 확률 ${Math.round(Math.min(...spread))}–${Math.round(Math.max(...spread))}%`
+    : null;
 
   // The mm lane exists only when the ribbon's own provider published amounts.
   // Its scale is the lane's, never the probability's: capped to the wettest
@@ -979,10 +986,14 @@ function ForecastDashboard({ forecast, selection, onReset }: {
   // 한눈에/전체 근거 (D-09). The toggle lives in the pinned mini-ribbon, so a
   // page with no timeline has no toggle and simply shows everything.
   const [glance, setGlance] = useState<boolean>(() => {
+    // D-11: an unset preference opens at 한눈에 — the first visit gets the
+    // answer before the receipts. A stored choice is never overridden, and a
+    // browser that blocks storage is treated as always a first visit.
     try {
-      return window.localStorage.getItem(DENSITY_KEY) === "glance";
+      const stored = window.localStorage.getItem(DENSITY_KEY);
+      return stored === null ? true : stored === "glance";
     } catch {
-      return false;
+      return true;
     }
   });
   const toggleGlance = () => {
@@ -996,6 +1007,31 @@ function ForecastDashboard({ forecast, selection, onReset }: {
       return next;
     });
   };
+  // A fold with no unfold control would be a locked door: the toggle lives in
+  // the minibar, the minibar needs a timeline, so without one nothing folds.
+  const folded = glance && timeline != null;
+  // A stub unfolds to the section it summarizes. The scroll waits out the
+  // render — the section exists only after the state flips.
+  const revealTarget = useRef<string | null>(null);
+  const unfold = (targetId: string) => {
+    revealTarget.current = targetId;
+    setGlance(false);
+    try {
+      window.localStorage.setItem(DENSITY_KEY, "full");
+    } catch {
+      // Same convenience contract as the toggle.
+    }
+  };
+  useEffect(() => {
+    if (glance || revealTarget.current === null) return;
+    const target = document.getElementById(revealTarget.current);
+    // The stub the user activated just unmounted; without this, focus falls to
+    // <body> and a keyboard user re-tabs the whole page to reach the section
+    // they asked for — the same failure the heading focus above guards against.
+    target?.focus?.({ preventScroll: true });
+    target?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    revealTarget.current = null;
+  }, [glance]);
 
   // What the pinned bar says while the big graph is off screen: the run's own
   // numbers, already derived — never a new claim.
@@ -1077,7 +1113,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
       </div>
 
       <section className="local-answer" aria-labelledby="forecast-heading">
-        <p className="local-eyebrow">앞으로 24시간</p>
+        <p className="local-kicker">결론 <span>— 앞으로 24시간, 한 문장으로</span></p>
         <h1 id="forecast-heading" ref={headingRef} tabIndex={-1}>
           {timeline
             ? <RainSentence run={run} endsTomorrow={run !== null && dayOffsets[run.endIndex] > 0} />
@@ -1135,7 +1171,9 @@ function ForecastDashboard({ forecast, selection, onReset }: {
               aria-pressed={glance}
               onClick={toggleGlance}
             >
-              {glance ? "전체 근거 보기" : "한눈에 보기"}
+              {glance
+                ? <>전체 근거 보기<span className="local-minibar-tgl-cargo"> · 비교 + 기록</span></>
+                : "한눈에 보기"}
             </button>
           </div>
         </div>
@@ -1255,6 +1293,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
         </section>
       )}
 
+      <p className="local-kicker">{today ? "오늘 · 내일" : "내일"} <span>— 여러 서비스를 섞은 하루 숫자</span></p>
       <div className="local-days">
         {today && (
           <section className="local-day" aria-labelledby="today-heading">
@@ -1338,11 +1377,30 @@ function ForecastDashboard({ forecast, selection, onReset }: {
         </section>
       </div>
 
-      {!glance && (<>
+      <div className="local-receipts">
+      {folded ? (
+        <div className="local-stubs">
+          <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("influence-heading")}>
+            <span><b>서비스 {forecast.comparedProviderCount}곳 비교</b>{spreadStub && <> — {spreadStub}</>}</span>
+            <span className="local-stub-go">펼치기</span>
+          </button>
+          {forecast.outlook.length > 1 && (
+            <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("outlook-heading")}>
+              <span><b>{forecast.outlook.length}일 전망</b> — 모레부터는 동일 비중 평균</span>
+              <span className="local-stub-go">펼치기</span>
+            </button>
+          )}
+          <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("evidence-heading")}>
+            <span><b>과거 기록</b> — {forecast.evidence.statusLabel}</span>
+            <span className="local-stub-go">펼치기</span>
+          </button>
+        </div>
+      ) : (<>
+      <p className="local-kicker">근거 <span>— 이 숫자가 나온 방식</span></p>
       <div className="local-evidence-cards">
         <section className="local-card" aria-labelledby="influence-heading">
           <div className="local-card-head">
-            <h2 id="influence-heading">서비스 {forecast.comparedProviderCount}곳 · 내일</h2>
+            <h2 id="influence-heading" tabIndex={-1}>서비스 {forecast.comparedProviderCount}곳 · 내일</h2>
             {spread.length > 1 && (
               <b>편차 {Math.round(Math.min(...spread))}–{Math.round(Math.max(...spread))}%</b>
             )}
@@ -1380,7 +1438,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
         {forecast.outlook.length > 1 && (
           <section className="local-card" aria-labelledby="outlook-heading">
             <div className="local-card-head">
-              <h2 id="outlook-heading">{forecast.outlook.length}일 전망</h2>
+              <h2 id="outlook-heading" tabIndex={-1}>{forecast.outlook.length}일 전망</h2>
               <b>동일 비중</b>
             </div>
             <div className="local-week">
@@ -1403,6 +1461,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
 
       <PerformanceEvidence evidence={forecast.evidence} cohortLabel={forecast.cohortLabel} />
       </>)}
+      </div>
 
       <footer className="local-footer">
         <p>출처 Open-Meteo · 기상청 · Pirate Weather · WeatherAPI 중 응답한 서비스 · 모든 시각 KST</p>

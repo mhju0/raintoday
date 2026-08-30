@@ -699,9 +699,9 @@ html {
 }
 
 .local-evidence-section {
-  padding: 2.5rem 0 0;
+  padding: 2.2rem 0 0;
   border-top: 1px solid var(--local-line);
-  margin-top: 2.5rem;
+  margin-top: 2.2rem;
 }
 
 .local-evidence-section .local-section-heading h2 {
@@ -1483,6 +1483,110 @@ html {
 @media (max-width: 640px) {
   .local-minibar-sum {
     display: none;
+  }
+
+  /* The cargo names what the fold hides; on a phone the invitation alone fits. */
+  .local-minibar-tgl-cargo {
+    display: none;
+  }
+}
+
+/* ---- D-11: claim kickers — a hairline rule and a mono label naming whose
+   number the stratum below carries. All separators stay achromatic; blue,
+   teal, and amber keep their monopoly on meaning. ---- */
+.local-kicker {
+  margin: 2rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--local-line);
+  font-family: var(--local-mono);
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  color: var(--local-accent);
+}
+
+.local-kicker span {
+  color: var(--local-muted);
+  letter-spacing: 0.02em;
+}
+
+/* The verdict opens the page right under the ruled location strip, and the
+   record section brings its own top rule — doubling either line is noise. */
+.local-answer .local-kicker,
+.local-evidence-section .local-kicker {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* ---- D-11: the receipts shelf — one quiet surface for exactly what the
+   density toggle governs. Cards inside trade their borders for the next rung
+   of the surface ladder, so distinction rises while line count falls. ---- */
+.local-receipts {
+  margin-top: 2.25rem;
+  border: 1px solid var(--local-line);
+  border-radius: 3px;
+  background: var(--local-panel);
+  padding: 1.4rem 1.4rem 1.6rem;
+}
+
+.local-receipts .local-kicker {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.local-receipts .local-card {
+  border-color: transparent;
+  background: var(--local-panel-2);
+}
+
+.local-receipts .local-evidence-section {
+  border-top-color: var(--local-line-2);
+}
+
+.local-stubs {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.local-stub {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.85rem 1.1rem;
+  border: 0;
+  border-radius: 3px;
+  background: var(--local-panel-2);
+  color: var(--local-ink-2);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.local-stub b {
+  color: var(--local-ink);
+  font-weight: 600;
+}
+
+.local-stub:hover:not(:focus-visible) {
+  color: var(--local-ink);
+  outline: 1px solid var(--local-line-2);
+}
+
+.local-stub-go {
+  font-family: var(--local-mono);
+  font-size: var(--t-label);
+  color: var(--local-dim);
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .local-receipts {
+    padding: 1rem 0.9rem 1.1rem;
   }
 }
 
