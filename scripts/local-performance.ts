@@ -1,5 +1,5 @@
 import { runPerformanceBatch } from "../lib/performance/batch.ts";
-import { resolveCaptureCohort } from "../lib/performance/cli.ts";
+import { cohortRunFailed, resolveCaptureCohort } from "../lib/performance/cli.ts";
 import { PostgresPerformanceStore } from "../lib/performance/postgres.ts";
 
 async function main(): Promise<void> {
@@ -36,7 +36,19 @@ async function main(): Promise<void> {
           "Station activations and retirements are not applied until a catalog read succeeds.",
       );
     }
-    if (result.failures.length > 0) process.exitCode = 1;
+    // A handful of refused captures is missing data, never wrong data, and the
+    // retry on a fresh runner fills most of them in. Say so loudly, then let the
+    // run stand: an alert that fires on three stations out of 97 is one nobody
+    // reads by the time it matters.
+    const failed = cohortRunFailed(result);
+    if (result.capturesFaulted > 0 && !failed) {
+      console.warn(
+        `WARNING: ${result.capturesFaulted} of ${result.stationCount} stations could not be ` +
+          "captured because a provider read failed. Nothing was stored for them, so the record " +
+          "is short rather than wrong, and the next cohort continues normally.",
+      );
+    }
+    if (failed) process.exitCode = 1;
   } finally {
     await store.close();
   }

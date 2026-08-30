@@ -205,7 +205,12 @@ test("an observation that could not be read is reported, and an absent one is no
   assert.equal(result.observationsFailed, 1);
   assert.equal(result.observationsAbsent, 1);
   assert.deepEqual(result.failures, [
-    { stationId: "108", phase: "observation", message: "rate-limited — resultCode 22" },
+    {
+      stationId: "108",
+      phase: "observation",
+      kind: "error",
+      message: "rate-limited — resultCode 22",
+    },
   ]);
   // The forecasts never needed the observation service, so they are still captured.
   assert.equal(result.capturesInserted, 2);

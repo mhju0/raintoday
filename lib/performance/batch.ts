@@ -8,6 +8,12 @@ import type { CaptureCohort, ObservationStation } from "./types.ts";
 export interface PerformanceBatchFailure {
   stationId: string;
   phase: "observation" | "capture";
+  /**
+   * `provider-fault` is a capture refused because a provider could not be read:
+   * nothing was stored, so a few of them are missing data rather than wrong
+   * data. `error` is anything else, and is never tolerated.
+   */
+  kind: "provider-fault" | "error";
   message: string;
 }
 
@@ -141,6 +147,7 @@ export async function runPerformanceBatch(
           result.failures.push({
             stationId: station.id,
             phase: "observation",
+            kind: "error",
             message: read.reason,
           });
         } else {
@@ -151,6 +158,7 @@ export async function runPerformanceBatch(
         result.failures.push({
           stationId: station.id,
           phase: "observation",
+          kind: "error",
           message: failureMessage(error),
         });
       }
@@ -173,13 +181,19 @@ export async function runPerformanceBatch(
           result.failures.push({
             stationId: station.id,
             phase: "capture",
-            message: `could not read ${capture.faultedProviders.join(", ")}`,
+            kind: "provider-fault",
+            // The provider's own reason travels with it: "could not read
+            // open-meteo" alone left the last outage undiagnosable.
+            message: `could not read ${capture.faultedProviders
+              .map((fault) => `${fault.provider} (${fault.message})`)
+              .join(", ")}`,
           });
         }
       } catch (error) {
         result.failures.push({
           stationId: station.id,
           phase: "capture",
+          kind: "error",
           message: failureMessage(error),
         });
       }
