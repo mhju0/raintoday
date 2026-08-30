@@ -165,7 +165,7 @@ test("a provider that faulted is never frozen as a provider with nothing to publ
   assert.equal(result.status, "faulted");
   assert.equal(result.reason, "provider-fault");
   assert.equal(result.capture, null);
-  assert.deepEqual(result.faultedProviders, ["kma"]);
+  assert.deepEqual(result.faultedProviders, [{ provider: "kma", message: "fetch failed" }]);
   assert.deepEqual(
     await store.loadCaptures(station.id, "18"),
     [],
