@@ -230,10 +230,42 @@ export default async function BehindTheDataPage() {
         </p>
         <p className="btd-note">
           다만 코호트 이름은 <em>예약된 시간대</em>를 가리키는 것이지, 실제로 포착한 시각을 보장하지
-          않습니다. GitHub의 예약 실행은 최선 노력 방식이라 몇 시간씩 늦게 시작되기도 하고, 지금까지
-          저장된 기록에서 06 코호트는 06–14시, 18 코호트는 18–04시 사이에 포착됐습니다. 그래서 같은
-          코호트 안에서도 리드타임이 흔들립니다. 코드가 시각을 강제하지는 않는다는 뜻이고, 이건 알려진
-          한계입니다.
+          않습니다. GitHub의 예약 실행은 최선 노력 방식이라 몇 시간씩 늦게 시작되기도 합니다. 그래서
+          같은 코호트 안에서도 리드타임이 흔들리고, 코드는 그 시각을 강제하지 않습니다. 숨기는 대신
+          재보니 아래와 같습니다.
+        </p>
+        {view.leadTime ? (
+          <dl className="btd-meta">
+            <div>
+              <dt>가장 이른 예보</dt>
+              <dd>{view.leadTime.maxHours}시간 전</dd>
+            </div>
+            <div>
+              <dt>중간값</dt>
+              <dd>{view.leadTime.medianHours}시간 전</dd>
+            </div>
+            <div>
+              <dt>가장 늦은 예보</dt>
+              <dd>
+                {view.leadTime.minHours >= 0
+                  ? `${view.leadTime.minHours}시간 전`
+                  : `대상일 시작 ${Math.abs(view.leadTime.minHours)}시간 후`}
+              </dd>
+            </div>
+            <div>
+              <dt>측정한 기록</dt>
+              <dd>{view.leadTime.sampleCount}건</dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="btd-empty">
+            아직 채점된 기록이 없어 리드타임을 잴 수 없습니다.
+          </p>
+        )}
+        <p className="btd-note">
+          이 값이 흔들려도 서비스끼리의 비교는 그대로 성립합니다. 한 포착 안에서는 네 서비스가 모두
+          같은 리드타임을 쓰기 때문에, 흔들림은 비교의 <em>잡음</em>이지 어느 한 서비스에 유리하게
+          작용하는 <em>편향</em>이 아닙니다. 다만 “18시 발표의 성적”이라는 말 자체는 그만큼 느슨해집니다.
         </p>
       </section>
 

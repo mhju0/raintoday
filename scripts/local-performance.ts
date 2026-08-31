@@ -1,18 +1,24 @@
 import { runPerformanceBatch } from "../lib/performance/batch.ts";
-import { cohortRunFailed, resolveCaptureCohort } from "../lib/performance/cli.ts";
+import {
+  cohortRunFailed,
+  manualCohortHourMismatch,
+  resolveCaptureCohort,
+} from "../lib/performance/cli.ts";
 import { PostgresPerformanceStore } from "../lib/performance/postgres.ts";
 
 async function main(): Promise<void> {
-  const cohort = resolveCaptureCohort(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const cohort = resolveCaptureCohort(argv);
+  const now = new Date();
+  // A delayed scheduled run still writes; a hand-picked label the clock
+  // contradicts does not. See #118.
+  const mismatch = manualCohortHourMismatch(argv, now);
+  if (mismatch) throw new Error(mismatch);
   const connectionUrl = process.env.PERFORMANCE_DATABASE_URL?.trim();
   if (!connectionUrl) throw new Error("PERFORMANCE_DATABASE_URL is required");
   const store = new PostgresPerformanceStore(connectionUrl);
   try {
-    const result = await runPerformanceBatch({
-      cohort,
-      now: new Date(),
-      store,
-    });
+    const result = await runPerformanceBatch({ cohort, now, store });
     console.log(JSON.stringify({ cohort, ...result }, null, 2));
     // 97 stations failing the same way prints 97 near-identical entries, which
     // buries the one thing worth reading: what actually went wrong, and how often.

@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   CAPTURE_FAULT_TOLERANCE,
   cohortRunFailed,
+  manualCohortHourMismatch,
   resolveCaptureCohort,
   SCHEDULE_COHORTS,
 } from "./cli.ts";
@@ -181,4 +182,41 @@ test("a failure that is neither an observation nor a tolerated capture fault fai
     catalogError: null,
   };
   assert.equal(cohortRunFailed(result), true, "an unexpected capture error is not a fault blip");
+});
+
+/**
+ * A cohort label is a claim about when a forecast was issued, and scoring reads
+ * it as one. A delayed scheduled run is the platform's doing and its capture is
+ * still worth keeping; a manual dispatch is a person choosing a label, and
+ * nothing stopped them choosing one the clock contradicts. The 2026-08-30
+ * dispatch would have written cohort-06 rows at 13 KST had it not faulted every
+ * station. See #118.
+ */
+test("a manual dispatch may not label a cohort the clock contradicts", () => {
+  const at = (hour: number): Date => new Date(`2026-08-31T${String(hour).padStart(2, "0")}:20:00+09:00`);
+
+  assert.equal(manualCohortHourMismatch(["--cohort=06"], at(6)), null, "on time is fine");
+  assert.equal(manualCohortHourMismatch(["--cohort=06"], at(11)), null, "modestly late is fine");
+  assert.equal(manualCohortHourMismatch(["--cohort=18"], at(23)), null);
+
+  assert.match(
+    manualCohortHourMismatch(["--cohort=06"], at(13)) ?? "",
+    /06/,
+    "13 KST is not the morning cohort",
+  );
+  assert.match(manualCohortHourMismatch(["--cohort=18"], at(4)) ?? "", /18/);
+});
+
+test("a delayed scheduled run is never refused, however far it drifted", () => {
+  // The measured drift is the scheduler's, not a mislabelling: cohort 06 has run
+  // as late as 14 KST and cohort 18 as late as 04. Refusing those would discard
+  // real captures to tidy a label.
+  const at = (hour: number): Date => new Date(`2026-08-31T${String(hour).padStart(2, "0")}:20:00+09:00`);
+  assert.equal(manualCohortHourMismatch(["--schedule=10 21 * * *"], at(14)), null);
+  assert.equal(manualCohortHourMismatch(["--schedule=10 9 * * *"], at(4)), null);
+});
+
+test("a forced manual dispatch is allowed, so the guard is never a dead end", () => {
+  const at = new Date("2026-08-31T13:20:00+09:00");
+  assert.equal(manualCohortHourMismatch(["--cohort=06", "--force"], at), null);
 });

@@ -40,6 +40,7 @@ function profile(
       status: "insufficient",
     },
     seed: [],
+    leadTime: null,
   };
 }
 

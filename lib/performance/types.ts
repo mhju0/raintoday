@@ -113,6 +113,23 @@ export interface SeedProviderPerformance {
   eligible: boolean;
 }
 
+/**
+ * How far ahead the scored captures were actually made.
+ *
+ * A Capture Cohort names the scheduled slot, not the hour a run started, and the
+ * scheduler is best-effort. Measuring the spread is what keeps that from being
+ * invisible: it is common to every provider inside one capture, so it does not
+ * bias provider-against-provider comparison, but it does bound what the cohort's
+ * own label can honestly claim.
+ */
+export interface LeadTimeSummary {
+  /** Hours from the capture to the start of its target day, in Asia/Seoul. */
+  minHours: number;
+  maxHours: number;
+  medianHours: number;
+  sampleCount: number;
+}
+
 export interface RecentPerformanceProfile {
   stationId: string;
   cohort: CaptureCohort;
@@ -135,6 +152,8 @@ export interface RecentPerformanceProfile {
   prospectiveBenchmark: ProspectiveBenchmark;
   /** Retrospective seed evidence, when any was supplied. Never benchmarked. */
   seed: SeedProviderPerformance[];
+  /** Observed lead-time spread of the scored captures; null when there are none. */
+  leadTime: LeadTimeSummary | null;
 }
 
 /**

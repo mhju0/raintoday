@@ -11,6 +11,7 @@ import type { LocalForecastEvidence } from "./localForecast.ts";
 import { DEFAULT_PERFORMANCE_POLICY } from "./performance/performance.ts";
 import { PERFORMANCE_PROVIDERS } from "./performance/store.ts";
 import type {
+  LeadTimeSummary,
   PrecipProviderId,
   ProspectiveBenchmark,
   RecentPerformanceProfile,
@@ -65,6 +66,12 @@ export interface BehindTheDataView {
   providers: BehindTheDataProviderRow[];
   /** Empty whenever the benchmark has not been computed on real captures. */
   benchmarkRows: BehindTheDataBenchmarkRow[];
+  /**
+   * How far ahead the scored captures were really made. The cohort names a
+   * scheduled slot and the scheduler is best-effort, so stating the measured
+   * spread is the only way the page's own cohort claim stays true.
+   */
+  leadTime: LeadTimeSummary | null;
   policy: {
     windowDays: number;
     minimumSamples: number;
@@ -211,6 +218,7 @@ export function buildBehindTheDataView(evidence: LocalForecastEvidence): BehindT
   return {
     status: statusOf(evidence),
     station: evidence.station,
+    leadTime: profile?.leadTime ?? null,
     providers,
     benchmarkRows: profile ? benchmarkRowsOf(profile) : [],
     policy: {
