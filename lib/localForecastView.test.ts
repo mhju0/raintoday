@@ -60,6 +60,7 @@ function profile(providers: ProviderRecentPerformance[]): RecentPerformanceProfi
       status: "passing",
     },
     seed: [],
+    leadTime: { minHours: 18, maxHours: 18, medianHours: 18, sampleCount: 40 },
   };
 }
 

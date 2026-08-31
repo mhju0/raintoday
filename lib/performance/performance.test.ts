@@ -46,7 +46,9 @@ function series(options: SeriesOptions): {
       stationId: "108",
       targetDate,
       cohort: options.cohort ?? "06",
-      capturedAt: `${targetDate}T06:00:00+09:00`,
+      // A capture is made the day before the day it forecasts, at the cohort's
+      // scheduled hour: 06:10 KST is 18 hours ahead of the target day's start.
+      capturedAt: `${dateDaysAgo(daysAgo + 1)}T06:00:00+09:00`,
       providers: providers.map((provider) => ({
         provider,
         probability: options.probability(provider, daysAgo, wet),
@@ -525,4 +527,84 @@ test("a month with missed runs still reaches the benchmark", () => {
   );
   assert.notEqual(profile.mode, "suspended");
   assert.equal(profile.reason, "ramping");
+});
+
+test("the profile measures how far ahead its captures were actually made", () => {
+  // The cohort names a scheduled slot; the scheduler is best-effort, and stored
+  // captures have run anywhere from 06 to 14 KST under the 06 label. Measuring
+  // the spread is what stops that from being invisible.
+  const data = series({
+    days: 4,
+    probability: (_provider, _daysAgo, wet) => (wet ? 80 : 20),
+  });
+  // The fixture captures at 06:00 KST for a target that starts at 00:00 KST the
+  // next day, so every row is 18 hours ahead.
+  const profile = buildRecentPerformanceProfile({
+    stationId: "108",
+    cohort: "06",
+    ...data,
+    asOf: AS_OF,
+  });
+  assert.deepEqual(profile.leadTime, {
+    minHours: 18,
+    maxHours: 18,
+    medianHours: 18,
+    sampleCount: 4,
+  });
+});
+
+test("a drifted run widens the measured lead time rather than hiding in the label", () => {
+  const data = series({
+    days: 3,
+    probability: (_provider, _daysAgo, wet) => (wet ? 80 : 20),
+  });
+  // One run started after midnight: still labelled 18, but further ahead of its
+  // target day than any on-time 06 capture.
+  data.captures[0] = {
+    ...data.captures[0],
+    // Started after midnight, so it is 4 hours INTO the day it forecasts.
+    capturedAt: `${data.captures[0].targetDate}T04:00:00+09:00`,
+  };
+  const profile = buildRecentPerformanceProfile({
+    stationId: "108",
+    cohort: "06",
+    ...data,
+    asOf: AS_OF,
+  });
+  assert.ok(profile.leadTime);
+  assert.equal(profile.leadTime.minHours, -4, "a capture taken inside its target day is behind it");
+  assert.equal(profile.leadTime.maxHours, 18, "the on-time rows are still 18 hours ahead");
+  assert.equal(profile.leadTime.sampleCount, 3);
+});
+
+test("a profile with nothing scored reports no lead time rather than zero", () => {
+  const profile = buildRecentPerformanceProfile({
+    stationId: "108",
+    cohort: "06",
+    captures: [],
+    observations: [],
+    asOf: AS_OF,
+  });
+  assert.equal(profile.leadTime, null);
+});
+
+test("lead time is reported in whole hours, not scheduling noise", () => {
+  const data = series({
+    days: 2,
+    probability: (_provider, _daysAgo, wet) => (wet ? 80 : 20),
+  });
+  data.captures[0] = {
+    ...data.captures[0],
+    capturedAt: `${data.captures[0].capturedAt.slice(0, 11)}06:29:00+09:00`,
+  };
+  const profile = buildRecentPerformanceProfile({
+    stationId: "108",
+    cohort: "06",
+    ...data,
+    asOf: AS_OF,
+  });
+  assert.ok(profile.leadTime);
+  for (const value of [profile.leadTime.minHours, profile.leadTime.maxHours, profile.leadTime.medianHours]) {
+    assert.equal(value, Math.trunc(value), "an hour figure must not carry minutes of false precision");
+  }
 });

@@ -3,6 +3,7 @@ import { PERFORMANCE_PROVIDERS } from "./store.ts";
 import type {
   CapturedProviderForecast,
   ForecastCapture,
+  LeadTimeSummary,
   ProspectiveBenchmark,
   RecentPerformanceProfile,
   PerformancePolicy,
@@ -250,6 +251,34 @@ function providerMetrics(
   };
 }
 
+/**
+ * Hours from a capture to the start of its target day, in Asia/Seoul.
+ *
+ * Negative when a run started inside the day it was forecasting — which a badly
+ * delayed scheduled run can do, and which the cohort label alone would hide.
+ */
+function leadTimeHours(capture: ForecastCapture): number {
+  const targetStart = Date.parse(`${capture.targetDate}T00:00:00+09:00`);
+  return (targetStart - Date.parse(capture.capturedAt)) / 3_600_000;
+}
+
+function leadTimeSummary(completed: readonly CompletedCapture[]): LeadTimeSummary | null {
+  if (completed.length === 0) return null;
+  const hours = completed.map((entry) => leadTimeHours(entry.capture)).sort((a, b) => a - b);
+  const middle = hours.length >> 1;
+  const median = hours.length % 2 === 1
+    ? hours[middle]
+    : (hours[middle - 1] + hours[middle]) / 2;
+  // Whole hours. A run's start drifts by hours, so minutes of precision here
+  // would dress a scheduling artefact up as a measurement.
+  return {
+    minHours: Math.round(hours[0]),
+    maxHours: Math.round(hours[hours.length - 1]),
+    medianHours: Math.round(median),
+    sampleCount: hours.length,
+  };
+}
+
 function prospectiveBenchmark(
   completed: readonly CompletedCapture[],
   policy: PerformancePolicy,
@@ -399,6 +428,7 @@ export function buildRecentPerformanceProfile(input: ProfileInput): RecentPerfor
 
   const asOfDate = koreanDate(input.asOf);
   return {
+    leadTime: leadTimeSummary(completed),
     stationId: input.stationId,
     cohort: input.cohort,
     generatedAt: input.asOf.toISOString(),

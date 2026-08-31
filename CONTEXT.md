@@ -29,7 +29,7 @@ The nearest active observation station that passes distance and elevation repres
 _Avoid_: Nearest station, local truth
 
 **Capture Cohort**:
-One next-day forecast issue group, named for the scheduled 06 or 18 KST slot it belongs to. Cohorts are evaluated independently. The label identifies the slot, not the clock hour a capture was taken at: the scheduler is best-effort and can start a run hours late, so lead time varies within a cohort.
+One next-day forecast issue group, named for the scheduled 06 or 18 KST slot it belongs to. Cohorts are evaluated independently. The label identifies the slot, not the clock hour a capture was taken at: the scheduler is best-effort and can start a run hours late, so lead time varies within a cohort. The Recent Performance Profile measures that spread rather than assuming it away.
 _Avoid_: Morning data, forecast batch, fixed issue hour
 
 **Forecast Capture**:

@@ -58,6 +58,7 @@ const profile: RecentPerformanceProfile = {
     status: "passing",
   },
   seed: [],
+  leadTime: null,
 };
 
 test("local forecast targets the user's coordinate and applies only recent local influence", async () => {
@@ -345,6 +346,8 @@ test("the frozen capture blend and the served blend agree on one station's evide
   // 60 completed comparisons in which open-meteo is sharp and kma is not, and
   // the adaptive blend prospectively beat equal weighting, so influence is
   // actually learned rather than trivially equal.
+  const dayBefore = (date: string): string =>
+    new Date(Date.parse(`${date}T00:00:00.000Z`) - 86_400_000).toISOString().slice(0, 10);
   for (let daysAgo = 60; daysAgo >= 1; daysAgo -= 1) {
     const targetDate = new Date(now.getTime() - daysAgo * 86_400_000).toISOString().slice(0, 10);
     const wet = daysAgo % 2 === 0;
@@ -352,7 +355,7 @@ test("the frozen capture blend and the served blend agree on one station's evide
       stationId: "108",
       targetDate,
       cohort: "18",
-      capturedAt: `${targetDate}T18:00:00+09:00`,
+      capturedAt: `${dayBefore(targetDate)}T18:00:00+09:00`,
       providers: [
         { provider: "open-meteo", probability: wet ? 90 : 10, amountMm: null },
         { provider: "kma", probability: wet ? 30 : 70, amountMm: null },

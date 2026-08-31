@@ -46,6 +46,7 @@ function profile(overrides: Partial<RecentPerformanceProfile> = {}): RecentPerfo
       status: "passing",
     },
     seed: [],
+    leadTime: { minHours: 18, maxHours: 18, medianHours: 18, sampleCount: 40 },
     ...overrides,
   };
 }
@@ -255,4 +256,18 @@ test("the published policy figures come from the policy object, not the prose", 
   assert.equal(view.policy.scoreSharpness, 12);
   assert.equal(view.policy.weightFloorPercent, 5);
   assert.equal(view.policy.weightCapPercent, 60);
+});
+
+test("the view carries the measured lead time, so the cohort claim stays checkable", () => {
+  const measured = { minHours: 4, maxHours: 19, medianHours: 17, sampleCount: 12 };
+  const view = buildBehindTheDataView(evidence({ profile: profile({ leadTime: measured }) }));
+  assert.deepEqual(view.leadTime, measured);
+
+  const none = buildBehindTheDataView({
+    status: "unavailable",
+    reason: "database-unavailable",
+    station: null,
+    profile: null,
+  });
+  assert.equal(none.leadTime, null, "no evidence must not become a lead time of zero");
 });
