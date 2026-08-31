@@ -81,8 +81,11 @@ Each provider is seeded from the model that actually drives it:
 | KMA | `kma_seamless` |
 | Pirate Weather | `gfs_seamless` |
 | WeatherAPI | *not seeded* |
+| Visual Crossing | *not seeded* |
 
-WeatherAPI publishes no model lineage with a public forecast archive. It is omitted rather than given a guessed proxy, and keeps a neutral share so it is still blended. MET Norway is absent for a different reason: it is no longer compared at all, because it publishes no precipitation probability for Korea. `PrecipProviderId` still admits `met-norway` so historical capture and seed rows stay readable, but `PERFORMANCE_PROVIDERS` narrows both scoring and display to the four providers actually blended — a service's measured performance must never appear beside a forecast it had no part in.
+Two of the five are not seeded, for different reasons. WeatherAPI publishes no model lineage with a public forecast archive, and a guessed proxy would be a fabricated measurement of a real product. Visual Crossing has an archive, but it is billed per hour — 24 records a station-day, so roughly 90 days for a single station costs about 2,300 of a 1,000/day allowance, against 97 stations — so it is unreachable on the free tier whatever the endpoint returns. Both are omitted rather than given a proxy, and both keep a neutral share so they are still blended: a provider short of evidence has not been measured, and absence of evidence is not evidence of poor performance.
+
+MET Norway is absent for a third reason: it is no longer compared at all, because it publishes no precipitation probability for Korea. `PrecipProviderId` still admits `met-norway` so historical capture and seed rows stay readable, but `PERFORMANCE_PROVIDERS` narrows both scoring and display to the providers actually blended — a service's measured performance must never appear beside a forecast it had no part in.
 
 Archives publish no probability, so seed rows carry an amount only. They are scored with `precipSkill.ts` — rain/no-rain with an asymmetric miss penalty, plus an amount term on days it actually rained — and weighted through the same bounded floor/cap projection the live path uses.
 
