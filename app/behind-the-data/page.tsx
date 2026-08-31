@@ -214,7 +214,7 @@ export default async function BehindTheDataPage() {
 
       {/* ── Layer 3: the mechanism ── */}
       <section className="btd-section" aria-labelledby="btd-cycle-heading">
-        <p className="local-kicker">채점 사이클 <span>— 하루 두 번, 06:10 · 18:10 KST</span></p>
+        <p className="local-kicker">채점 사이클 <span>— 하루 두 번, 06:10 · 18:10 KST 예약</span></p>
         <h2 id="btd-cycle-heading">결과가 나오기 전에 얼립니다</h2>
         <p>
           읽을 수 있는 모든 활성 ASOS 관측소에 대해, 한 번의 실행이 네 가지를 합니다. 완료된 일강수
@@ -227,6 +227,13 @@ export default async function BehindTheDataPage() {
         <p>
           06시 발표와 18시 발표는 같은 “내일”을 서로 다른 리드타임으로 예보합니다. 섞으면 리드타임
           효과가 서비스 실력으로 오독되기 때문에, 두 코호트는 끝까지 따로 채점됩니다.
+        </p>
+        <p className="btd-note">
+          다만 코호트 이름은 <em>예약된 시간대</em>를 가리키는 것이지, 실제로 포착한 시각을 보장하지
+          않습니다. GitHub의 예약 실행은 최선 노력 방식이라 몇 시간씩 늦게 시작되기도 하고, 지금까지
+          저장된 기록에서 06 코호트는 06–14시, 18 코호트는 18–04시 사이에 포착됐습니다. 그래서 같은
+          코호트 안에서도 리드타임이 흔들립니다. 코드가 시각을 강제하지는 않는다는 뜻이고, 이건 알려진
+          한계입니다.
         </p>
       </section>
 

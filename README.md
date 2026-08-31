@@ -42,12 +42,14 @@ The interface is Korean, for Korean users. The captions below describe what each
 
 ## How recent performance works
 
-The [`local-performance`](.github/workflows/local-performance.yml) workflow runs at fixed 06:10 and 18:10 KST cohorts. For every active KMA ASOS station it can read, one run:
+The [`local-performance`](.github/workflows/local-performance.yml) workflow is scheduled at 06:10 and 18:10 KST. For every active KMA ASOS station it can read, one run:
 
 1. stores one completed daily precipitation observation — yesterday for the 18 KST cohort, two days back for the 06 KST one;
 2. captures each available provider's next-day rain probability and amount;
 3. freezes the adaptive and equal-weight outputs before the outcome exists;
 4. writes the immutable capture and corrected station-day observation to PostgreSQL.
+
+A cohort label records **which scheduled slot** a capture belongs to, not the clock hour it was taken at. GitHub runs scheduled workflows on a best-effort basis and can start them hours late: across the captures stored so far, cohort `06` rows were actually taken between 06 and 14 KST and cohort `18` rows between 18 and 04 KST. Lead time therefore varies inside a cohort, which weakens — but does not remove — the reason the two are scored separately, and it is a known limitation rather than a property the pipeline enforces.
 
 The two cohorts deliberately read different days. ASOS compiles a calendar day's summary some hours after midnight, not at it, so at 06 KST most of yesterday's rows do not exist yet — and a day the record has not compiled answers exactly the same NODATA as a station that has no row at all. Reading yesterday at 06 KST therefore recorded absences that were nothing of the kind. The early cohort reaches one day further back: both cohorts then read a published day, every date still gets two reads, and the later one is a real second chance rather than a premature one.
 

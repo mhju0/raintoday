@@ -40,7 +40,7 @@ Two different bars decide those rows, and conflating them is what #89 was filed 
 
 ## Live cohorts
 
-Two scheduled runs a day freeze provider forecasts at a fixed KST hour — cohort `06` and cohort `18` — and each also reads one day of ASOS ground truth. The two cohorts read different days: `18` reads yesterday, `06` reads the day before yesterday.
+Two scheduled runs a day freeze provider forecasts — cohort `06` and cohort `18`, named for their 06:10 and 18:10 KST slots — and each also reads one day of ASOS ground truth. The label is the slot, not the hour the run happened: GitHub schedules are best-effort, and stored captures show cohort `06` taken anywhere from 06 to 14 KST and cohort `18` from 18 to 04 KST. Lead time therefore varies inside a cohort; nothing enforces the hour. The two cohorts read different days: `18` reads yesterday, `06` reads the day before yesterday.
 
 That offset is not symmetry for its own sake. ASOS compiles a calendar day's summary hours after midnight, so at 06 KST yesterday's rows mostly do not exist yet, and an uncompiled day answers NODATA — indistinguishable from a station with no row at all. Reading two days back keeps both cohorts on a published day, so every date is still read twice and the later read is a genuine second chance at a date the first one missed.
 
