@@ -51,7 +51,8 @@ export interface BehindTheDataProviderRow {
   sampleCount: number;
   wetDays: number;
   dryDays: number;
-  brierScore: number;
+  /** null when the provider has no scored comparison yet — never a stand-in 0. */
+  brierScore: number | null;
   last7DaysBrier: number | null;
   eligible: boolean;
   /** Why an ineligible provider is ineligible — never a verdict on its skill. */
@@ -206,20 +207,44 @@ function benchmarkRowsOf(profile: RecentPerformanceProfile): BehindTheDataBenchm
 export function buildBehindTheDataView(evidence: LocalForecastEvidence): BehindTheDataView {
   const profile = evidence.profile;
   const compared = new Set<PrecipProviderId>(PERFORMANCE_PROVIDERS);
-  const providers = (profile?.providers ?? [])
-    .filter((row) => compared.has(row.provider))
-    .map((row): BehindTheDataProviderRow => ({
-      provider: row.provider,
-      name: PROVIDER_NAMES[row.provider],
-      sampleCount: row.sampleCount,
-      wetDays: row.wetDays,
-      dryDays: row.dryDays,
-      brierScore: row.brierScore,
-      last7DaysBrier: row.last7Days.brierScore,
-      eligible: row.eligible,
-      ineligibleReason: ineligibleReasonOf(row),
-      influence: profile?.effectiveWeights[row.provider] ?? null,
-    }));
+  const scored = (profile?.providers ?? []).filter((row) => compared.has(row.provider));
+  const providers = scored.map((row): BehindTheDataProviderRow => ({
+    provider: row.provider,
+    name: PROVIDER_NAMES[row.provider],
+    sampleCount: row.sampleCount,
+    wetDays: row.wetDays,
+    dryDays: row.dryDays,
+    brierScore: row.brierScore,
+    last7DaysBrier: row.last7Days.brierScore,
+    eligible: row.eligible,
+    ineligibleReason: ineligibleReasonOf(row),
+    influence: profile?.effectiveWeights[row.provider] ?? null,
+  }));
+
+  // A provider that holds influence but has produced no comparison yet still gets
+  // a row. Omitting it left the influence column summing to 80% with nothing on
+  // the page to say where the rest went — and this is the page whose whole claim
+  // is that a sceptical reader can check it. A newly added source is in exactly
+  // this state for its first month: weighted neutrally (#122), scored not at all.
+  const shown = new Set(scored.map((row) => row.provider));
+  for (const provider of PERFORMANCE_PROVIDERS) {
+    if (shown.has(provider)) continue;
+    const influence = profile?.effectiveWeights[provider];
+    if (typeof influence !== "number") continue;
+    providers.push({
+      provider,
+      name: PROVIDER_NAMES[provider],
+      sampleCount: 0,
+      wetDays: 0,
+      dryDays: 0,
+      // Not zero. Zero is a perfect score, and this provider has no score at all.
+      brierScore: null,
+      last7DaysBrier: null,
+      eligible: false,
+      ineligibleReason: "too-few-samples",
+      influence,
+    });
+  }
   const policy = DEFAULT_PERFORMANCE_POLICY;
   return {
     status: statusOf(evidence),

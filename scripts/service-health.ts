@@ -11,9 +11,18 @@
  * one place and not the other leaves the pipeline green while the site degrades,
  * with nothing to report it — this closes that gap.
  *
- * Deliberately tolerant of one missing provider. Losing one of four is ordinary
+ * Deliberately tolerant of one missing provider. Losing one of five is ordinary
  * upstream noise and self-heals; losing two is systemic. A check that pages on
  * noise gets ignored, which is worse than not having it.
+ *
+ * Only Pirate Weather gets a quota check, and not for want of trying: Visual
+ * Crossing publishes no rate-limit headers at all and has no usage endpoint —
+ * `/rest/services/account`, `/account` and `/rest/services/usage` all answer 404
+ * — so there is no remaining figure to turn into a runway. Its exhaustion shows
+ * up as a 429, which arrives as one fewer provider in the check below. That is a
+ * symptom watch, not a runway, and it must not be described as the latter.
+ * Pirate Weather also remains the binding ceiling: 10,000/month is about 333 a
+ * day against the same 194 burn, tighter than Visual Crossing's 1,000 a day.
  */
 import { FALLBACK_STATION_CATALOG } from "../lib/performance/stationCatalog.ts";
 import { evaluateQuotaRunway } from "../lib/quotaRunway.ts";
@@ -22,8 +31,14 @@ import { evaluateQuotaRunway } from "../lib/quotaRunway.ts";
 const DAILY_PIPELINE_BURN = FALLBACK_STATION_CATALOG.length * 2;
 /** Calls held back for visitor traffic beyond the pipeline's own projection. */
 const VISITOR_RESERVE = 1_000;
-/** Below this many compared providers the served blend is meaningfully degraded. */
-const MINIMUM_PROVIDERS = 3;
+/**
+ * Below this many compared providers the served blend is meaningfully degraded.
+ * One short of `forecastProviders`, holding the one-missing-is-noise rule as the
+ * compared list grows. Raising this requires the new provider's key to exist in
+ * the production environment first — the served path reads a different store from
+ * the scheduled jobs, so a key set only in Actions leaves this check red.
+ */
+const MINIMUM_PROVIDERS = 4;
 
 const REQUEST_TIMEOUT_MS = 20_000;
 const ATTEMPTS = 3;

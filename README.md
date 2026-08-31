@@ -79,7 +79,7 @@ Seed evidence is a separate class from a Forecast Capture, and stays separate:
 - It is stored in its own table, carries no cohort and no frozen blend, and therefore can never reach the Prospective Benchmark.
 - Its influence is capped at half the distance from equal weighting, because it rests on model proxies rather than each provider's own published forecast.
 - It applies **only** while live evidence is immature. It never overrides a benchmark suspension, and mature live evidence supersedes it entirely.
-- A provider with no honest archive proxy — currently WeatherAPI — is not seeded at all and keeps a neutral share rather than being demoted for lacking one.
+- A provider with no honest archive proxy is not seeded at all and keeps a neutral share rather than being demoted for lacking one. That is currently WeatherAPI, which publishes no model lineage with a public archive, and Visual Crossing, whose archive exists but is billed per hour — 24 records a station-day, so one station's ~90 days would cost more than two days of the entire free allowance, against 97 stations.
 
 The page says which of the two is driving the blend, and in seed mode shows the wet-day miss rate rather than a Brier table.
 
@@ -164,7 +164,7 @@ The served surface is small and closed: `/`, `/behind-the-data`, `/api/local-for
 | --- | --- |
 | App | Next.js 16, React 19, TypeScript |
 | Styling | Tailwind CSS 4 and custom responsive CSS |
-| Forecasts | Open-Meteo, KMA, Pirate Weather, WeatherAPI — in that order |
+| Forecasts | Open-Meteo, KMA, Pirate Weather, WeatherAPI, Visual Crossing — in that order |
 | Ground truth | KMA ASOS daily precipitation |
 | Persistence | PostgreSQL via Postgres.js |
 | Scheduling | GitHub Actions: fixed KST evidence cohorts, and a six-hourly service check |
@@ -206,7 +206,7 @@ npm run service:health
 npm run service:health -- --target=local
 ```
 
-It asserts the page answers, that a forecast still blends at least three of the four compared providers with a usable probability, and that administrative search still resolves. It also reads Pirate Weather's `ratelimit-*` headers and fails when what is left will not cover the scheduled pipeline's burn for the rest of the billing period plus a reserve held back for visitors — runway rather than a fixed threshold, because the same balance is comfortable on the last day of a period and fatal on the first. It runs every six hours from `.github/workflows/service-health.yml`. Targets are named rather than free-form URLs, so every address it requests is a constant in the script.
+It asserts the page answers, that a forecast still blends at least four of the five compared providers with a usable probability, and that administrative search still resolves. It also reads Pirate Weather's `ratelimit-*` headers and fails when what is left will not cover the scheduled pipeline's burn for the rest of the billing period plus a reserve held back for visitors — runway rather than a fixed threshold, because the same balance is comfortable on the last day of a period and fatal on the first. It runs every six hours from `.github/workflows/service-health.yml`. Targets are named rather than free-form URLs, so every address it requests is a constant in the script.
 
 ## Verification
 
