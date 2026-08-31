@@ -98,6 +98,8 @@ There is no ambient scene behind any of it. The page is one vertical read whose 
 flowchart TB
   Browser["Browser /"] --> Search["/api/locations/search"]
   Browser --> Local["/api/local-forecast"]
+  Browser --> Behind["/behind-the-data"]
+  Behind --> Database
   Search --> Geocoding["Kakao Map administrative search · KR only"]
   Local --> Providers["Forecast provider snapshots at user coordinates"]
   Local --> Match["ASOS Station Match"]
@@ -128,9 +130,10 @@ Important boundaries:
 - `lib/localForecastView.ts` projects that response onto the flat contract `/api/local-forecast` returns, so the page never reads the domain model directly.
 - `lib/forecast/blocks.ts` folds a now-anchored hourly series into eight 3-hour blocks; `lib/forecast/rainWindow.ts` reads the rain window out of them. A block with no published probability stays null rather than 0%, and an unpublished block ends a run rather than extending it.
 - `app/api/local-forecast` and `app/api/locations/search` are rate-limited HTTP adapters.
+- `app/behind-the-data` is the scoring record, rendered per request from the same evidence read the forecast uses; `lib/behindTheData.ts` derives its view. It reads the performance store directly from the server component rather than adding a third API route.
 - `lib/quotaRunway.ts` turns an upstream provider's remaining monthly quota into a runway, which the service-health check reads.
 
-The served surface is small and closed: `/`, `/api/local-forecast`, `/api/locations/search`, `/icon.svg` and `/opengraph-image`, plus a 404. The retired `/atmosphere` and `/diagnostics` paths answer real HTTP redirects to `/`, independent of JavaScript; every other path 404s.
+The served surface is small and closed: `/`, `/behind-the-data`, `/api/local-forecast`, `/api/locations/search`, `/icon.svg` and `/opengraph-image`, plus a 404. The retired `/atmosphere` and `/diagnostics` paths answer real HTTP redirects to `/`, independent of JavaScript; every other path 404s.
 
 오늘비 grew out of a cinematic Seoul-only sky scene, and for a while carried a second, single-station precipitation-scoring pipeline beside the served one. Both are gone from the tree, together with the radar renderer and the air-quality reading that only that scene ever displayed. `lib/performance/` is now the only scoring pipeline in the repository, and it is the one a visitor reads. What was tried and why it was dropped is kept in [`docs/adr/`](docs/adr/) rather than in the code.
 

@@ -153,7 +153,8 @@ function nextCalendarDate(date: Date): string {
     .slice(0, 10);
 }
 
-function captureCohortAt(date: Date): CaptureCohort {
+/** Which fixed capture cohort's evidence a read at this instant is scored against. */
+export function captureCohortAt(date: Date): CaptureCohort {
   const hour = koreanHour(date);
   return hour >= 6 && hour < 18 ? "06" : "18";
 }
