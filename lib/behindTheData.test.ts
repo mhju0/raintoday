@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildBehindTheDataView } from "./behindTheData.ts";
+import { buildBehindTheDataView, resolveRecordLocation } from "./behindTheData.ts";
 import type { LocalForecastEvidence } from "./localForecast.ts";
 import type { PrecipProviderId, RecentPerformanceProfile } from "./performance/types.ts";
 
@@ -270,4 +270,36 @@ test("the view carries the measured lead time, so the cohort claim stays checkab
     profile: null,
   });
   assert.equal(none.leadTime, null, "no evidence must not become a lead time of zero");
+});
+
+test("the record follows a coordinate handed to it, and survives a bad one", () => {
+  const seoul = resolveRecordLocation({});
+  assert.equal(seoul.requested, false, "no coordinate is not a request");
+
+  const busan = resolveRecordLocation({ lat: "35.1796", lon: "129.0756", name: "부산 중구" });
+  assert.equal(busan.requested, true);
+  assert.equal(Math.round(busan.location.latitude * 100), 3518);
+  assert.equal(busan.location.name, "부산 중구");
+
+  for (const bad of [
+    { lat: "not-a-number", lon: "129" },
+    { lat: "35.1", lon: "" },
+    { lat: "0", lon: "0" },
+    { lat: "48.85", lon: "2.35" },
+    { lat: "35.1796" },
+  ]) {
+    const fallback = resolveRecordLocation(bad);
+    assert.equal(fallback.requested, false, `${JSON.stringify(bad)} must not be honoured`);
+    assert.equal(fallback.location.name, seoul.location.name);
+  }
+});
+
+test("a repeated parameter takes the first value rather than crashing", () => {
+  const view = resolveRecordLocation({ lat: ["35.1796", "0"], lon: ["129.0756", "0"] });
+  assert.equal(view.requested, true);
+});
+
+test("a hostile name is bounded rather than rendered whole", () => {
+  const long = resolveRecordLocation({ lat: "35.1796", lon: "129.0756", name: "가".repeat(500) });
+  assert.ok(long.location.name.length <= 60);
 });

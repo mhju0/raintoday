@@ -28,7 +28,13 @@ html {
 
 /* ---------- nationwide local forecast ---------- */
 
-.local-forecast-page {
+/* The forecast and the scoring record share one vocabulary, so they share one
+   token block. Scoping it to a single page class silently left /behind-the-data
+   on browser fallbacks: every var() resolved to nothing, which took the panels,
+   the hairlines, the mono meta and the focus ring with it — and looked close
+   enough to correct to survive a screenshot. */
+.local-forecast-page,
+.btd-page {
   /* The ambient scene is gone: this page is read, not looked at. One flat
      ground, two panel tones, and colour reserved for the three things that
      carry meaning — the chance of rain (blue), the amount of rain (teal),
@@ -80,6 +86,13 @@ html {
   /* Line length in `em`, not `ch`: ch is the width of "0", about half a
      Hangul glyph, so a ch-based measure is roughly half what it claims. */
   --measure: 26em;
+}
+
+/* The forecast page's own frame. Deliberately NOT shared with `.btd`: the
+   scoring record is a plain document column on the body's ground, and merging
+   these declarations into the token rule handed it a 100svh box with its own
+   lighter background, which read as a band down the middle of the page. */
+.local-forecast-page {
   position: relative;
   min-height: 100svh;
   /* `clip` instead of `hidden`: hidden makes this element a scroll container,
@@ -140,7 +153,8 @@ html {
 
 /* One visible focus ring for the whole page. The browser default was legible
    but unstyled, and several controls sit on top of the scene gradient. */
-.local-forecast-page :focus-visible {
+.local-forecast-page :focus-visible,
+.btd-page :focus-visible {
   outline: 2px solid var(--local-accent);
   outline-offset: 3px;
   border-radius: 2px;
@@ -150,7 +164,8 @@ html {
    the user navigated to them. Chrome still paints a ring there, which reads as
    a stray box drawn around the page title on arrival. */
 .local-forecast-page [tabindex="-1"]:focus,
-.local-forecast-page [tabindex="-1"]:focus-visible {
+.local-forecast-page [tabindex="-1"]:focus-visible,
+.btd-page [tabindex="-1"]:focus-visible {
   outline: none;
 }
 
@@ -763,9 +778,24 @@ html {
   align-self: end;
   padding: 0.68rem 0.85rem;
   border: 1px solid var(--local-line);
+  border-radius: 3px;
   color: var(--local-muted);
   font-size: var(--t-label);
   letter-spacing: 0.08em;
+  /* It became the way into the scoring record, so it has to read as operable
+     without borrowing one of the three meaning-colours to say so. */
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.local-status-pill::after {
+  content: " →";
+  color: var(--local-dim);
+}
+
+.local-status-pill:hover:not(:focus-visible) {
+  border-color: var(--local-muted);
+  color: var(--local-ink-2);
 }
 
 .local-status-pill.is-active {
@@ -2143,6 +2173,17 @@ html {
    would be claiming to be one of them. The states are told apart by their
    words, which is also the only way they survive being read aloud.
    ============================================================ */
+/* The ground, full width. The body paints a darker colour, so without this the
+   record and the forecast read as two different sites. */
+.btd-page {
+  min-height: 100svh;
+  background: var(--local-bg);
+  color: var(--local-ink-2);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* The reading column inside it. */
 .btd {
   width: min(100% - 2.5rem, 46rem);
   margin: 0 auto;
@@ -2457,4 +2498,101 @@ html {
 .local-footer-link:hover,
 .local-footer-link:focus-visible {
   border-bottom-color: currentColor;
+}
+
+/* ---- /behind-the-data: choosing whose record is shown ---- */
+.btd-picker-open {
+  display: block;
+  margin: 1.4rem 0 0;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--local-line-2);
+  border-radius: 3px;
+  background: var(--local-panel);
+  color: var(--local-ink-2);
+  font: inherit;
+  font-size: var(--t-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.btd-picker-open span {
+  color: var(--local-dim);
+}
+
+.btd-picker-open:hover:not(:focus-visible) {
+  border-color: var(--local-muted);
+}
+
+.btd-picker {
+  margin: 1.4rem 0 0;
+  padding: 1rem 1.1rem 1.1rem;
+  border: 1px solid var(--local-line-2);
+  border-radius: 3px;
+  background: var(--local-panel);
+}
+
+.btd-picker-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-family: var(--local-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--local-dim);
+}
+
+.btd-picker-input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--local-line-2);
+  border-radius: 3px;
+  background: var(--local-bg);
+  color: var(--local-ink);
+  font: inherit;
+  font-size: var(--t-body);
+}
+
+.btd-picker-message {
+  margin: 0.7rem 0 0;
+  font-size: var(--t-body);
+  color: var(--local-muted);
+}
+
+.btd-picker-results {
+  margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
+.btd-picker-results button {
+  width: 100%;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.5rem 0.7rem;
+  border: 0;
+  border-radius: 3px;
+  background: var(--local-panel-2);
+  color: var(--local-ink-2);
+  font: inherit;
+  font-size: var(--t-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.btd-picker-results strong {
+  color: var(--local-ink);
+  font-weight: 600;
+}
+
+.btd-picker-results span {
+  color: var(--local-dim);
+  font-size: var(--t-label);
+}
+
+.btd-picker-results button:hover:not(:focus-visible) {
+  outline: 1px solid var(--local-line-2);
 }

@@ -18,7 +18,12 @@ import type { ForecastLocationSearchResult } from "@/lib/locationSearch";
 type ViewState =
   | { kind: "idle" }
   | { kind: "loading"; label: string }
-  | { kind: "ready"; forecast: LocalForecastView; selection: ForecastLocationSelection }
+  | {
+      kind: "ready";
+      forecast: LocalForecastView;
+      selection: ForecastLocationSelection;
+      location: ChosenForecastLocation;
+    }
   // Carries the input to retry, or null when retrying can never help — so the
   // view cannot offer a button it has no way to act on.
   | { kind: "error"; message: string; retry: ChosenForecastLocation | null };
@@ -121,6 +126,22 @@ function formatOutlookDate(date: string): string {
  * into browser history and into any link they shared; that one stays on the
  * device. Both are restored on the next visit.
  */
+/**
+ * The scoring record for this coordinate.
+ *
+ * Carrying the coordinate is the point: someone who follows the link because
+ * their own forecast said "기록 없음" should land on the station that said it,
+ * not on Seoul.
+ */
+function recordHrefFor(input: ChosenForecastLocation): string {
+  const params = new URLSearchParams({
+    lat: input.latitude.toFixed(5),
+    lon: input.longitude.toFixed(5),
+    name: input.name,
+  });
+  return `/behind-the-data?${params}`;
+}
+
 function shareableSearch(input: ChosenForecastLocation): string | null {
   if (input.selection.kind !== "area") return null;
   const params = new URLSearchParams({
@@ -665,9 +686,10 @@ function benchmarkVerdict(
   return "최근 기록에서는 두 방식이 비슷하게 맞았습니다.";
 }
 
-function PerformanceEvidence({ evidence, cohortLabel }: {
+function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
   evidence: LocalForecastView["evidence"];
   cohortLabel: string;
+  recordHref: string;
 }) {
   const {
     status,
@@ -710,7 +732,11 @@ function PerformanceEvidence({ evidence, cohortLabel }: {
               : <>최근 이 지역에서<br />누가 더 잘 맞았나</>}
           </h2>
         </div>
-        <span className={`local-status-pill is-${status}`}>{statusLabel}</span>
+        {/* The status is the sentence people do not understand, so it is the
+            way in: it opens the record that explains it, for this station. */}
+        <a className={`local-status-pill is-${status}`} href={recordHref}>
+          {statusLabel}
+        </a>
       </div>
 
       <div className="local-evidence-meta">
@@ -929,10 +955,11 @@ function RainSentence({ run, endsTomorrow }: {
   );
 }
 
-function ForecastDashboard({ forecast, selection, onReset }: {
+function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
   forecast: LocalForecastView;
   selection: ForecastLocationSelection;
   onReset(): void;
+  recordHref: string;
 }) {
   const locationDescription = describeForecastLocationSelection(selection);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
@@ -1459,7 +1486,11 @@ function ForecastDashboard({ forecast, selection, onReset }: {
         )}
       </div>
 
-      <PerformanceEvidence evidence={forecast.evidence} cohortLabel={forecast.cohortLabel} />
+      <PerformanceEvidence
+        evidence={forecast.evidence}
+        cohortLabel={forecast.cohortLabel}
+        recordHref={recordHref}
+      />
       </>)}
       </div>
 
@@ -1475,7 +1506,7 @@ function ForecastDashboard({ forecast, selection, onReset }: {
         {/* The only way into the scoring record. A page nothing links to is a
             page nobody reads, and the claim it carries is the product's. */}
         <p>
-          <a className="local-footer-link" href="/behind-the-data">
+          <a className="local-footer-link" href={recordHref}>
             이 예보를 어떻게 채점하는가 →
           </a>
         </p>
@@ -1517,7 +1548,7 @@ export default function LocalForecastExperience() {
         writeStoredLocation(input);
         showingStoredLocation.current = true;
       }
-      setState({ kind: "ready", forecast, selection });
+      setState({ kind: "ready", forecast, selection, location: input });
     } catch (error) {
       if (attempt !== generation.current) return;
       setState(
@@ -1723,6 +1754,7 @@ export default function LocalForecastExperience() {
           forecast={state.forecast}
           selection={state.selection}
           onReset={() => returnToChooser(true)}
+          recordHref={recordHrefFor(state.location)}
         />
       )}
     </div>
