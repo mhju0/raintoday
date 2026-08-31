@@ -13,7 +13,7 @@ The interface is Korean, for Korean users. The captions below describe what each
 
 ![The chooser: pick the device location, or search a Korean administrative area](public/screenshots/landing.webp)
 
-*Nothing is requested until the visitor asks — the app never prompts for location automatically or infers it from an IP address. The three figures beside the two ways in are the same evidence the forecast ends on, stated before anyone commits a coordinate.*
+*Nothing is requested until the visitor asks — the app never prompts for location automatically or infers it from an IP address. The three figures beside the ways in are the same evidence the forecast ends on, stated before anyone commits a coordinate. There are three ways in and the third is not decorative: Kakao's administrative search matches Hangul only, and geolocation outside the service area is refused, so a visitor with neither used to be handed two errors that pointed at each other.*
 
 ![The rain window as a sentence, above the 24-hour time axis](public/screenshots/forecast.webp)
 
@@ -93,7 +93,7 @@ npm run performance:seed -- --start=2025-06-01 --end=2025-08-31
 
 The forecast is the site, so it is served at `/`:
 
-1. choose precise browser location or search for a Korean place;
+1. choose precise browser location, search for a Korean place, or take one of the worked examples;
 2. read when rain starts and stops, as one sentence;
 3. read the shape of the next 24 hours on a horizontal time axis — eight 3-hour blocks from a single named provider, probability above and that provider's own per-block amounts on a second lane below;
 4. compare today and tomorrow, each tagged with how it was calculated;
@@ -130,7 +130,7 @@ flowchart TB
 
 Important boundaries:
 
-- `lib/location.ts` validates Korean coordinates and converts them to KMA grid coordinates.
+- `lib/location.ts` validates Korean coordinates and converts them to KMA grid coordinates; `lib/exampleLocations.ts` holds the chooser's worked examples, which are Kakao's own representative points and are tested against the service-area geometry.
 - `lib/providers/*` reads normalized provider snapshots at a requested location; `lib/providers/registry.ts` holds the single ordered list of compared providers, and the first one that answers becomes the comparison primary.
 - `lib/performance/performance.ts` owns scoring, evidence gates, bounded weights, and the Prospective Benchmark.
 - `lib/performance/store.ts` defines persistence; `lib/performance/postgres.ts` is the production adapter.

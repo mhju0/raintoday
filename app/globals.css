@@ -483,6 +483,46 @@ html {
   display: none;
 }
 
+/* The third way in (#121). Quiet outlined chips: they have to read as
+   available without competing with 내 위치로 보기, which stays the primary, and
+   they carry no colour — blue, teal and amber mean the chance of rain, the
+   amount, and the window, and a shortcut is none of those. */
+.local-examples {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.local-examples-label {
+  font-family: var(--local-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--local-dim);
+}
+
+.local-examples ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.local-examples button {
+  min-height: 2.75rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--local-line-2);
+  border-radius: 3px;
+  background: var(--local-panel-2);
+  color: var(--local-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.local-examples button:hover {
+  border-color: var(--local-line);
+  color: var(--local-ink);
+}
+
 .local-search-results {
   margin-top: 0.65rem;
   max-height: min(19rem, 42svh);
