@@ -27,6 +27,10 @@ The interface is Korean, for Korean users. The captions below describe what each
 
 *On a phone the sentence and both day cards stay whole; only the ribbon scrolls sideways, so nobody has to swipe to get the answer. A sparkline miniature of the timeline pins to the top through the full scroll — the graph is the navigation — carrying the 한눈에 ⇄ 전체 근거 toggle. A first visit opens already folded: the receipts collapse to one-line summaries of their own numbers, and either the toggle or a summary row unfolds them; the choice is remembered per device either way.*
 
+![The scoring record: the current verdict, then the evidence it rests on](public/screenshots/scoring.webp)
+
+*`/behind-the-data` is the scoring record, rendered from the database on each request rather than written down once. It opens with the mode the blend is actually in and the comparison count against the bar it has to clear, so nobody has to infer whether learning is on. Below the three rules for reading any number on the site, the evidence table names each provider's samples, wet and dry days, Brier score and granted influence — and an ineligible provider is labelled short of samples, never as bad. The benchmark table states the benchmark's own verdict rather than what is being served, and includes the single-source rows on purpose: in this reading the blend has not yet beaten Open-Meteo alone, and a page that only showed comparisons it won would not be worth publishing.*
+
 ## Product contract
 
 - The forecast target is the user's exact submitted coordinate inside the supported South Korea service area, validated against official administrative boundaries.
@@ -50,6 +54,8 @@ The two cohorts deliberately read different days. ASOS compiles a calendar day's
 The station catalog is the run's only call to KMA apihub — the captures read the weather providers and the observations read data.go.kr — so an apihub outage no longer discards a cohort that never needed it. The catalog read backs off across three attempts, and if it still fails the run proceeds on the stations already recorded, reports `catalogSource: "store"`, and applies no activation or retirement until a catalog read succeeds again.
 
 The observation read distinguishes a station ASOS has no row for from a request that was refused or dropped. Only the first is an absence; the second is counted in `observationsFailed`, named in `failures`, and fails the run. Throttled and dropped reads are retried with a short backoff, and a refused key is not retried at all.
+
+The capture path draws the same line and is stricter about what it keeps. A capture is refused outright when a compared provider's read faults, because a capture is frozen and never overwritten — one short a provider is permanent and reads exactly like an honest one. Refusing is not the same as alerting: since a refused capture stores nothing, a few of them are missing data rather than wrong data, and the run fails only when they pass a tolerated share of the cohort. When an attempt does fail, the workflow runs the cohort again on a fresh runner, which is a fresh egress address and so an independent draw; a run the retry rescues finishes green, and only a double failure alerts.
 
 The serving profile keeps the two capture cohorts separate. Provider probability performance uses all completed days—including dry days—with a 60-day operating window and a 14-day half-life. It reports Brier score, misses, false alarms, and rainy-day amount MAE. Public evidence also includes the latest seven-day Brier slice.
 
@@ -88,7 +94,8 @@ The forecast is the site, so it is served at `/`:
 3. read the shape of the next 24 hours on a horizontal time axis — eight 3-hour blocks from a single named provider, probability above and that provider's own per-block amounts on a second lane below;
 4. compare today and tomorrow, each tagged with how it was calculated;
 5. inspect the Station Match, each provider's probability and influence, and the longer outlook;
-6. inspect the evidence the weighting rests on — recent Brier scores, misses and false alarms per provider when live evidence is driving it, the wet-day miss rate when seed evidence is.
+6. inspect the evidence the weighting rests on — recent Brier scores, misses and false alarms per provider when live evidence is driving it, the wet-day miss rate when seed evidence is;
+7. follow one link out, to [`/behind-the-data`](https://raintoday.vercel.app/behind-the-data) — the scoring record: what the benchmark has decided today, on which station's evidence, and the conditions under which the app stops trusting its own learning.
 
 There is no ambient scene behind any of it. The page is one vertical read whose graph is also its navigation: a miniature of the timeline stays pinned while the evidence scrolls, carrying the 한눈에 ⇄ 전체 근거 density toggle. A first visit opens at 한눈에 — the folded sections leave one-line summaries carrying their own numbers, and tapping one unfolds the real section — while a stored choice is never overridden. Each section opens with a small mono label naming whose number it carries, and the timeline itself can be scrubbed (pointer or arrow keys) for one block's full reading. Beyond those, the summary rows, and "위치 바꾸기" there is nothing to operate.
 
@@ -143,7 +150,7 @@ The served surface is small and closed: `/`, `/behind-the-data`, `/api/local-for
 | --- | --- |
 | [`CONTEXT.md`](CONTEXT.md) | Domain glossary: Forecast Location, Station Match, Capture Cohort, Effective Influence, and the rest |
 | [`docs/weather-sources.md`](docs/weather-sources.md) | Provider contracts, configuration, cache behavior, failure modes, and attribution |
-| [`docs/adr/`](docs/adr/) | Decision records: Korean location selection, the service-area boundary, the two station gates, and the retired second scoring pipeline |
+| [`docs/adr/`](docs/adr/) | Decision records: Korean location selection, the service-area boundary, the two station gates, the retired second scoring pipeline, the chart-recorder redesign, the glance-first fold, and the operating window |
 | [`docs/research/`](docs/research/) | Source evidence: the SGIS boundary package's provenance, nationwide station coverage, why the AWS network is not adopted, and the elevation gate |
 | [`lib/performance/README.md`](lib/performance/README.md) | The nationwide pipeline: live captures, retrospective seed evidence, and the mode gate |
 
@@ -221,14 +228,16 @@ Manual product checks should cover:
 - desktop and narrow mobile layouts;
 - equal influence when performance evidence is missing or insufficient;
 - station name, distance, sample depth, and recent scores when evidence is active;
-- no user coordinates in PostgreSQL performance tables.
+- no user coordinates in PostgreSQL performance tables;
+- `/behind-the-data` naming the mode it is actually in, with the comparison count shown against its bar.
 
 ## Limits
 
 - Initial launch covers South Korea and precipitation only.
 - Exact-coordinate admission uses the official SGIS 시도 boundary geometry, so offshore and cross-border coordinates are rejected. The geometry is simplified to a 10 m tolerance, so a decision within roughly 25 m of the coastline can differ from the unsimplified source. Manual place search remains country-filtered to Korea.
 - ASOS is the first observation network. AWS eligibility remains a later audited expansion.
-- Initial shadow-validation policy defaults are: station distance at most 100 km; elevation difference at most 400 m; rain at 0.1 mm; miss/false-alarm decisions at 50%; at least 30 comparable captures with both wet and dry evidence; influence ramping through 60 captures; provider influence bounded to 5–60%; and an `exp(-12 × Brier)` score transform. These values, including the one-wet-day minimum, require validation against shadow data before marketing local coverage or performance guarantees.
+- Scoring policy defaults are: rain at 0.1 mm; miss/false-alarm decisions at 50%; at least 30 comparable captures with both wet and dry evidence; influence ramping through 60 captures; provider influence bounded to 5–60%; and an `exp(-12 × Brier)` score transform. They are pinned to the code by a test, so this sentence cannot drift from the policy object.
+- The two station gates — distance at most 100 km, elevation difference at most 400 m — are retained but **non-binding in practice**, and are documented as such in [ADR 0005](docs/adr/0005-station-proximity-is-language-not-eligibility.md) and [ADR 0006](docs/adr/0006-the-elevation-gate-is-non-binding.md). No populated place in Korea is more than about 30 km from an ASOS station, and no populated centre exceeds the elevation limit, so distance selects the *wording* the page uses rather than deciding eligibility.
 - A location may have no eligible observation station even when forecasts are available.
 - Provider availability and forecast horizon vary; missing values are omitted, never treated as zero.
 - Prospective evidence needs time to accumulate. A station begins on retrospective seed evidence where a backfill has been run, and on equal influence otherwise.

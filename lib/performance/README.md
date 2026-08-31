@@ -44,6 +44,29 @@ Two scheduled runs a day freeze provider forecasts at a fixed KST hour — cohor
 
 That offset is not symmetry for its own sake. ASOS compiles a calendar day's summary hours after midnight, so at 06 KST yesterday's rows mostly do not exist yet, and an uncompiled day answers NODATA — indistinguishable from a station with no row at all. Reading two days back keeps both cohorts on a published day, so every date is still read twice and the later read is a genuine second chance at a date the first one missed.
 
+## When a run fails
+
+A capture is refused outright when a compared provider's read faults — `error`, not
+`needs-config`, which is an honest permanent absence. Serving may omit a non-OK source
+because the reader is shown what exists; a capture may not, because it is frozen and
+`saveCapture` is `on conflict do nothing`, so a capture short one provider is permanent
+and indistinguishable from an honest one. Three evenings of runner egress failure froze
+97 KMA-less captures that no retry could repair, which is why the refusal is absolute.
+
+Refusing and alerting are separate decisions. A refused capture stores nothing, so a few
+are missing data rather than wrong data, and `cohortRunFailed` fails the run only past
+`CAPTURE_FAULT_TOLERANCE` of the cohort. Below that line the counts are still reported and
+a warning names them. The observed separation is wide: clean runs fault none, a transient
+provider blip faulted 3 of 97, an egress blackout faulted all 97. **Observation** reads keep
+zero tolerance — a station ASOS has no row for is an absence, anything else is a fault that
+fails the run at any count.
+
+The workflow runs the cohort a second time on a fresh runner when the first attempt fails.
+The blackouts behind #103 followed the runner's egress address rather than the hour, so a
+new machine is an independent draw; the first attempt tolerates its own failure and
+publishes the verdict as a job output, so a run the retry rescues finishes green and only
+a double failure alerts.
+
 ## Seeding
 
 Day-ahead archived forecasts come from Open-Meteo's Previous Runs API — the `_previous_day1` variables, which are the run issued the day before. The ordinary historical-forecast endpoint returns the day-of run, which is effectively a nowcast; scoring that would flatter every provider and distort the ranking. Ground truth comes from the KMA ASOS daily service, which accepts a date range, so a month of observations costs one request.

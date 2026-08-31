@@ -44,6 +44,10 @@ _Avoid_: Accuracy sample when the observation is missing
 One retrospective day-ahead provider forecast, rebuilt from a public archive and joined to the station-day observation for its target date. Carries an amount but no probability, no Capture Cohort, and no frozen blend, so it is never a Forecast Capture and never enters the Prospective Benchmark.
 _Avoid_: Backfilled capture, historical forecast, synthetic sample
 
+**Provider Fault**:
+A compared provider whose read failed, as distinct from one that had nothing to publish. A fault refuses the Forecast Capture outright, because a capture is frozen and never rewritten, so one short a provider is permanent and indistinguishable from an honest one. A missing credential is an absence, not a fault.
+_Avoid_: Missing provider, provider outage, skipped source
+
 **Recent Performance Profile**:
 The cohort-specific provider metrics, evidence state, effective weights, prospective benchmark, and any retrospective seed evidence for one Observation Station.
 _Avoid_: Accuracy ranking, trained model
