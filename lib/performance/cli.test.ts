@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import {
@@ -59,6 +59,54 @@ test("every scheduled cron in the capture workflow resolves to a cohort", () => 
  * because a retry missing one secret would fail in a way that looks like the
  * outage it exists to survive.
  */
+/**
+ * A credential the capture path reads but the workflow never passes is invisible
+ * from both ends: the secret exists in the repository settings, the code reads
+ * `process.env`, and the run goes green while the provider reports needs-config —
+ * an honest absence, so nothing is refused and nothing is reported. Captures are
+ * frozen and never rewritten, so every cohort that runs in that gap is
+ * permanently short of the source, and indistinguishable from one where the
+ * provider genuinely had nothing to give. That is exactly what adding Visual
+ * Crossing did: the secret was set, the workflow was not updated, and only this
+ * test would have caught it.
+ *
+ * The existing sibling test asserts the two jobs carry the SAME credentials,
+ * which cannot see this — both jobs were equally short of it.
+ */
+test("the capture workflow passes every credential the capture path reads", () => {
+  const root = join(import.meta.dirname, "..", "..");
+  const sources = [join(root, "lib", "providers"), join(root, "lib", "performance")]
+    .flatMap((dir) =>
+      readdirSync(dir)
+        .filter((name) => name.endsWith(".ts") && !name.includes(".test."))
+        .map((name) => join(dir, name)),
+    );
+  const read = new Set<string>();
+  for (const file of sources) {
+    for (const match of readFileSync(file, "utf8").matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)) {
+      read.add(match[1]);
+    }
+  }
+  assert.ok(read.size > 0, "found no credentials to check — the scan is broken");
+
+  const workflow = readFileSync(
+    join(root, ".github", "workflows", "local-performance.yml"),
+    "utf8",
+  );
+  const passed = new Set(
+    Array.from(
+      workflow.matchAll(/^\s*([A-Z][A-Z0-9_]*):\s*\$\{\{\s*secrets\./gm),
+      (match) => match[1],
+    ),
+  );
+  const missing = [...read].filter((name) => !passed.has(name)).sort();
+  assert.deepEqual(
+    missing,
+    [],
+    `the cohort reads ${missing.join(", ")} but the workflow never passes it`,
+  );
+});
+
 test("the capture workflow retries on a fresh runner, identically credentialled", () => {
   const workflow = readFileSync(
     join(import.meta.dirname, "..", "..", ".github", "workflows", "local-performance.yml"),
