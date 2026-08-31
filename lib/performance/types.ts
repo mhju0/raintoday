@@ -5,7 +5,8 @@ export type PrecipProviderId =
   | "met-norway"
   | "kma"
   | "pirate-weather"
-  | "weather-api";
+  | "weather-api"
+  | "visual-crossing";
 
 export interface CapturedProviderForecast {
   provider: PrecipProviderId;

@@ -20,6 +20,7 @@ export const PERFORMANCE_PROVIDERS: readonly PrecipProviderId[] = [
   "kma",
   "pirate-weather",
   "weather-api",
+  "visual-crossing",
 ];
 
 function hasValidProviderProbability(

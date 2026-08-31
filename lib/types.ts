@@ -86,7 +86,8 @@ export type ProviderId =
   | "met-norway"
   | "kma"
   | "pirate-weather"
-  | "weather-api";
+  | "weather-api"
+  | "visual-crossing";
 
 export type ProviderAvailability =
   /** Configured and returning live data */

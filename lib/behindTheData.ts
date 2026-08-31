@@ -27,6 +27,7 @@ const PROVIDER_NAMES: Readonly<Record<PrecipProviderId, string>> = {
   kma: "기상청",
   "pirate-weather": "Pirate Weather",
   "weather-api": "WeatherAPI",
+  "visual-crossing": "Visual Crossing",
   "met-norway": "MET Norway",
 };
 

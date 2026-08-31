@@ -24,6 +24,7 @@ const PRECIP_PROVIDERS = new Set<PrecipProviderId>([
   "kma",
   "pirate-weather",
   "weather-api",
+  "visual-crossing",
 ]);
 const STATION_POLICY = { maxDistanceKm: 100, maxElevationDifferenceM: 400 };
 let runtimePerformanceStore: PostgresPerformanceStore | null = null;

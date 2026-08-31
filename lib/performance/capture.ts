@@ -19,6 +19,7 @@ const PRECIP_PROVIDERS = new Set<PrecipProviderId>([
   "kma",
   "pirate-weather",
   "weather-api",
+  "visual-crossing",
 ]);
 
 export interface CaptureStationInput {

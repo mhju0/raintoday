@@ -47,6 +47,7 @@ export const COMPARED_PROVIDER_NAMES = [
   "기상청",
   "Pirate Weather",
   "WeatherAPI",
+  "Visual Crossing",
 ] as const;
 
 /**

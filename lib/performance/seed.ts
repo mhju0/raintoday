@@ -38,11 +38,15 @@ export const MAX_SEED_RANGE_DAYS = 366;
 const HOURLY_VARIABLE = "precipitation_previous_day1";
 
 /**
- * The model behind each provider, for seeding only. Two are absent on purpose.
+ * The model behind each provider, for seeding only. Three are absent on purpose.
  * `weather-api` publishes no model lineage with a public forecast archive, and a
  * guessed proxy would be a fabricated measurement of a real product. `met-norway`
  * is no longer compared at all — seeding a provider the forecast never reads would
- * accrue evidence for a service that cannot influence anything.
+ * accrue evidence for a service that cannot influence anything. `visual-crossing`
+ * has an archive, but it is billed per hour: 24 records a station-day, so ~90 days
+ * for ONE station costs about 2,300 of a 1,000/day allowance, against 97 stations.
+ * It is unreachable on the free tier whatever the endpoint returns, so Visual
+ * Crossing joins unweighted and stays so until its live captures mature (#110).
  */
 export const SEED_PROVIDER_MODELS: Readonly<Partial<Record<PrecipProviderId, string>>> = {
   "open-meteo": "best_match",
