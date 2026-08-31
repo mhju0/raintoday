@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createForecastLocation } from "./location.ts";
-import { readLocalForecast, readPerformanceEvidenceFromStore } from "./localForecast.ts";
+import {
+  readLocalForecast,
+  readPerformanceEvidenceFromStore,
+  readRecordEvidence,
+} from "./localForecast.ts";
 import { captureStationForecast } from "./performance/capture.ts";
 import { InMemoryPerformanceStore } from "./performance/store.ts";
 import type { RecentPerformanceProfile } from "./performance/types.ts";
@@ -471,4 +475,43 @@ test("today is null rather than invented when no provider still publishes it", a
 
   assert.equal(response.today, null);
   assert.equal(response.recommendation.precipitationProbability, 80);
+});
+
+/**
+ * #123. The record page reuses one evidence read for ten minutes, so the time it
+ * prints must be the time that read happened. Reporting the request clock beside
+ * cached evidence would be a small lie on the one page whose entire claim is that
+ * a sceptical reader can check it.
+ */
+test("the record's cached evidence reports when it was actually read", async () => {
+  const previous = process.env.PERFORMANCE_DATABASE_URL;
+  delete process.env.PERFORMANCE_DATABASE_URL;
+  try {
+    // Somewhere no other test caches, so this exercises a cold key.
+    const location = createForecastLocation({
+      name: "울릉군",
+      latitude: 37.4844,
+      longitude: 130.9058,
+    });
+    const first = new Date("2026-08-31T09:00:00+09:00");
+    const cold = await readRecordEvidence(location, "06", first);
+    assert.equal(cold.evidence.status, "unavailable");
+    assert.equal(cold.readAt.getTime(), first.getTime());
+
+    const later = new Date(first.getTime() + 4 * 60_000);
+    const warm = await readRecordEvidence(location, "06", later);
+    assert.equal(warm.evidence.status, "unavailable");
+    assert.equal(
+      warm.readAt.getTime(),
+      first.getTime(),
+      "a cached read is dated when it happened, not when it was served",
+    );
+
+    // A different cohort is a different verdict, so it must not share the entry.
+    const other = await readRecordEvidence(location, "18", later);
+    assert.equal(other.readAt.getTime(), later.getTime());
+  } finally {
+    if (previous === undefined) delete process.env.PERFORMANCE_DATABASE_URL;
+    else process.env.PERFORMANCE_DATABASE_URL = previous;
+  }
 });

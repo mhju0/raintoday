@@ -141,7 +141,7 @@ Important boundaries:
 - `lib/localForecastView.ts` projects that response onto the flat contract `/api/local-forecast` returns, so the page never reads the domain model directly.
 - `lib/forecast/blocks.ts` folds a now-anchored hourly series into eight 3-hour blocks; `lib/forecast/rainWindow.ts` reads the rain window out of them. A block with no published probability stays null rather than 0%, and an unpublished block ends a run rather than extending it.
 - `app/api/local-forecast` and `app/api/locations/search` are rate-limited HTTP adapters.
-- `app/behind-the-data` is the scoring record, rendered per request from the same evidence read the forecast uses; `lib/behindTheData.ts` derives its view. It reads the performance store directly from the server component rather than adding a third API route.
+- `app/behind-the-data` is the scoring record, rendered per request from the same evidence read the forecast uses, shared for ten minutes across visitors of one station and dated by when that read happened; `lib/behindTheData.ts` derives its view. It reads the performance store directly from the server component rather than adding a third API route.
 - `lib/quotaRunway.ts` turns an upstream provider's remaining monthly quota into a runway, which the service-health check reads.
 
 The served surface is small and closed: `/`, `/behind-the-data`, `/api/local-forecast`, `/api/locations/search`, `/icon.svg` and `/opengraph-image`, plus a 404. The retired `/atmosphere` and `/diagnostics` paths answer real HTTP redirects to `/`, independent of JavaScript; every other path 404s.
