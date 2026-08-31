@@ -155,8 +155,13 @@ test("an ineligible provider is labelled short of samples, never as bad", () => 
 test("a provider that is no longer compared never reaches the table", () => {
   // Stored rows outlive a provider; MET Norway's id survives so old captures stay
   // readable, and it must not appear beside a forecast it had no part in.
+  // The weights have to agree with the rows: they come from one computation, and
+  // a fixture where they disagree tests a state the profile cannot be in.
   const view = buildBehindTheDataView(evidence({
-    profile: profile({ providers: [providerRow("open-meteo"), providerRow("met-norway")] }),
+    profile: profile({
+      providers: [providerRow("open-meteo"), providerRow("met-norway")],
+      effectiveWeights: { "open-meteo": 0.6, "met-norway": 0.4 },
+    }),
   }));
   assert.deepEqual(view.providers.map((row) => row.provider), ["open-meteo"]);
 });
@@ -302,4 +307,54 @@ test("a repeated parameter takes the first value rather than crashing", () => {
 test("a hostile name is bounded rather than rendered whole", () => {
   const long = resolveRecordLocation({ lat: "35.1796", lon: "129.0756", name: "가".repeat(500) });
   assert.ok(long.location.name.length <= 60);
+});
+
+/**
+ * A newly added provider is in this state for its whole first month: weighted
+ * neutrally because it has not been measured (#122), and scored not at all.
+ * Omitting its row left the influence column summing to 80% with nothing on the
+ * page to say where the rest went — on the one page whose claim is that a
+ * sceptical reader can check it.
+ */
+test("a provider that holds influence but has no comparison still gets a row", () => {
+  const view = buildBehindTheDataView(
+    evidence({
+      profile: profile({
+        providers: [providerRow("open-meteo"), providerRow("kma")],
+        effectiveWeights: { "open-meteo": 0.4, kma: 0.4, "visual-crossing": 0.2 },
+      }),
+    }),
+  );
+
+  const unscored = view.providers.find((row) => row.provider === "visual-crossing");
+  assert.ok(unscored, "a weighted provider is on the page");
+  assert.equal(unscored.influence, 0.2);
+  assert.equal(unscored.sampleCount, 0);
+  assert.equal(unscored.eligible, false);
+  assert.equal(unscored.ineligibleReason, "too-few-samples");
+  // Zero is a perfect Brier score. A provider with no score at all must not
+  // borrow one, in either direction.
+  assert.equal(unscored.brierScore, null);
+  assert.equal(unscored.last7DaysBrier, null);
+
+  const total = view.providers.reduce((sum, row) => sum + (row.influence ?? 0), 0);
+  assert.ok(
+    Math.abs(total - 1) < 1e-9,
+    `the influence column accounts for the whole blend, got ${total}`,
+  );
+});
+
+test("a weightless provider is not conjured into the table", () => {
+  // The mirror of the case above: no influence and no comparisons means the
+  // provider is not part of this station's blend at all, and inventing an empty
+  // row for it would claim otherwise.
+  const view = buildBehindTheDataView(
+    evidence({
+      profile: profile({
+        providers: [providerRow("open-meteo"), providerRow("kma")],
+        effectiveWeights: { "open-meteo": 0.55, kma: 0.45 },
+      }),
+    }),
+  );
+  assert.equal(view.providers.length, 2);
 });

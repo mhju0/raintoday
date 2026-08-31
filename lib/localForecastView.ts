@@ -203,6 +203,7 @@ const PROVIDER_SHORT_NAMES: Readonly<Record<string, string>> = {
   kma: "기상청",
   "pirate-weather": "Pirate Weather",
   "weather-api": "WeatherAPI",
+  "visual-crossing": "Visual Crossing",
 };
 
 const STATUS_LABELS: Record<LocalForecastEvidence["status"], string> = {

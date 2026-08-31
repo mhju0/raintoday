@@ -9,6 +9,10 @@ test("the forecast compares only providers that can publish a probability", () =
   // every blend dropped it while the chooser still named it to the reader as one of
   // the services being compared. It is not implemented at all now: the scheduled
   // reliability pipeline was the only reader that could use it, and that is gone.
+  //
+  // Visual Crossing is the counter-example that shows the gate is about the data,
+  // not the vendor: it clears exactly where MET Norway failed, publishing a D+1
+  // `precipprob` on the free tier (verified live, #110).
   assert.equal(
     forecastProviders.some((provider) => provider.id === "met-norway"),
     false,
@@ -16,7 +20,7 @@ test("the forecast compares only providers that can publish a probability", () =
   );
   assert.deepEqual(
     forecastProviders.map((provider) => provider.id),
-    ["open-meteo", "kma", "pirate-weather", "weather-api"],
+    ["open-meteo", "kma", "pirate-weather", "weather-api", "visual-crossing"],
     "order is preserved: the first available current snapshot is the comparison primary",
   );
 });

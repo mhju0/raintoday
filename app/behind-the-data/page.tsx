@@ -397,7 +397,7 @@ export default async function BehindTheDataPage({
       <footer className="btd-foot">
         <p className="local-kicker">출처</p>
         <p>
-          예보: Open-Meteo · 기상청 단기예보 · Pirate Weather · WeatherAPI. 관측:
+          예보: Open-Meteo · 기상청 단기예보 · Pirate Weather · WeatherAPI · Visual Crossing. 관측:
           기상청 ASOS 일자료. 행정구역 검색: Kakao Map. 서비스 영역: SGIS 시도 경계.
         </p>
         <p className="btd-foot-meta">

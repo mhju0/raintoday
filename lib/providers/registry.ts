@@ -2,12 +2,16 @@ import type { WeatherProvider } from "./base";
 import { kmaProvider } from "./kma.ts";
 import { openMeteoProvider } from "./open-meteo.ts";
 import { pirateWeatherProvider } from "./pirate-weather.ts";
+import { visualCrossingProvider } from "./visual-crossing.ts";
 import { weatherApiProvider } from "./weather-api.ts";
 
 /**
  * The providers the forecast compares, in order. The first live one becomes the
  * comparison primary. Open-Meteo first — free, keyless, reliable; then KMA,
- * Pirate Weather and WeatherAPI when their keys are configured.
+ * Pirate Weather, WeatherAPI and Visual Crossing when their keys are configured.
+ * A new source is appended: the order is what decides the comparison primary, so
+ * inserting one ahead of Open-Meteo would silently move which provider's hourly
+ * series the ribbon draws.
  *
  * This was two lists until the scheduled reliability pipeline was retired. That
  * pipeline read a wider one so it could score MET Norway on its own terms, while
@@ -21,4 +25,5 @@ export const forecastProviders: readonly WeatherProvider[] = [
   kmaProvider,
   pirateWeatherProvider,
   weatherApiProvider,
+  visualCrossingProvider,
 ];
