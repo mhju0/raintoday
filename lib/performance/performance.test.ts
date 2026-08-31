@@ -158,6 +158,92 @@ test("eligible recent performance tilts softly and remains bounded", () => {
   assert.ok(Math.abs(Object.values(profile.effectiveWeights).reduce((a, b) => a + b, 0) - 1) < 1e-9);
 });
 
+/**
+ * #122. `series` compares two providers; this needs three, because the claim is
+ * about how an unmeasured provider ranks against measured ones.
+ */
+function threeProviderSeries(days: number): {
+  captures: ForecastCapture[];
+  observations: PrecipObservation[];
+} {
+  const captures: ForecastCapture[] = [];
+  const observations: PrecipObservation[] = [];
+  for (let daysAgo = days; daysAgo >= 1; daysAgo--) {
+    const targetDate = dateDaysAgo(daysAgo);
+    const wet = daysAgo % 2 === 0;
+    const called = (well: boolean) => (well ? (wet ? 90 : 10) : (wet ? 55 : 45));
+    captures.push({
+      stationId: "108",
+      targetDate,
+      cohort: "06",
+      capturedAt: `${dateDaysAgo(daysAgo + 1)}T06:00:00+09:00`,
+      providers: [
+        { provider: "open-meteo", probability: called(true), amountMm: null },
+        { provider: "pirate-weather", probability: called(false), amountMm: null },
+        // Forecasts as well as the best of them, but publishes on a fifth of the
+        // days — the shape of a provider whose reads keep faulting.
+        {
+          provider: "kma",
+          probability: daysAgo % 5 === 0 ? called(true) : null,
+          amountMm: null,
+        },
+      ],
+      frozenBlend: { adaptiveProbability: 50, equalProbability: 50, influence: {} },
+    });
+    observations.push({
+      stationId: "108",
+      date: targetDate,
+      observedMm: wet ? 10 : 0,
+      observedAt: `${targetDate}T23:59:00+09:00`,
+      source: "kma-asos",
+    });
+  }
+  return { captures, observations };
+}
+
+/**
+ * A provider short of samples has not been measured, so it may not be demoted.
+ * It used to be handed `weightFloor` — the weight for a provider that WAS
+ * measured and scored badly — which would have shown KMA at 5% influence for
+ * accumulating captures slowly, and called that measured performance.
+ */
+test("a provider short of samples keeps a neutral share, not the floor", () => {
+  const profile = buildRecentPerformanceProfile({
+    stationId: "108",
+    cohort: "06",
+    ...threeProviderSeries(60),
+    asOf: AS_OF,
+  });
+
+  assert.equal(profile.mode, "learned");
+  assert.equal(profile.rampProgress, 1, "the eligible providers are fully ramped");
+
+  const kma = profile.providers.find((entry) => entry.provider === "kma");
+  const best = profile.providers.find((entry) => entry.provider === "open-meteo");
+  const worst = profile.providers.find((entry) => entry.provider === "pirate-weather");
+  assert.equal(kma?.eligible, false, "short of samples");
+  assert.equal(best?.eligible, true);
+  assert.equal(worst?.eligible, true);
+
+  const unmeasured = profile.effectiveWeights.kma;
+  assert.ok(
+    Math.abs(unmeasured - 1 / 3) < 1e-6,
+    `an unmeasured provider holds the equal share, got ${unmeasured}`,
+  );
+  assert.ok(
+    unmeasured > DEFAULT_PERFORMANCE_POLICY.weightFloor,
+    "never the floor, which is reserved for a provider that was measured and scored badly",
+  );
+  assert.ok(
+    unmeasured > profile.effectiveWeights["pirate-weather"],
+    "not measured outranks measured-and-worse",
+  );
+  assert.ok(
+    unmeasured < profile.effectiveWeights["open-meteo"],
+    "and does not outrank measured-and-better either",
+  );
+});
+
 test("a prospectively worse adaptive blend suspends learned influence", () => {
   const data = series({
     days: 60,

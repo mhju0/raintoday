@@ -363,13 +363,36 @@ export function buildRecentPerformanceProfile(input: ProfileInput): RecentPerfor
         ),
       )
     : 0;
+  // A provider short of samples has not been measured, and absence of evidence
+  // is not evidence of poor performance. It used to be handed `weightFloor` —
+  // the weight reserved for a provider that WAS measured and scored badly — so
+  // the slowest-accumulating source was demoted for accumulating slowly. KMA is
+  // the one that would have been: it lags the others by roughly a quarter of the
+  // captures precisely because it is the provider the egress blackouts hit, and
+  // the page would have shown the national meteorological agency at the floor
+  // and called it measured performance (#122).
+  //
+  // The seed path already states this rule for a provider with no archive proxy:
+  // it "must keep a neutral share rather than be dropped from the blend". This is
+  // the same rule on the live path.
+  //
+  // The mean of the eligible raw scores is what lands exactly on the equal share:
+  // `normalizeClamped` gives every provider the floor and splits the rest in
+  // proportion to raw, so an unmeasured provider scoring the eligible mean ends
+  // at 1/n. Neither rewarded nor demoted until it has been scored.
+  const eligibleRaw = eligible.map(
+    (provider) => Math.exp(-policy.scoreSharpness * provider.brierScore),
+  );
+  const unmeasuredRaw = eligibleRaw.length > 0
+    ? eligibleRaw.reduce((sum, value) => sum + value, 0) / eligibleRaw.length
+    : 1;
   const learned = normalizeClamped(
     Object.fromEntries(
       providers.map((provider) => [
         provider.provider,
         provider.eligible
           ? Math.exp(-policy.scoreSharpness * provider.brierScore)
-          : policy.weightFloor,
+          : unmeasuredRaw,
       ]),
     ),
     policy.weightFloor,
