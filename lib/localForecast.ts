@@ -1,4 +1,5 @@
-import type { ForecastLocation } from "./location.ts";
+import { cachedFetch } from "./cache.ts";
+import { forecastLocationCacheKey, type ForecastLocation } from "./location.ts";
 import { blendPrecipitation } from "./performance/influence.ts";
 import {
   buildRecentPerformanceProfile,
@@ -222,6 +223,46 @@ export async function readDatabaseEvidence(
   runtimePerformanceStore ??= new PostgresPerformanceStore(connectionUrl);
   const store = runtimePerformanceStore;
   return readPerformanceEvidenceFromStore(store, location, elevationM, cohort, now);
+}
+
+/**
+ * How long `/behind-the-data` may reuse an evidence read.
+ *
+ * A cohort writes twice a day, so ten minutes cannot hide a change of verdict —
+ * and the page reports the age it actually served rather than claiming the read
+ * happened now. Uncached, every visit paid for the database: ~1.15s warm, and
+ * 4.3s on the first request of the hour while Neon woke from autosuspend. That
+ * is the page reached from the evidence status chip, by someone who clicked it
+ * precisely because they did not understand the status (#123).
+ */
+export const RECORD_EVIDENCE_TTL_MS = 10 * 60_000;
+
+/**
+ * The record page's evidence read, shared across requests for one station.
+ *
+ * Keyed by station-resolving coordinate and cohort, never by the visitor's exact
+ * point: two neighbours resolve to the same Station Match and the same profile,
+ * so keying on the raw coordinate would cache per visitor and help nobody.
+ * `cachedFetch` is single-flight, so concurrent cold requests make one query.
+ */
+export async function readRecordEvidence(
+  location: ForecastLocation,
+  cohort: CaptureCohort,
+  now: Date,
+): Promise<{ evidence: LocalForecastEvidence; readAt: Date }> {
+  // The read time is stored with the value rather than derived from the entry's
+  // age: `cachedFetch` ages entries against the wall clock, and subtracting that
+  // from the request's own `now` is only accidentally right when the two are the
+  // same clock. Storing it makes the reported time exact by construction.
+  const { value } = await cachedFetch(
+    `record:${forecastLocationCacheKey(location)}:${cohort}`,
+    RECORD_EVIDENCE_TTL_MS,
+    async () => ({
+      evidence: await readDatabaseEvidence(location, null, cohort, now),
+      readAtMs: now.getTime(),
+    }),
+  );
+  return { evidence: value.evidence, readAt: new Date(value.readAtMs) };
 }
 
 export async function readPerformanceEvidenceFromStore(

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { RecordStationPicker } from "@/components/local/RecordStationPicker";
 import { buildBehindTheDataView, resolveRecordLocation } from "@/lib/behindTheData";
-import { captureCohortAt, readDatabaseEvidence } from "@/lib/localForecast";
+import { captureCohortAt, readRecordEvidence } from "@/lib/localForecast";
 
 export const metadata: Metadata = {
   title: "이 예보를 어떻게 채점하는가 — 오늘비",
@@ -10,8 +10,11 @@ export const metadata: Metadata = {
     "오늘비가 자기 학습을 언제 믿고 언제 정지시키는지, 그 판정을 실제 기록으로 확인합니다.",
 };
 
-// The evidence is read per request: a stale verdict on a page whose whole point
-// is today's verdict would be worse than no page.
+// Rendered per request, because the coordinate arrives in the query string. The
+// evidence read behind it is shared for ten minutes and the page states the age
+// it actually served — a cohort writes twice a day, so that cannot hide a change
+// of verdict, and paying for the database on every visit could not be justified
+// on a page that is mostly text (#123).
 export const dynamic = "force-dynamic";
 
 function seoulTimestamp(now: Date): string {
@@ -39,7 +42,7 @@ export default async function BehindTheDataPage({
 }) {
   const now = new Date();
   const { location, requested } = resolveRecordLocation(await searchParams);
-  const evidence = await readDatabaseEvidence(location, null, captureCohortAt(now), now);
+  const { evidence, readAt } = await readRecordEvidence(location, captureCohortAt(now), now);
   const view = buildBehindTheDataView(evidence);
   const { status, policy } = view;
   const influenceCopy = {
@@ -95,7 +98,7 @@ export default async function BehindTheDataPage({
           ) : null}
           <div>
             <dt>읽은 시각</dt>
-            <dd>{seoulTimestamp(now)}</dd>
+            <dd>{seoulTimestamp(readAt)}</dd>
           </div>
         </dl>
         <RecordStationPicker stationName={view.station?.name ?? null} />
@@ -399,7 +402,7 @@ export default async function BehindTheDataPage({
         </p>
         <p className="btd-foot-meta">
           <Link href="/">← 예보로 돌아가기</Link>
-          <span>읽은 시각 {seoulTimestamp(now)}</span>
+          <span>읽은 시각 {seoulTimestamp(readAt)}</span>
         </p>
       </footer>
     </main>
