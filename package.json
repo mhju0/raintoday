@@ -22,7 +22,7 @@
     "performance:catalog": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/generate-station-catalog.ts"
   },
   "dependencies": {
-    "next": "16.3.1",
+    "next": "16.3.3",
     "postgres": "^3.4.9",
     "react": "19.2.8",
     "react-dom": "19.2.8"
