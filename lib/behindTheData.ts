@@ -7,6 +7,11 @@
  * sentence would fall through to whatever the last branch said, which is exactly
  * the kind of quiet lie the page exists to rule out.
  */
+import {
+  createForecastLocation,
+  DEFAULT_FORECAST_LOCATION,
+  type ForecastLocation,
+} from "./location.ts";
 import type { LocalForecastEvidence } from "./localForecast.ts";
 import { DEFAULT_PERFORMANCE_POLICY } from "./performance/performance.ts";
 import { PERFORMANCE_PROVIDERS } from "./performance/store.ts";
@@ -233,4 +238,34 @@ export function buildBehindTheDataView(evidence: LocalForecastEvidence): BehindT
       rainThresholdMm: policy.rainThresholdMm,
     },
   };
+}
+
+/**
+ * Which coordinate the scoring record should describe.
+ *
+ * The link out of the forecast carries the visitor's own coordinate, so someone
+ * who clicked because their forecast said "기록 없음" lands on the station that
+ * said it rather than on Seoul. Anything unusable — absent, malformed, offshore,
+ * outside the service area — falls back to the default rather than erroring: the
+ * page's job is to explain the system, and it can still do that from Seoul.
+ */
+export function resolveRecordLocation(
+  params: Record<string, string | string[] | undefined>,
+): { location: ForecastLocation; requested: boolean } {
+  const single = (key: string): string | undefined => {
+    const value = params[key];
+    return Array.isArray(value) ? value[0] : value;
+  };
+  const latitude = Number(single("lat"));
+  const longitude = Number(single("lon"));
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return { location: DEFAULT_FORECAST_LOCATION, requested: false };
+  }
+  const name = (single("name") ?? "").slice(0, 60);
+  try {
+    return { location: createForecastLocation({ name, latitude, longitude }), requested: true };
+  } catch {
+    // createForecastLocation rejects anything outside the validated service area.
+    return { location: DEFAULT_FORECAST_LOCATION, requested: false };
+  }
 }

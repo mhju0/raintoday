@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { buildBehindTheDataView } from "@/lib/behindTheData";
+import { RecordStationPicker } from "@/components/local/RecordStationPicker";
+import { buildBehindTheDataView, resolveRecordLocation } from "@/lib/behindTheData";
 import { captureCohortAt, readDatabaseEvidence } from "@/lib/localForecast";
-import { DEFAULT_FORECAST_LOCATION } from "@/lib/location";
 
 export const metadata: Metadata = {
   title: "이 예보를 어떻게 채점하는가 — 오늘비",
@@ -32,14 +32,14 @@ const INELIGIBLE_COPY = {
   "no-dry-day": "안 온 날 없음",
 } as const;
 
-export default async function BehindTheDataPage() {
+export default async function BehindTheDataPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const now = new Date();
-  const evidence = await readDatabaseEvidence(
-    DEFAULT_FORECAST_LOCATION,
-    null,
-    captureCohortAt(now),
-    now,
-  );
+  const { location, requested } = resolveRecordLocation(await searchParams);
+  const evidence = await readDatabaseEvidence(location, null, captureCohortAt(now), now);
   const view = buildBehindTheDataView(evidence);
   const { status, policy } = view;
   const influenceCopy = {
@@ -49,6 +49,7 @@ export default async function BehindTheDataPage() {
   }[status.influenceSource];
 
   return (
+    <div className="btd-page">
     <main className="btd">
       <header className="btd-mast">
         <p className="local-eyebrow">오늘비 · 채점 기록</p>
@@ -64,7 +65,11 @@ export default async function BehindTheDataPage() {
       {/* ── Layer 1: the state, and one sentence anyone can act on ── */}
       <section className="btd-now" aria-labelledby="btd-now-heading">
         <p className="local-kicker">
-          지금 상태 <span>— {view.station ? `${view.station.name} 관측소 기준` : "기준 관측소 없음"}</span>
+          지금 상태{" "}
+          <span>
+            — {requested ? `${location.name} ` : ""}
+            {view.station ? `${view.station.name} 관측소 기준` : "기준 관측소 없음"}
+          </span>
         </p>
         <h2 id="btd-now-heading" className="btd-status-label">{status.label}</h2>
         <p className="btd-status-detail">{status.detail}</p>
@@ -93,6 +98,7 @@ export default async function BehindTheDataPage() {
             <dd>{seoulTimestamp(now)}</dd>
           </div>
         </dl>
+        <RecordStationPicker stationName={view.station?.name ?? null} />
         <p className="btd-plain">
           이 앱은 학습한 가중치가 단순 평균을 이긴다고 <em>판정될 때만</em> 그 가중치를 씁니다.
           아직 판정하지 못했거나 지고 있으면 학습을 끕니다. 여기까지가 답이고, 아래는 그 판정이
@@ -397,5 +403,6 @@ export default async function BehindTheDataPage() {
         </p>
       </footer>
     </main>
+    </div>
   );
 }
