@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CONDITION_LABELS_KO } from "@/lib/conditions";
+import { EXAMPLE_FORECAST_LOCATIONS } from "@/lib/exampleLocations";
 import { periodNameForHour } from "@/lib/forecast/blocks";
 import type { TimelineReading } from "@/lib/forecast/rainWindow";
 import {
@@ -359,7 +360,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             setResults([]);
             setActiveResultIndex(-1);
             setRetryAvailable(false);
-            setMessage("이곳에서는 지역 검색을 쓸 수 없어요. 위의 ‘내 위치로 보기’를 사용해 주세요.");
+            setMessage("이곳에서는 지역 검색을 쓸 수 없어요. 아래 예시나 위의 ‘내 위치로 보기’를 사용해 주세요.");
             return;
           }
         }
@@ -392,10 +393,16 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
     };
   }, [query, retryVersion]);
 
-  const chooseSearchResult = (result: ForecastLocationSearchResult) => {
+  // An in-flight search must not land on top of a coordinate the visitor has
+  // already committed, whichever of the two ways in they took.
+  const commitChoice = (choice: ChosenForecastLocation) => {
     requestSequence.current += 1;
     activeRequest.current?.abort();
-    onChoose({
+    onChoose(choice);
+  };
+
+  const chooseSearchResult = (result: ForecastLocationSearchResult) => {
+    commitChoice({
       // The fully qualified label, not the bare leaf: dozens of Korean towns
       // share a 동 name, and "중앙동" alone cannot confirm the right place.
       name: result.label || result.name,
@@ -409,7 +416,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   const useCurrentLocation = () => {
     setMessage(null);
     if (!navigator.geolocation) {
-      setMessage("이 브라우저에서는 위치 기능을 사용할 수 없어요. 지역을 검색해 주세요.");
+      setMessage("이 브라우저에서는 위치 기능을 사용할 수 없어요. 아래에서 지역을 고르거나 검색해 주세요.");
       return;
     }
     // A high-accuracy fix can take the full 12s timeout. Without this the button
@@ -435,7 +442,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
       }),
       () => {
         setLocating(false);
-        setMessage("위치를 확인하지 못했어요. 권한을 확인하거나 지역을 검색해 주세요.");
+        setMessage("위치를 확인하지 못했어요. 권한을 확인하거나 아래에서 지역을 골라 주세요.");
       },
       { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
     );
@@ -643,6 +650,37 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
           ))}
         </ul>
         </div>
+        </div>
+
+        {/* The third way in. Both of the two above assume something a visitor
+            may not have — a device inside Korea, or a place name they can type
+            in Hangul, which is the only script Kakao's administrative search
+            matches. Without these the two failure paths pointed at each other
+            and there was no way through (#121). Achromatic on purpose: colour
+            here belongs to the chance of rain, the amount, and the window. */}
+        <div className="local-examples">
+          <p className="local-examples-label" id="location-examples">바로 보기</p>
+          <ul aria-labelledby="location-examples">
+            {EXAMPLE_FORECAST_LOCATIONS.map((example) => (
+              <li key={example.name}>
+                <button
+                  type="button"
+                  onClick={() => commitChoice({
+                    name: example.name,
+                    latitude: example.latitude,
+                    longitude: example.longitude,
+                    // As with a search result: an area representative point
+                    // carries no elevation, and inventing one would feed the
+                    // station gate a number nobody measured.
+                    elevationM: null,
+                    selection: example.selection,
+                  })}
+                >
+                  {example.short}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="local-privacy-note">
@@ -1555,7 +1593,7 @@ export default function LocalForecastExperience() {
         error instanceof ForecastOutOfServiceAreaError
           ? {
               kind: "error",
-              message: "이 위치는 대한민국 서비스 지역 밖이에요. 대한민국 안의 지역을 검색해 주세요.",
+              message: "이 위치는 대한민국 서비스 지역 밖이에요. 대한민국 안의 지역을 고르면 바로 예보를 볼 수 있어요.",
               retry: null,
             }
           : {
@@ -1684,7 +1722,7 @@ export default function LocalForecastExperience() {
           <p className="local-loading-lead">
             예보 <b>{COMPARED_PROVIDER_NAMES.length}곳</b>을 불러오는 중입니다
           </p>
-          {/* Names, not a spinner: the wait is spent contacting these five, and
+          {/* Names, not a spinner: the wait is spent contacting exactly these, and
               a neutral spinner hides the one honest thing happening. No
               per-provider state — the API answers once, so a row that claimed
               to know which of them had replied would be inventing it. */}

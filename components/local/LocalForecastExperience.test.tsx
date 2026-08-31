@@ -31,6 +31,7 @@ const {
   VERIFICATION_STATION_COUNT,
   default: LocalForecastExperience,
 } = await import("./LocalForecastExperience");
+const { EXAMPLE_FORECAST_LOCATIONS } = await import("../../lib/exampleLocations.ts");
 
 function kakaoResult(input: {
   id: string;
@@ -70,7 +71,12 @@ async function mountChooser(fetchImpl: typeof fetch) {
   document.body.replaceChildren();
   const container = document.createElement("div");
   document.body.append(container);
-  const choices: Array<{ name: string }> = [];
+  const choices: Array<{
+    name: string;
+    latitude: number;
+    longitude: number;
+    elevationM: number | null;
+  }> = [];
   let root: Root | null = null;
   await act(async () => {
     root = createRoot(container);
@@ -1743,6 +1749,40 @@ test("the ribbon sweeps in like a chart recorder, as a class reduced-motion can 
   await view.cleanup();
 });
 
+
+/**
+ * #121: Kakao's administrative search matches Hangul only, and geolocation from
+ * outside Korea is refused, so before the worked examples existed a visitor who
+ * had neither was handed two errors that pointed at each other. This asserts the
+ * way through, and that a chip commits the coordinate the module declares rather
+ * than one the markup rounded or transposed.
+ */
+test("a visitor who cannot type Hangul still has a way in", async () => {
+  const view = await mountChooser(async () => Response.json({ results: [] }));
+
+  const chips = [...view.container.querySelectorAll<HTMLButtonElement>(".local-examples button")];
+  assert.equal(chips.length, EXAMPLE_FORECAST_LOCATIONS.length);
+
+  const busan = EXAMPLE_FORECAST_LOCATIONS.find((example) => example.short === "부산");
+  assert.ok(busan, "the example set covers somewhere that is not Seoul");
+  const chip = chips.find((button) => button.textContent === busan.short);
+  assert.ok(chip, "the chip reads as the short leaf");
+
+  await act(async () => chip.click());
+
+  assert.deepEqual(view.choices, [{
+    name: busan.name,
+    latitude: busan.latitude,
+    longitude: busan.longitude,
+    // An area representative point carries no measured elevation, exactly as a
+    // search result does not.
+    elevationM: null,
+    selection: busan.selection,
+  }]);
+  assert.notEqual(busan.name, busan.short, "the fully qualified name is committed, not the leaf");
+
+  await view.cleanup();
+});
 
 test("the chooser previews the instrument it is about to fill, empty and honest", async () => {
   const view = await mountChooser(async () => Response.json({ results: [] }));
