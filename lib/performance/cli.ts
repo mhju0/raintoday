@@ -1,5 +1,17 @@
+import { forecastProviders } from "../providers/registry.ts";
 import type { PerformanceBatchResult } from "./batch.ts";
 import type { CaptureCohort } from "./types.ts";
+
+/** Production cohorts must not freeze a smaller provider set because a key is missing. */
+export function assertCaptureProvidersConfigured(): void {
+  const missing = forecastProviders.flatMap((provider) => {
+    const names = provider.missingConfiguration();
+    return names.length > 0 ? [`${provider.id}: ${names.join(", ")}`] : [];
+  });
+  if (missing.length > 0) {
+    throw new Error(`Capture provider configuration is missing (${missing.join("; ")}). No evidence was written.`);
+  }
+}
 
 /**
  * The share of a cohort that may fault before the run is treated as an outage.

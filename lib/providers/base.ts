@@ -25,5 +25,7 @@ export interface WeatherProvider {
   readonly id: WeatherProviderStatus["id"];
   /** Korean display name */
   readonly name: string;
+  /** Missing variable names, without fetching weather or exposing credential values. */
+  missingConfiguration(): string[];
   read(location?: ForecastLocation): Promise<ProviderSnapshot>;
 }

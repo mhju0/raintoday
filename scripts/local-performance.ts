@@ -1,5 +1,6 @@
 import { runPerformanceBatch } from "../lib/performance/batch.ts";
 import {
+  assertCaptureProvidersConfigured,
   cohortRunFailed,
   manualCohortHourMismatch,
   resolveCaptureCohort,
@@ -14,6 +15,7 @@ async function main(): Promise<void> {
   // contradicts does not. See #118.
   const mismatch = manualCohortHourMismatch(argv, now);
   if (mismatch) throw new Error(mismatch);
+  if (argv.includes("--require-all-providers")) assertCaptureProvidersConfigured();
   const connectionUrl = process.env.PERFORMANCE_DATABASE_URL?.trim();
   if (!connectionUrl) throw new Error("PERFORMANCE_DATABASE_URL is required");
   const store = new PostgresPerformanceStore(connectionUrl);
