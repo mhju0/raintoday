@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { blendPrecipitation } from "./influence.ts";
-import { DEFAULT_PERFORMANCE_POLICY } from "./performance.ts";
 import type {
   CapturedProviderForecast,
   PrecipProviderId,
@@ -88,15 +87,51 @@ test("a null profile blends equally, which is the prospective equal benchmark", 
   assert.ok(Math.abs(blend.probability! - mean) < 1e-12);
 });
 
-test("a provider the profile never scored is demoted to the weight floor", () => {
-  const blend = blendPrecipitation(
-    [forecast("open-meteo", 50), forecast("weather-api", 50)],
-    profile("learned", { "open-meteo": 0.6 }),
-  );
+for (const mode of ["learned", "ramping", "seed"] as const) {
+  test(`${mode}: zero-history providers keep an equal share during provider outages`, () => {
+    const weights = { "open-meteo": 0.6, kma: 0.3, "pirate-weather": 0.1 };
+    for (const includeKma of [true, false]) {
+      const forecasts = [
+        forecast("open-meteo", 80, 10),
+        ...(includeKma ? [forecast("kma", 20, 2)] : []),
+        forecast("weather-api", 50, 4),
+        forecast("visual-crossing", 40, null),
+      ];
+      const blend = blendPrecipitation(forecasts, profile(mode, weights));
+      const neutral = 1 / forecasts.length;
+      assert.ok(Math.abs(blend.influence["weather-api"] - neutral) < 1e-12);
+      assert.ok(Math.abs(blend.influence["visual-crossing"] - neutral) < 1e-12);
+      assert.ok(Math.abs(Object.values(blend.influence).reduce((a, b) => a + b, 0) - 1) < 1e-12);
+      assert.equal(blend.influence["pirate-weather"], undefined);
+      if (includeKma) {
+        assert.ok(Math.abs(blend.influence["open-meteo"] / blend.influence.kma - 2) < 1e-12);
+        assert.ok(blend.influence["open-meteo"] > neutral);
+        assert.ok(blend.influence.kma < neutral);
+      }
+      const expectedProbability = forecasts.reduce(
+        (sum, entry) => sum + entry.probability! * blend.influence[entry.provider], 0,
+      );
+      assert.ok(Math.abs(blend.probability! - expectedProbability) < 1e-12);
+      const expectedAmount = forecasts.reduce(
+        (sum, entry) => sum + (entry.amountMm ?? 0) * blend.influence[entry.provider], 0,
+      ) / (1 - neutral);
+      assert.ok(Math.abs(blend.amountMm! - expectedAmount) < 1e-12);
+      assert.equal(blend.amountProviderCount, forecasts.length - 1);
+    }
+  });
+}
 
-  const floor = DEFAULT_PERFORMANCE_POLICY.weightFloor;
-  assert.ok(Math.abs(blend.influence["weather-api"] - floor / (0.6 + floor)) < 1e-12);
-  assert.ok(blend.influence["open-meteo"] > blend.influence["weather-api"]);
+test("no usable historical weights falls back to equal shares", () => {
+  const profiles: Record<string, number>[] = [{}, { "open-meteo": 0 }, { "open-meteo": -1 }];
+  for (const weights of profiles) {
+    const blend = blendPrecipitation(
+      [forecast("open-meteo", 80), forecast("weather-api", 20)],
+      profile("learned", weights),
+    );
+    assert.deepEqual(blend.influence, { "open-meteo": 0.5, "weather-api": 0.5 });
+    assert.equal(blend.probability, 50);
+  }
+  assert.deepEqual(blendPrecipitation([], profile("learned", {})).influence, {});
 });
 
 test("amount is blended only across providers that report one", () => {

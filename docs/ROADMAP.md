@@ -55,8 +55,9 @@ Historical captures stay frozen; do not backfill the missing forecasts.
 
 ### Complete the approved audit fixes
 
-- Keep a provider with zero historical samples at a neutral share in learned/ramping modes;
-  #127 did not fix the fallback in `influence.ts`.
+- **Implemented locally, pending merge:** keep a provider with zero historical samples at a
+  neutral share in learned/ramping modes. The shared blend now assigns missing weights the
+  mean of available scored weights, preserving an equal share after normalization.
 - Link GPS visitors to their matched observation station's scoring record without putting
   device coordinates in the URL. Searched-area coordinates remain shareable.
 - Key scoring-record evidence by matched station + cohort; #128 currently keys exact

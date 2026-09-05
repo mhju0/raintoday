@@ -620,7 +620,7 @@ timestamp from `ageMs` minus an injected `now` is right only by accident; store 
 
 ## 2026-08-31 — Absence of evidence is not evidence of poor performance
 
-**Status: ACTIVE intent, PARTIALLY IMPLEMENTED (#122, PR #127)**
+**Status: ACTIVE, implemented locally; zero-history correction pending merge (#122, PR #127)**
 
 **Previous behaviour.** A provider short of `minimumSamples` was weighted at `weightFloor`
 (5%) — that is, **demoted for accumulating evidence slowly** rather than for forecasting
@@ -636,6 +636,12 @@ in the profile metrics. **VERIFIED 2026-09-05:** a provider with zero history is
 those metrics; `influence.ts` still substitutes the floor for it in learned/ramping mode.
 The associated test pins that demotion. The owner approved correcting this remaining path
 without changing scoring thresholds or the benchmark policy.
+
+**2026-09-05 correction (pending merge).** The shared serving/capture blend now gives a
+missing weight the mean of scored weights among providers present in the forecast. This
+normalizes to exactly 1/n for each zero-history provider and preserves scored-provider
+weight ratios, including during outages. Regression tests cover learned/ramping profiles,
+multiple missing histories, and probability/amount blending. Existing captures stay frozen.
 
 **Why it existed at all.** The **seed** path already stated this rule for a provider with no
 archive proxy. Only one of the two paths had it. A rule stated in one place and not the other
