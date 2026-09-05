@@ -174,7 +174,7 @@ test("equal fallback renormalizes each outlook day over providers available that
   assert.equal(response.outlook[1]?.precipitationProbability, 60);
 });
 
-test("active weighting gives a newly available provider the policy floor instead of zero", async () => {
+test("active weighting gives a zero-history provider a neutral share", async () => {
   const location = createForecastLocation({
     name: "부산 수영구",
     latitude: 35.1532,
@@ -198,9 +198,10 @@ test("active weighting gives a newly available provider the policy floor instead
     },
   );
 
-  assert.ok(response.effectiveInfluence["weather-api"] > 0);
-  assert.ok(response.effectiveInfluence["weather-api"] < response.effectiveInfluence.kma);
-  assert.ok((response.recommendation.precipitationProbability ?? 0) > 68);
+  assert.ok(Math.abs(response.effectiveInfluence["weather-api"] - 1 / 3) < 1e-12);
+  assert.ok(response.effectiveInfluence["weather-api"] > response.effectiveInfluence.kma);
+  assert.ok(response.effectiveInfluence["weather-api"] < response.effectiveInfluence["open-meteo"]);
+  assert.ok(Math.abs(response.recommendation.precipitationProbability! - (80 * 0.4 + 50 * 4 / 15 + 100 / 3)) < 1e-12);
 });
 
 test("local forecast starts provider and evidence reads concurrently", async () => {

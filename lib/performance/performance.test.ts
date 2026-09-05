@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { blendPrecipitation } from "./influence.ts";
 import {
   blendPrecipProbability,
   buildRecentPerformanceProfile,
@@ -243,6 +244,33 @@ test("a provider short of samples keeps a neutral share, not the floor", () => {
     "and does not outrank measured-and-better either",
   );
 });
+
+for (const days of [45, 60]) {
+  test(`zero-history provider stays neutral when a ${days}-day live profile reaches the blend`, () => {
+    const data = series({
+      days,
+      probability: (provider, _daysAgo, wet) =>
+        provider === "open-meteo" ? (wet ? 90 : 10) : (wet ? 55 : 45),
+    });
+    const profile = buildRecentPerformanceProfile({
+      stationId: "108",
+      cohort: "06",
+      ...data,
+      asOf: AS_OF,
+    });
+    assert.equal(profile.mode, days === 60 ? "learned" : "ramping");
+    assert.equal(profile.effectiveWeights["visual-crossing"], undefined);
+    assert.equal(profile.providers.some((entry) => entry.provider === "visual-crossing"), false);
+    const blend = blendPrecipitation([
+      { provider: "open-meteo", probability: 90, amountMm: null },
+      { provider: "kma", probability: 55, amountMm: null },
+      { provider: "visual-crossing", probability: 70, amountMm: null },
+    ], profile);
+    assert.ok(Math.abs(blend.influence["visual-crossing"] - 1 / 3) < 1e-12);
+    assert.ok(blend.influence["open-meteo"] > 1 / 3);
+    assert.ok(blend.influence.kma < 1 / 3);
+  });
+}
 
 test("a prospectively worse adaptive blend suspends learned influence", () => {
   const data = series({

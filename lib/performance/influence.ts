@@ -1,7 +1,4 @@
-import {
-  blendPrecipProbability,
-  DEFAULT_PERFORMANCE_POLICY,
-} from "./performance.ts";
+import { blendPrecipProbability } from "./performance.ts";
 import type { CapturedProviderForecast, RecentPerformanceProfile } from "./types.ts";
 
 /**
@@ -57,14 +54,21 @@ function effectiveInfluence(
 ): Record<string, number> {
   const learned = learnedWeights(profile);
   if (!learned) return equalInfluence(forecasts);
-  // A provider the profile has no weight for — newly added, or dropped from the
-  // metrics for want of comparable samples — falls back to the floor rather than
-  // to an equal share. That is a demotion, and it is deliberate: an unscored
-  // provider should not carry the same influence as a measured one.
+  // Give a provider with no history the mean weight of the scored providers
+  // present in this forecast. After normalization it holds exactly 1/n, while
+  // the scored providers retain their relative weights. Exclude absent providers
+  // so an outage cannot reward or demote a provider that has no evidence yet.
+  const scoredWeights = forecasts.flatMap((forecast) => {
+    const weight = learned[forecast.provider];
+    return weight === undefined ? [] : [Math.max(0, weight)];
+  });
+  const neutralWeight = scoredWeights.length > 0
+    ? scoredWeights.reduce((sum, weight) => sum + weight, 0) / scoredWeights.length
+    : 0;
   const raw = Object.fromEntries(
     forecasts.map((forecast) => [
       forecast.provider,
-      Math.max(0, learned[forecast.provider] ?? DEFAULT_PERFORMANCE_POLICY.weightFloor),
+      Math.max(0, learned[forecast.provider] ?? neutralWeight),
     ]),
   );
   const total = Object.values(raw).reduce((sum, value) => sum + value, 0);
