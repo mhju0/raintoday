@@ -58,6 +58,7 @@ jobs:
           VISUAL_CROSSING_API_KEY: ${{ secrets.VISUAL_CROSSING_API_KEY }}
         run: |
           npm run performance:capture -- \
+            --require-all-providers \
             --cohort="${{ inputs.cohort }}" \
             --schedule="${{ github.event.schedule }}"
 
@@ -108,5 +109,6 @@ jobs:
           VISUAL_CROSSING_API_KEY: ${{ secrets.VISUAL_CROSSING_API_KEY }}
         run: |
           npm run performance:capture -- \
+            --require-all-providers \
             --cohort="${{ inputs.cohort }}" \
             --schedule="${{ github.event.schedule }}"

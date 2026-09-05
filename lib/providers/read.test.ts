@@ -156,11 +156,12 @@ test("createWeatherProvider keeps stale fallback status and weather from the sam
 test("createWeatherProvider returns needs-config without loading weather", async () => {
   clearCache();
   let calls = 0;
+  let missing = ["WEATHERAPI_KEY"];
   const provider = createWeatherProvider({
     id: "weather-api",
     name: "WeatherAPI",
     messages,
-    missingConfiguration: () => ["WEATHERAPI_KEY"],
+    missingConfiguration: () => missing,
     ttlMs: 60_000,
     load: async () => {
       calls += 1;
@@ -168,6 +169,8 @@ test("createWeatherProvider returns needs-config without loading weather", async
     },
   });
 
+  assert.deepEqual(provider.missingConfiguration(), ["WEATHERAPI_KEY"]);
+  assert.equal(calls, 0);
   const snapshot = await provider.read();
 
   assert.equal(calls, 0);
@@ -186,6 +189,9 @@ test("createWeatherProvider returns needs-config without loading weather", async
     hourly: [],
     daily: [],
   });
+  missing = [];
+  assert.deepEqual(provider.missingConfiguration(), [], "configuration is checked at call time");
+  assert.equal(calls, 0, "configuration checks never fetch weather");
 });
 
 test("createWeatherProvider isolates a loader failure as an empty error snapshot", async () => {

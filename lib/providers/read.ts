@@ -45,6 +45,7 @@ export function createWeatherProvider(definition: WeatherProviderDefinition): We
   return {
     id: definition.id,
     name: definition.name,
+    missingConfiguration: () => definition.missingConfiguration(),
 
     async read(location = DEFAULT_FORECAST_LOCATION): Promise<ProviderSnapshot> {
       try {

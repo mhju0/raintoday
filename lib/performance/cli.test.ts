@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
@@ -9,6 +10,55 @@ import {
   resolveCaptureCohort,
   SCHEDULE_COHORTS,
 } from "./cli.ts";
+
+test("strict capture rejects missing or blank provider credentials before opening the store", () => {
+  const env = {
+    ...process.env,
+    PERFORMANCE_DATABASE_URL: "",
+    KMA_SHORT_TERM_API_KEY: "test-only-credential-not-for-logging",
+    PIRATE_WEATHER_API_KEY: "test-only-credential-not-for-logging",
+    WEATHERAPI_KEY: "test-only-credential-not-for-logging",
+    VISUAL_CROSSING_API_KEY: "test-only-credential-not-for-logging",
+  };
+  const run = (environment: NodeJS.ProcessEnv, strict = true) => spawnSync(
+    process.execPath,
+    [
+      join(import.meta.dirname, "..", "..", "scripts", "local-performance.ts"),
+      "--schedule=10 21 * * *",
+      ...(strict ? ["--require-all-providers"] : []),
+    ],
+    { env: environment, encoding: "utf8", timeout: 10_000 },
+  );
+
+  for (const [name, value] of [
+    ["VISUAL_CROSSING_API_KEY", undefined],
+    ["VISUAL_CROSSING_API_KEY", ""],
+    ["VISUAL_CROSSING_API_KEY", " \t "],
+    ["KMA_SHORT_TERM_API_KEY", ""],
+    ["PIRATE_WEATHER_API_KEY", ""],
+    ["WEATHERAPI_KEY", ""],
+  ] as const) {
+    const result = run({ ...env, [name]: value });
+    assert.ifError(result.error);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Capture provider configuration is missing/);
+    assert.ok(result.stderr.includes(name), `report the missing ${name}`);
+    assert.doesNotMatch(result.stderr, /PERFORMANCE_DATABASE_URL is required/);
+    assert.doesNotMatch(result.stdout + result.stderr, /test-only-credential-not-for-logging/);
+  }
+
+  // A configured cohort reaches the next prerequisite. This never opens a DB.
+  const configured = run(env);
+  assert.ifError(configured.error);
+  assert.equal(configured.status, 1);
+  assert.match(configured.stderr, /PERFORMANCE_DATABASE_URL is required/);
+
+  // Partial local capture keeps its existing contract unless strict mode is requested.
+  const partial = run({ ...env, VISUAL_CROSSING_API_KEY: "" }, false);
+  assert.ifError(partial.error);
+  assert.equal(partial.status, 1);
+  assert.match(partial.stderr, /PERFORMANCE_DATABASE_URL is required/);
+});
 
 test("manual capture cohort takes precedence over schedule metadata", () => {
   assert.equal(
@@ -70,8 +120,8 @@ test("every scheduled cron in the capture workflow resolves to a cohort", () => 
  * Crossing did: the secret was set, the workflow was not updated, and only this
  * test would have caught it.
  *
- * The existing sibling test asserts the two jobs carry the SAME credentials,
- * which cannot see this — both jobs were equally short of it.
+ * This catches missing declarations; strict capture's runtime preflight also
+ * catches a declared secret resolving to an empty value.
  */
 test("the capture workflow passes every credential the capture path reads", () => {
   const root = join(import.meta.dirname, "..", "..");
@@ -144,6 +194,13 @@ test("the capture workflow retries on a fresh runner, identically credentialled"
     secretsOf("capture"),
     "the retry job's credentials have drifted from the first attempt's",
   );
+  for (const name of jobNames) {
+    assert.match(
+      bodyOf(name),
+      /npm run performance:capture -- \\\n\s*--require-all-providers \\/,
+      `${name} must validate provider configuration before writing evidence`,
+    );
+  }
 });
 
 /**

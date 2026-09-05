@@ -48,8 +48,14 @@ That offset is not symmetry for its own sake. ASOS compiles a calendar day's sum
 
 ## When a run fails
 
+Both workflow attempts pass `--require-all-providers`. Before opening the database or
+fetching weather, the CLI checks configuration through the shared provider registry and
+fails with the missing variable names. A declared but empty Actions secret must not
+silently remove a provider from an immutable cohort. Local capture without this flag
+still permits unconfigured providers; keyless serving is unchanged.
+
 A capture is refused outright when a compared provider's read faults — `error`, not
-`needs-config`, which is an honest permanent absence. Serving may omit a non-OK source
+`needs-config`, which local partial captures can omit. Serving may omit a non-OK source
 because the reader is shown what exists; a capture may not, because it is frozen and
 `saveCapture` is `on conflict do nothing`, so a capture short one provider is permanent
 and indistinguishable from an honest one. Three evenings of runner egress failure froze
