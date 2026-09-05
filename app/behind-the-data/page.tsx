@@ -41,8 +41,10 @@ export default async function BehindTheDataPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const now = new Date();
-  const { location, requested } = resolveRecordLocation(await searchParams);
-  const { evidence, readAt } = await readRecordEvidence(location, captureCohortAt(now), now);
+  const params = await searchParams;
+  const stationId = Array.isArray(params.station) ? params.station[0] : params.station;
+  const { location, requested } = resolveRecordLocation(params);
+  const { evidence, readAt } = await readRecordEvidence(stationId ?? location, captureCohortAt(now), now);
   const view = buildBehindTheDataView(evidence);
   const { status, policy } = view;
   const influenceCopy = {
@@ -70,7 +72,7 @@ export default async function BehindTheDataPage({
         <p className="local-kicker">
           지금 상태{" "}
           <span>
-            — {requested ? `${location.name} ` : ""}
+            — {requested && stationId === undefined ? `${location.name} ` : ""}
             {view.station ? `${view.station.name} 관측소 기준` : "기준 관측소 없음"}
           </span>
         </p>
@@ -93,7 +95,7 @@ export default async function BehindTheDataPage({
           {view.station ? (
             <div>
               <dt>관측소</dt>
-              <dd>{view.station.name} · {view.station.distanceKm}km</dd>
+              <dd>{view.station.name}{stationId === undefined ? ` · ${view.station.distanceKm}km` : ""}</dd>
             </div>
           ) : null}
           <div>

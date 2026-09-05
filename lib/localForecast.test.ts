@@ -477,41 +477,118 @@ test("today is null rather than invented when no provider still publishes it", a
   assert.equal(response.recommendation.precipitationProbability, 80);
 });
 
-/**
- * #123. The record page reuses one evidence read for ten minutes, so the time it
- * prints must be the time that read happened. Reporting the request clock beside
- * cached evidence would be a small lie on the one page whose entire claim is that
- * a sceptical reader can check it.
- */
-test("the record's cached evidence reports when it was actually read", async () => {
-  const previous = process.env.PERFORMANCE_DATABASE_URL;
-  delete process.env.PERFORMANCE_DATABASE_URL;
-  try {
-    // Somewhere no other test caches, so this exercises a cold key.
-    const location = createForecastLocation({
-      name: "울릉군",
-      latitude: 37.4844,
-      longitude: 130.9058,
-    });
-    const first = new Date("2026-08-31T09:00:00+09:00");
-    const cold = await readRecordEvidence(location, "06", first);
-    assert.equal(cold.evidence.status, "unavailable");
-    assert.equal(cold.readAt.getTime(), first.getTime());
-
-    const later = new Date(first.getTime() + 4 * 60_000);
-    const warm = await readRecordEvidence(location, "06", later);
-    assert.equal(warm.evidence.status, "unavailable");
-    assert.equal(
-      warm.readAt.getTime(),
-      first.getTime(),
-      "a cached read is dated when it happened, not when it was served",
-    );
-
-    // A different cohort is a different verdict, so it must not share the entry.
-    const other = await readRecordEvidence(location, "18", later);
-    assert.equal(other.readAt.getTime(), later.getTime());
-  } finally {
-    if (previous === undefined) delete process.env.PERFORMANCE_DATABASE_URL;
-    else process.env.PERFORMANCE_DATABASE_URL = previous;
+class RecordStore extends InMemoryPerformanceStore {
+  catalogReads = 0;
+  liveReads = 0;
+  seedReads = 0;
+  override async listStations() {
+    this.catalogReads++;
+    return super.listStations();
   }
+  override async loadCompletedComparisons(...args: Parameters<InMemoryPerformanceStore["loadCompletedComparisons"]>) {
+    this.liveReads++;
+    return super.loadCompletedComparisons(...args);
+  }
+  override async loadSeedComparisons(...args: Parameters<InMemoryPerformanceStore["loadSeedComparisons"]>) {
+    this.seedReads++;
+    return super.loadSeedComparisons(...args);
+  }
+}
+
+async function recordStore() {
+  const store = new RecordStore();
+  await store.syncStations([
+    { id: "108", name: "서울", network: "ASOS", latitude: 37.5714, longitude: 126.9658,
+      elevationM: 85.7, activeFrom: "2026-01-01", activeTo: null },
+    { id: "159", name: "부산", network: "ASOS", latitude: 35.1047, longitude: 129.032,
+      elevationM: 69.6, activeFrom: "2026-01-01", activeTo: null },
+  ], "2026-08-13");
+  return store;
+}
+
+test("record readers share station history, preserve distance and read time, and isolate cohorts", async () => {
+  const store = await recordStore();
+  const first = new Date("2026-08-31T09:00:00+09:00");
+  const nearby = createForecastLocation({ name: "서울", latitude: 37.5665, longitude: 126.978 });
+  const further = createForecastLocation({ name: "강남", latitude: 37.5006, longitude: 127.0364 });
+  const [a, b] = await Promise.all([
+    readRecordEvidence(nearby, "06", first, store),
+    readRecordEvidence(further, "06", first, store),
+  ]);
+  assert.equal(a.evidence.station?.id, "108");
+  assert.equal(b.evidence.station?.id, "108");
+  assert.notEqual(a.evidence.station?.distanceKm, b.evidence.station?.distanceKm);
+  assert.equal(a.evidence.profile, b.evidence.profile);
+  assert.deepEqual([store.catalogReads, store.liveReads, store.seedReads], [1, 1, 1]);
+
+  const later = new Date(first.getTime() + 4 * 60_000);
+  const warm = await readRecordEvidence("108", "06", later, store);
+  assert.equal(warm.readAt.getTime(), first.getTime());
+  assert.equal(warm.evidence.station?.distanceKm, 0);
+  assert.deepEqual([store.catalogReads, store.liveReads, store.seedReads], [1, 1, 1]);
+  const otherCohort = await readRecordEvidence("108", "18", later, store);
+  assert.equal(otherCohort.readAt.getTime(), later.getTime());
+  const otherStation = await readRecordEvidence("159", "06", later, store);
+  assert.equal(otherStation.evidence.station?.id, "159");
+  assert.deepEqual([store.catalogReads, store.liveReads, store.seedReads], [1, 3, 3]);
+  const missing = await readRecordEvidence("none", "06", later, store);
+  assert.equal(missing.evidence.reason, "no-eligible-station");
+  assert.equal(missing.evidence.station, null);
+});
+
+test("record cache expires and is isolated between stores and Korean calendar days", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-08-31T09:00:00+09:00") });
+  const store = await recordStore();
+  const first = await readRecordEvidence("108", "06", new Date(), store);
+  t.mock.timers.tick(10 * 60_000 + 1);
+  const expired = await readRecordEvidence("108", "06", new Date(), store);
+  assert.notEqual(expired.readAt.getTime(), first.readAt.getTime());
+  assert.deepEqual([store.catalogReads, store.liveReads, store.seedReads], [2, 2, 2]);
+  const separate = await recordStore();
+  await readRecordEvidence("108", "06", new Date(), separate);
+  assert.equal(separate.liveReads, 1);
+  await readRecordEvidence("108", "06", new Date("2026-09-01T09:00:00+09:00"), store);
+  assert.equal(store.liveReads, 3);
+});
+
+test("live and seed history reads start together", async () => {
+  const store = await recordStore();
+  const started: string[] = [];
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  store.loadCompletedComparisons = async () => { started.push("live"); await gate; return []; };
+  store.loadSeedComparisons = async () => { started.push("seed"); await gate; return []; };
+  const read = readRecordEvidence("108", "06", new Date("2026-08-31T09:00:00+09:00"), store);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  try { assert.deepEqual(started.sort(), ["live", "seed"]); }
+  finally { release(); await read; }
+});
+
+test("unavailable record stores and retired stations never invent evidence", async () => {
+  const now = new Date("2026-08-31T09:00:00+09:00");
+  assert.equal((await readRecordEvidence("108", "06", now, null)).evidence.reason, "database-not-configured");
+  const store = await recordStore();
+  store.loadSeedComparisons = async () => { throw new Error("offline"); };
+  const fault = await readRecordEvidence("108", "06", now, store);
+  assert.equal(fault.evidence.reason, "database-unavailable");
+  assert.equal(fault.evidence.profile, null);
+  const retired = await recordStore();
+  await retired.syncStations([{ id: "159", name: "부산", network: "ASOS", latitude: 35.1047,
+    longitude: 129.032, elevationM: 69.6, activeFrom: "2026-01-01", activeTo: null }], "2026-08-20");
+  assert.equal((await readRecordEvidence("108", "06", now, retired)).evidence.reason, "no-eligible-station");
+});
+
+test("a failed record refresh reports a fault rather than a stale verdict, then recovers", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-08-31T09:00:00+09:00") });
+  const store = await recordStore();
+  await readRecordEvidence("108", "06", new Date(), store);
+  t.mock.timers.tick(10 * 60_000 + 1);
+  const loadSeed = store.loadSeedComparisons.bind(store);
+  store.loadSeedComparisons = async () => { throw new Error("offline"); };
+  const failed = await readRecordEvidence("108", "06", new Date(), store);
+  assert.equal(failed.evidence.reason, "database-unavailable");
+  assert.equal(failed.evidence.profile, null);
+  store.loadSeedComparisons = loadSeed;
+  t.mock.timers.tick(30_001);
+  assert.equal((await readRecordEvidence("108", "06", new Date(), store)).evidence.status, "collecting");
 });

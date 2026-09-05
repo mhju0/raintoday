@@ -19,6 +19,8 @@ const DEFAULT_FAILURE_RETRY_MS = 30_000;
 export interface CachedFetchOptions {
   /** Cooldown after an upstream failure, preventing request-driven retry storms. */
   failureRetryMs?: number;
+  /** Evidence readers must report refresh faults instead of serving an old verdict. */
+  staleIfError?: boolean;
 }
 
 export interface CachedResult<T> {
@@ -65,11 +67,12 @@ export async function cachedFetch<T>(
       enforceLimit(store);
       return { value, ageMs: 0, fromCache: false, stale: false };
     } catch (err) {
-      if (entry) {
+      if (entry && options.staleIfError !== false) {
         entry.retryAt = Date.now() + failureRetryMs;
         touch(store, key, entry as CacheEntry<unknown>);
         return { value: entry.value, ageMs: now - entry.storedAt, fromCache: true, stale: true };
       }
+      store.delete(key);
       failures.set(key, { error: err, retryAt: Date.now() + failureRetryMs });
       enforceLimit(failures);
       throw err;

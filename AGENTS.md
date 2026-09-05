@@ -3,7 +3,7 @@
 - Resolve conflicting evidence in this order: source/tests → Git → `docs/DECISIONS.md` → `docs/ROADMAP.md` → `docs/PROJECT_HANDOFF.md` → historical Claude material.
 - Use Node 24 (the CI version) and npm with `package-lock.json`.
 - Install: `npm ci`. Develop: `npm run dev`. Production: `npm run build`, then `npm start`.
-- Checks: `npm run lint`, `npm exec --no -- tsc --noEmit`, `npm test`, `npm run build`.
+- Full check: `npm run verify` (lint, typecheck, tests, build). `npm run typecheck` generates Next route types first, including in fresh worktrees. Targeted tests and browser/DB verification: `docs/VERIFYING.md`.
 - Library tests execute TypeScript directly in Node; relative runtime imports in test-reachable `lib/` modules need explicit `.ts` extensions.
 
 - Construct forecast locations through `createForecastLocation` in `lib/location.ts`: service-area validation precedes grid conversion and provider requests. Weather dates use `Asia/Seoul`. Keep user coordinates out of the performance database.

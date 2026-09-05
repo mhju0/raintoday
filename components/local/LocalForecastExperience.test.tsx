@@ -354,9 +354,6 @@ async function mountExperience(fetchImpl: typeof fetch) {
     root = createRoot(container);
     root.render(<LocalForecastExperience />);
   });
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  });
   return {
     container,
     async cleanup() {
@@ -486,6 +483,9 @@ test("a device coordinate is never written into the address bar", async () => {
   assert.ok(view.container.querySelector("#forecast-heading"), "the forecast rendered");
   // A precise position in the URL would leak into history and any shared link.
   assert.equal(window.location.search, "", "no coordinates in the query string");
+  const recordLinks = [...view.container.querySelectorAll<HTMLAnchorElement>('a[href^="/behind-the-data"]')];
+  assert.ok(recordLinks.length > 0);
+  for (const link of recordLinks) assert.equal(link.getAttribute("href"), "/behind-the-data?station=none");
   // Remembered, but no finer than the forecast grid can use: a raw fix would
   // pinpoint a dwelling, and anything on this origin can read the store.
   const stored = JSON.parse(window.localStorage.getItem("raintoday.last-location.v1") ?? "{}");
@@ -799,7 +799,7 @@ test("a provider with no seven-day record is not ranked against ones that have i
     evidence: {
       status: "active",
       statusLabel: "가중치 반영 중",
-      station: { name: "서울", distanceKm: 3.2 },
+      station: { id: "108", name: "서울", distanceKm: 3.2 },
       comparisonSampleCount: 40,
       emptyMessage: null,
       emptyDetail: null,
@@ -1354,7 +1354,7 @@ test("seed evidence shows the wet-day miss rate rather than claiming measured pe
       evidence: {
         status: "active",
         statusLabel: "과거 기록 반영 중",
-        station: { name: "서울", distanceKm: 3.2 },
+        station: { id: "108", name: "서울", distanceKm: 3.2 },
         comparisonSampleCount: 92,
         emptyMessage: null,
         emptyDetail: null,
@@ -1381,6 +1381,21 @@ test("seed evidence shows the wet-day miss rate rather than claiming measured pe
 });
 
 // --- the chooser's three claims ---------------------------------------------
+
+test("a GPS scoring record links to the matched station without a device coordinate", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", JSON.stringify({
+    name: "현재 위치", latitude: 37.5006, longitude: 127.0364,
+    elevationM: null, selection: { kind: "device", accuracyM: 18 },
+  }));
+  const payload = forecastPayload({ evidence: { ...forecastPayload().evidence,
+    station: { id: "108", name: "서울", distanceKm: 3.2 },
+  } });
+  const view = await mountExperience(async () => Response.json(payload));
+  const links = [...view.container.querySelectorAll<HTMLAnchorElement>('a[href^="/behind-the-data"]')];
+  assert.ok(links.length > 0);
+  for (const link of links) assert.equal(link.getAttribute("href"), "/behind-the-data?station=108");
+  await view.cleanup();
+});
 
 test("the station count on the chooser tracks the generated catalog", async () => {
   const { FALLBACK_STATION_CATALOG } = await import("@/lib/performance/stationCatalog");
@@ -1564,8 +1579,7 @@ test("a first visit opens at 한눈에, and the toggle still rules the fold (D-1
   assert.match(toggle.textContent ?? "", /^전체 근거 보기/, "the toggle is the invitation to expand");
   assert.match(toggle.textContent ?? "", /비교 \+ 기록/, "the label says what it hides");
 
-  toggle.click();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await act(async () => { toggle.click(); });
   assert.ok(view.container.querySelector(".local-evidence-cards"), "전체 근거 unfolds the blend evidence");
   assert.ok(view.container.querySelector(".local-evidence-section"), "전체 근거 unfolds the score section");
   assert.ok(!view.container.querySelector(".local-stubs"), "stubs yield to the real sections");
@@ -1573,8 +1587,7 @@ test("a first visit opens at 한눈에, and the toggle still rules the fold (D-1
   assert.equal(toggle.textContent, "한눈에 보기");
   assert.equal(window.localStorage.getItem("raintoday.view-density.v1"), "full");
 
-  toggle.click();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await act(async () => { toggle.click(); });
   assert.ok(!view.container.querySelector(".local-evidence-section"), "한눈에 folds it again");
   assert.equal(window.localStorage.getItem("raintoday.view-density.v1"), "glance");
   window.localStorage.removeItem("raintoday.view-density.v1");
@@ -1618,8 +1631,7 @@ test("the stubs carry the sections' own numbers, and a tap unfolds the real thin
   assert.match(stubs[1].textContent ?? "", /과거 기록/);
   assert.match(stubs[1].textContent ?? "", /근거 준비 중/, "the record stub repeats the status pill, not a new claim");
 
-  stubs[1].click();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await act(async () => { stubs[1].click(); });
   assert.ok(view.container.querySelector(".local-evidence-section"), "tapping a stub unfolds the sections");
   assert.equal(window.localStorage.getItem("raintoday.view-density.v1"), "full", "unfolding is a remembered choice, like the toggle");
   window.localStorage.removeItem("raintoday.view-density.v1");
@@ -1654,8 +1666,7 @@ test("the receipts shelf holds exactly what the fold governs", async () => {
   assert.ok(shelf, "the receipts live on their own shelf");
   assert.ok(shelf.querySelector(".local-stubs"), "folded: the shelf holds the stubs");
 
-  view.container.querySelector<HTMLButtonElement>(".local-minibar-tgl")?.click();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await act(async () => { view.container.querySelector<HTMLButtonElement>(".local-minibar-tgl")?.click(); });
   const open = view.container.querySelector(".local-receipts");
   assert.ok(open?.querySelector(".local-evidence-cards"), "unfolded: the shelf holds the evidence cards");
   assert.ok(open?.querySelector(".local-evidence-section"), "…and the record section");
@@ -1712,8 +1723,9 @@ test("arrow keys scrub the ribbon and read out each block's full truth", async (
   assert.equal(view.container.querySelector(".local-ribbon-readout"), null, "no readout until asked");
 
   const press = async (key: string) => {
-    grid.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true }));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(async () => {
+      grid.dispatchEvent(new window.KeyboardEvent("keydown", { key, bubbles: true }));
+    });
   };
 
   await press("ArrowRight");
