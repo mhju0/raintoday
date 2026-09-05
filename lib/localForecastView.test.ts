@@ -167,7 +167,7 @@ test("the view carries no station coordinates or raw profile", () => {
   assert.equal("profile" in view.evidence, false);
   assert.equal(serialized.includes("effectiveWeights"), false);
   assert.equal(serialized.includes("126.9658"), false);
-  assert.deepEqual(view.evidence.station, { name: "서울", distanceKm: 3.2 });
+  assert.deepEqual(view.evidence.station, { id: "108", name: "서울", distanceKm: 3.2 });
 });
 
 test("scores are omitted rather than faked when no profile exists", () => {

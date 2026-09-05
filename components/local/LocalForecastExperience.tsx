@@ -122,20 +122,11 @@ function formatOutlookDate(date: string): string {
   return `${Number(date.slice(8, 10))} ${weekday}`;
 }
 
-/**
- * Only a searched administrative area goes in the URL. A device fix is a
- * person's precise position, and putting it in the address bar would leak it
- * into browser history and into any link they shared; that one stays on the
- * device. Both are restored on the next visit.
- */
-/**
- * The scoring record for this coordinate.
- *
- * Carrying the coordinate is the point: someone who follows the link because
- * their own forecast said "기록 없음" should land on the station that said it,
- * not on Seoul.
- */
-function recordHrefFor(input: ChosenForecastLocation): string {
+/** GPS links carry only the public matched station; searched areas remain shareable. */
+function recordHrefFor(input: ChosenForecastLocation, stationId: string | undefined): string {
+  if (input.selection.kind === "device") {
+    return `/behind-the-data?${new URLSearchParams({ station: stationId ?? "none" })}`;
+  }
   const params = new URLSearchParams({
     lat: input.latitude.toFixed(5),
     lon: input.longitude.toFixed(5),
@@ -144,6 +135,7 @@ function recordHrefFor(input: ChosenForecastLocation): string {
   return `/behind-the-data?${params}`;
 }
 
+/** Device fixes stay out of shared URLs; only searched administrative areas belong here. */
 function shareableSearch(input: ChosenForecastLocation): string | null {
   if (input.selection.kind !== "area") return null;
   const params = new URLSearchParams({
@@ -1793,7 +1785,7 @@ export default function LocalForecastExperience() {
           forecast={state.forecast}
           selection={state.selection}
           onReset={() => returnToChooser(true)}
-          recordHref={recordHrefFor(state.location)}
+          recordHref={recordHrefFor(state.location, state.forecast.evidence.station?.id)}
         />
       )}
     </div>

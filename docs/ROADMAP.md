@@ -57,13 +57,12 @@ Historical captures stay frozen; do not backfill the missing forecasts.
 
 - Keep a provider with zero historical samples at a neutral share in learned/ramping modes;
   #127 did not fix the fallback in `influence.ts`.
-- Link GPS visitors to their matched observation station's scoring record without putting
-  device coordinates in the URL. Searched-area coordinates remain shareable.
-- Key scoring-record evidence by matched station + cohort; #128 currently keys exact
-  request coordinates. Preserve request-specific station-distance details.
-- Return 400 for malformed forecast-request JSON; the current parser produces 503.
-- Update the dev-only Browserslist dependency to a patched version; a compatible fix is
-  available, so this is actionable rather than blocked on upstream.
+- **Implemented on the audit branch, pending merge:** GPS record links use the matched
+  station id without device coordinates; searched-area coordinates remain shareable.
+- **Implemented on the audit branch, pending merge:** record history is keyed by matched
+  station + cohort + Korean date, with request-specific distance details preserved.
+- **Implemented on the audit branch, pending merge:** malformed JSON returns 400.
+- **Merged #135:** Browserslist updated to the compatible patched version.
 
 ---
 
@@ -82,8 +81,9 @@ batches — never a Dependabot batch alone.
 
 ### Require CI before enabling Dependabot auto-merge
 
-Approved: require passing CI on `main`, then automate passing patch/minor Dependabot
-merges. Major upgrades remain manual. Required status checks were unset at the audit.
+Required, up-to-date `verify` checks are now enabled on `main` (2026-09-05).
+Automating passing patch/minor Dependabot merges remains next, after the expanded CI
+lands. Major upgrades remain manual.
 
 ### Implement the ADR 0005 proximity wording
 
@@ -186,6 +186,9 @@ re-proposed as if new. Reasons in full are in `docs/DECISIONS.md`.
 | Deleting `reliability-state` or its deployment guard | Owner approved retaining the frozen archive on 2026-09-05. |
 
 ---
+
+The [maintenance audit](MAINTENANCE_AUDIT.md) records the current implementation and
+verification work, including deliberate deferrals.
 
 ## COMPLETED RECENTLY
 

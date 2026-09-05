@@ -172,7 +172,7 @@ The served surface is small and closed: `/`, `/behind-the-data`, `/api/local-for
 
 ## Run locally
 
-Requires Node.js 22 or later.
+Use Node.js 24.15 or later in the 24.x line, matching CI (`nvm use` reads `.nvmrc`).
 
 ```bash
 npm ci
@@ -187,13 +187,12 @@ To collect regional performance, configure:
 - `PERFORMANCE_DATABASE_URL`: a standard PostgreSQL connection URL;
 - `KMA_APIHUB_KEY`: subscribed to the KMA surface-observation station catalog, which is all this key is used for;
 - `KMA_OBSERVATION_API_KEY`: subscribed to the KMA ASOS daily service;
-- optional provider credentials listed in [`.env.example`](.env.example), which declares every variable the code reads and nothing else.
+- all compared-provider credentials listed in [`.env.example`](.env.example); the scheduled
+  collector requires complete configuration even though serving can degrade without these keys.
 
-Then run one fixed cohort:
-
-```bash
-npm run performance:capture -- --cohort=06
-```
+The scheduled workflow runs the fixed cohorts. Capture, seed, and observation commands
+write evidence; they are not verification commands. Do not manually dispatch a production
+cohort to accelerate acceptance or backfill forecasts.
 
 The scheduled workflow needs the same values as GitHub Actions secrets. If the database or station catalog is unavailable, the public forecast remains usable with an explicit equal-weight/no-evidence state.
 
@@ -211,18 +210,21 @@ It asserts the page answers, that a forecast still blends at least four of the f
 ## Verification
 
 ```bash
-npm run lint
-npx tsc --noEmit
-npm test
-npm run build
+npm run verify
 ```
 
-`npm test` runs the library suite and a JSDOM component suite. The PostgreSQL performance store is held to the same executable contract as the in-memory one, but only when a disposable database is supplied:
+`npm run verify` runs lint, route-type generation and TypeScript, tests, and a production
+build. `npm test` runs the library, JSDOM component, and route-handler suites. Each is
+available separately as `test:lib`, `test:ui`, and `test:routes`.
+For focused feedback, run `node --test lib/localForecast.test.ts` or
+`npm exec --no -- tsx --test --test-name-pattern="GPS" components/local/LocalForecastExperience.test.tsx`.
+See [the verification guide](docs/VERIFYING.md) for fresh checkouts, worktrees, and browser checks. The PostgreSQL performance store is held to the same executable contract as the in-memory one, but only when a disposable database is supplied:
 
 ```bash
 PERFORMANCE_STORE_CONTRACT_URL=postgres://… npm test
 ```
 
+CI runs this contract against its own disposable PostgreSQL service on every PR.
 The suite truncates that database's tables, so it must never be a production URL. Without it, the PostgreSQL contract is reported as skipped rather than passing.
 
 Manual product checks should cover:

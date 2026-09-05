@@ -1,5 +1,5 @@
 import { cachedFetch } from "./cache.ts";
-import { forecastLocationCacheKey, type ForecastLocation } from "./location.ts";
+import type { ForecastLocation } from "./location.ts";
 import { blendPrecipitation } from "./performance/influence.ts";
 import {
   buildRecentPerformanceProfile,
@@ -217,53 +217,33 @@ export async function readDatabaseEvidence(
   cohort: CaptureCohort,
   now: Date,
 ): Promise<LocalForecastEvidence> {
-  const connectionUrl = process.env.PERFORMANCE_DATABASE_URL?.trim();
-  if (!connectionUrl) {
-    return { status: "unavailable", reason: "database-not-configured", station: null, profile: null };
-  }
-  runtimePerformanceStore ??= new PostgresPerformanceStore(connectionUrl);
-  const store = runtimePerformanceStore;
-  return readPerformanceEvidenceFromStore(store, location, elevationM, cohort, now);
+  return (await readEvidenceFromStore(performanceStore(), location, elevationM, cohort, now)).evidence;
 }
 
-/**
- * How long `/behind-the-data` may reuse an evidence read.
- *
- * A cohort writes twice a day, so ten minutes cannot hide a change of verdict —
- * and the page reports the age it actually served rather than claiming the read
- * happened now. Uncached, every visit paid for the database: ~1.15s warm, and
- * 4.3s on the first request of the hour while Neon woke from autosuspend. That
- * is the page reached from the evidence status chip, by someone who clicked it
- * precisely because they did not understand the status (#123).
- */
-export const RECORD_EVIDENCE_TTL_MS = 10 * 60_000;
+function performanceStore(): PerformanceStore | null {
+  const connectionUrl = process.env.PERFORMANCE_DATABASE_URL?.trim();
+  if (!connectionUrl) return null;
+  return runtimePerformanceStore ??= new PostgresPerformanceStore(connectionUrl);
+}
 
-/**
- * The record page's evidence read, shared across requests for one station.
- *
- * Keyed by station-resolving coordinate and cohort, never by the visitor's exact
- * point: two neighbours resolve to the same Station Match and the same profile,
- * so keying on the raw coordinate would cache per visitor and help nobody.
- * `cachedFetch` is single-flight, so concurrent cold requests make one query.
- */
+/** Record pages reuse station history for ten minutes and report its actual read time. */
+export const RECORD_EVIDENCE_TTL_MS = 10 * 60_000;
+const recordStoreIds = new WeakMap<PerformanceStore, number>();
+let nextRecordStoreId = 0;
+
+/** Station ids let GPS visitors open their record without sharing device coordinates. */
 export async function readRecordEvidence(
-  location: ForecastLocation,
+  location: ForecastLocation | string,
   cohort: CaptureCohort,
   now: Date,
+  store: PerformanceStore | null = performanceStore(),
 ): Promise<{ evidence: LocalForecastEvidence; readAt: Date }> {
-  // The read time is stored with the value rather than derived from the entry's
-  // age: `cachedFetch` ages entries against the wall clock, and subtracting that
-  // from the request's own `now` is only accidentally right when the two are the
-  // same clock. Storing it makes the reported time exact by construction.
-  const { value } = await cachedFetch(
-    `record:${forecastLocationCacheKey(location)}:${cohort}`,
-    RECORD_EVIDENCE_TTL_MS,
-    async () => ({
-      evidence: await readDatabaseEvidence(location, null, cohort, now),
-      readAtMs: now.getTime(),
-    }),
-  );
-  return { evidence: value.evidence, readAt: new Date(value.readAtMs) };
+  let cachePrefix: string | undefined;
+  if (store) {
+    if (!recordStoreIds.has(store)) recordStoreIds.set(store, ++nextRecordStoreId);
+    cachePrefix = `record:${recordStoreIds.get(store)}:${koreanDate(now)}`;
+  }
+  return readEvidenceFromStore(store, location, null, cohort, now, cachePrefix);
 }
 
 export async function readPerformanceEvidenceFromStore(
@@ -273,33 +253,58 @@ export async function readPerformanceEvidenceFromStore(
   cohort: CaptureCohort,
   now: Date,
 ): Promise<LocalForecastEvidence> {
+  return (await readEvidenceFromStore(store, location, elevationM, cohort, now)).evidence;
+}
+
+async function readEvidenceFromStore(
+  store: PerformanceStore | null,
+  location: ForecastLocation | string,
+  elevationM: number | null,
+  cohort: CaptureCohort,
+  now: Date,
+  cachePrefix?: string,
+): Promise<{ evidence: LocalForecastEvidence; readAt: Date }> {
+  const unavailable = (reason: LocalForecastEvidence["reason"]) => ({
+    evidence: { status: "unavailable" as const, reason, station: null, profile: null },
+    readAt: now,
+  });
+  if (!store) return unavailable("database-not-configured");
   try {
+    const stations = cachePrefix
+      ? (await cachedFetch(`${cachePrefix}:stations`, RECORD_EVIDENCE_TTL_MS, () => store.listStations(), { staleIfError: false })).value
+      : await store.listStations();
+    const requested = typeof location === "string"
+      ? stations.find((station) => station.id === location)
+      : location;
+    if (!requested) return unavailable("no-eligible-station");
     const stationMatch = findStationMatch({
-      location: { ...location, elevationM },
-      stations: await store.listStations(),
+      location: { ...requested, elevationM },
+      stations: typeof location === "string" ? stations.filter((station) => station.id === location) : stations,
       at: now,
       policy: STATION_POLICY,
     });
     if (!stationMatch.station || stationMatch.distanceKm === null) {
-      return { status: "unavailable", reason: "no-eligible-station", station: null, profile: null };
+      return unavailable("no-eligible-station");
     }
-    const comparisons = await store.loadCompletedComparisons(
-      stationMatch.station.id,
-      cohort,
-      DEFAULT_PERFORMANCE_POLICY.fullInfluenceSamples,
-    );
-    const seedComparisons = await store.loadSeedComparisons(
-      stationMatch.station.id,
-      DEFAULT_PERFORMANCE_POLICY.fullInfluenceSamples,
-    );
-    const profile = buildRecentPerformanceProfile({
-      stationId: stationMatch.station.id,
-      cohort,
-      captures: comparisons.map((comparison) => comparison.capture),
-      observations: comparisons.map((comparison) => comparison.observation),
-      asOf: now,
-      seedComparisons,
-    });
+    const stationId = stationMatch.station.id;
+    const loadProfile = async () => {
+      const [comparisons, seedComparisons] = await Promise.all([
+        store.loadCompletedComparisons(stationId, cohort, DEFAULT_PERFORMANCE_POLICY.fullInfluenceSamples),
+        store.loadSeedComparisons(stationId, DEFAULT_PERFORMANCE_POLICY.fullInfluenceSamples),
+      ]);
+      return buildRecentPerformanceProfile({
+        stationId,
+        cohort,
+        captures: comparisons.map((comparison) => comparison.capture),
+        observations: comparisons.map((comparison) => comparison.observation),
+        asOf: now,
+        seedComparisons,
+      });
+    };
+    // Cache only station history. Distance and eligibility belong to this request.
+    const profile = cachePrefix
+      ? (await cachedFetch(`${cachePrefix}:${stationId}:${cohort}`, RECORD_EVIDENCE_TTL_MS, loadProfile, { staleIfError: false })).value
+      : await loadProfile();
     const active =
       profile.mode === "learned" || profile.mode === "ramping" || profile.mode === "seed";
     const inactiveReason =
@@ -307,21 +312,20 @@ export async function readPerformanceEvidenceFromStore(
         ? profile.reason
         : "insufficient-evidence";
     return {
-      status: active ? "active" : "collecting",
-      reason: profile.mode === "seed"
-        ? "seed-evidence"
-        : active
-          ? "eligible-station"
-          : inactiveReason,
-      station: {
-        id: stationMatch.station.id,
-        name: stationMatch.station.name,
-        distanceKm: Math.round(stationMatch.distanceKm * 10) / 10,
+      evidence: {
+        status: active ? "active" : "collecting",
+        reason: profile.mode === "seed" ? "seed-evidence" : active ? "eligible-station" : inactiveReason,
+        station: {
+          id: stationId,
+          name: stationMatch.station.name,
+          distanceKm: Math.round(stationMatch.distanceKm * 10) / 10,
+        },
+        profile,
       },
-      profile,
+      readAt: new Date(profile.generatedAt),
     };
   } catch {
-    return { status: "unavailable", reason: "database-unavailable", station: null, profile: null };
+    return unavailable("database-unavailable");
   }
 }
 
@@ -339,11 +343,11 @@ export async function readLocalForecast(
     cohort,
     now,
   );
-  const snapshots = await snapshotsPromise;
+  const [snapshots, performance] = await Promise.all([snapshotsPromise, performancePromise]);
   const targetDate = nextCalendarDate(now);
   const providerRows = snapshots.flatMap((snapshot) => {
     if (!PRECIP_PROVIDERS.has(snapshot.id as PrecipProviderId)) return [];
-    const daily = targetDate ? snapshot.daily.find((day) => day.date === targetDate) : undefined;
+    const daily = snapshot.daily.find((day) => day.date === targetDate);
     return [{
       id: snapshot.id as PrecipProviderId,
       name: snapshot.status.name,
@@ -360,7 +364,6 @@ export async function readLocalForecast(
       ? [{ provider: provider.id, probability: provider.probability, amountMm: provider.amountMm }]
       : [],
   );
-  const performance = await performancePromise;
   // Learned influence is evidence for one cohort's next day, so only the target
   // date operates under the profile; later outlook days stay on Equal Fallback.
   const operatingProfile =
@@ -378,7 +381,7 @@ export async function readLocalForecast(
       const day = buildForecastDay(date, snapshots, date === targetDate ? operatingProfile : null);
       return day ? [day] : [];
     });
-  const recommendation = buildForecastDay(targetDate, snapshots, operatingProfile) ?? {
+  const recommendation = outlook.find((day) => day.date === targetDate) ?? {
     date: targetDate,
     precipitationProbability: null,
     precipitationAmountMm: null,

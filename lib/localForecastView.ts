@@ -51,7 +51,7 @@ export interface LocalForecastEvidenceView {
   status: LocalForecastEvidence["status"];
   statusLabel: string;
   /** Null when no Station Match backs this forecast yet. */
-  station: { name: string; distanceKm: number } | null;
+  station: { id: string; name: string; distanceKm: number } | null;
   comparisonSampleCount: number;
   /** Present only when there is nothing to score yet; already resolved copy. */
   emptyMessage: string | null;
@@ -303,6 +303,7 @@ export function toLocalForecastView(response: LocalForecastResponse): LocalForec
       statusLabel: STATUS_LABELS[response.performance.status],
       station: response.performance.station
         ? {
+            id: response.performance.station.id,
             name: response.performance.station.name,
             distanceKm: response.performance.station.distanceKm,
           }
