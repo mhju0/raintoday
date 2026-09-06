@@ -5,7 +5,7 @@ import { buildBehindTheDataView, resolveRecordLocation } from "@/lib/behindTheDa
 import { captureCohortAt, readRecordEvidence } from "@/lib/localForecast";
 
 export const metadata: Metadata = {
-  title: "이 예보를 어떻게 채점하는가 — 오늘비",
+  title: "이 예보를 어떻게 채점하는가: 오늘비",
   description:
     "오늘비가 자기 학습을 언제 믿고 언제 정지시키는지, 그 판정을 실제 기록으로 확인합니다.",
 };
@@ -26,7 +26,7 @@ function seoulTimestamp(now: Date): string {
 }
 
 function brier(value: number | null): string {
-  return value === null ? "—" : value.toFixed(3);
+  return value === null ? "기록 없음" : value.toFixed(3);
 }
 
 const INELIGIBLE_COPY = {
@@ -41,8 +41,10 @@ export default async function BehindTheDataPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const now = new Date();
-  const { location, requested } = resolveRecordLocation(await searchParams);
-  const { evidence, readAt } = await readRecordEvidence(location, captureCohortAt(now), now);
+  const params = await searchParams;
+  const stationId = Array.isArray(params.station) ? params.station[0] : params.station;
+  const { location, requested } = resolveRecordLocation(params);
+  const { evidence, readAt } = await readRecordEvidence(stationId ?? location, captureCohortAt(now), now);
   const view = buildBehindTheDataView(evidence);
   const { status, policy } = view;
   const influenceCopy = {
@@ -70,7 +72,7 @@ export default async function BehindTheDataPage({
         <p className="local-kicker">
           지금 상태{" "}
           <span>
-            — {requested ? `${location.name} ` : ""}
+            : {requested && stationId === undefined ? `${location.name} ` : ""}
             {view.station ? `${view.station.name} 관측소 기준` : "기준 관측소 없음"}
           </span>
         </p>
@@ -86,14 +88,14 @@ export default async function BehindTheDataPage({
             <dt>비교 표본</dt>
             <dd>
               {status.benchmarkSampleCount === null
-                ? "—"
+                ? "기록 없음"
                 : `${status.benchmarkSampleCount} / ${policy.minimumSamples}건`}
             </dd>
           </div>
           {view.station ? (
             <div>
               <dt>관측소</dt>
-              <dd>{view.station.name} · {view.station.distanceKm}km</dd>
+              <dd>{view.station.name}{stationId === undefined ? ` · ${view.station.distanceKm}km` : ""}</dd>
             </div>
           ) : null}
           <div>
@@ -111,7 +113,7 @@ export default async function BehindTheDataPage({
 
       {/* ── Layer 2: how to read anything on this site, then live evidence ── */}
       <section className="btd-section" aria-labelledby="btd-rules-heading">
-        <p className="local-kicker">숫자 읽는 법 <span>— 이 사이트의 모든 수치에 적용됩니다</span></p>
+        <p className="local-kicker">숫자 읽는 법 <span>: 이 사이트의 모든 수치에 적용됩니다</span></p>
         <h2 id="btd-rules-heading">세 가지 규칙</h2>
         <ol className="btd-rules">
           <li>
@@ -139,7 +141,7 @@ export default async function BehindTheDataPage({
       </section>
 
       <section className="btd-section" aria-labelledby="btd-evidence-heading">
-        <p className="local-kicker">지금 이 순간의 증거 <span>— 페이지를 열 때 데이터베이스에서 읽습니다</span></p>
+        <p className="local-kicker">지금 이 순간의 증거 <span>: 페이지를 열 때 데이터베이스에서 읽습니다</span></p>
         <h2 id="btd-evidence-heading">서비스별 채점 기록</h2>
         {view.providers.length === 0 ? (
           <p className="btd-empty">
@@ -174,7 +176,7 @@ export default async function BehindTheDataPage({
                         ? "적격"
                         : INELIGIBLE_COPY[row.ineligibleReason ?? "too-few-samples"]}
                     </td>
-                    <td>{row.influence === null ? "—" : `${Math.round(row.influence * 100)}%`}</td>
+                    <td>{row.influence === null ? "기록 없음" : `${Math.round(row.influence * 100)}%`}</td>
                   </tr>
                 ))}
               </tbody>
@@ -223,7 +225,7 @@ export default async function BehindTheDataPage({
 
       {/* ── Layer 3: the mechanism ── */}
       <section className="btd-section" aria-labelledby="btd-cycle-heading">
-        <p className="local-kicker">채점 사이클 <span>— 하루 두 번, 06:10 · 18:10 KST 예약</span></p>
+        <p className="local-kicker">채점 사이클 <span>: 하루 두 번, 06:10 · 18:10 KST 예약</span></p>
         <h2 id="btd-cycle-heading">결과가 나오기 전에 얼립니다</h2>
         <p>
           읽을 수 있는 모든 활성 ASOS 관측소에 대해, 한 번의 실행이 네 가지를 합니다. 완료된 일강수
@@ -279,7 +281,7 @@ export default async function BehindTheDataPage({
       </section>
 
       <section className="btd-section" aria-labelledby="btd-gate-heading">
-        <p className="local-kicker">증거 게이트 <span>— 언제 학습을 쓰는가</span></p>
+        <p className="local-kicker">증거 게이트 <span>: 언제 학습을 쓰는가</span></p>
         <h2 id="btd-gate-heading">쓸 수 있을 때까지 쓰지 않습니다</h2>
         <ul className="btd-facts">
           <li>
@@ -312,7 +314,7 @@ export default async function BehindTheDataPage({
       </section>
 
       <section className="btd-section" aria-labelledby="btd-benchmark-heading">
-        <p className="local-kicker">정지 조건 <span>— 이 페이지에서 가장 중요한 부분</span></p>
+        <p className="local-kicker">정지 조건 <span>: 이 페이지에서 가장 중요한 부분</span></p>
         <h2 id="btd-benchmark-heading">이기지 못하면 끕니다</h2>
         <p>
           백테스트가 아닙니다. 포착 시점에 성능 반영 확률과 단순 평균 확률을 둘 다 얼려 두었다가,
@@ -330,12 +332,12 @@ export default async function BehindTheDataPage({
         </p>
         <p className="btd-quote">
           those two must agree by construction rather than by coincidence.
-          <span>우연히 같은 것이 아니라, 구조적으로 같게 만들었습니다. — lib/performance/influence.ts</span>
+          <span>우연히 같은 것이 아니라, 구조적으로 같게 만들었습니다. (lib/performance/influence.ts)</span>
         </p>
       </section>
 
       <section className="btd-section" aria-labelledby="btd-seed-heading">
-        <p className="local-kicker">콜드 스타트 <span>— 기록이 하나도 없는 지역</span></p>
+        <p className="local-kicker">콜드 스타트 <span>: 기록이 하나도 없는 지역</span></p>
         <h2 id="btd-seed-heading">과거 기록은 절반의 세기로만</h2>
         <p>
           새 지역은 라이브 포착이 0건이라 영원히 균등에 머뭅니다. 이걸 공개 아카이브로 메우되,
@@ -354,7 +356,7 @@ export default async function BehindTheDataPage({
       </section>
 
       <section className="btd-section" aria-labelledby="btd-nulls-heading">
-        <p className="local-kicker">주장하지 않는 것 <span>— 지지되지 않는 문장은 쓰지 않습니다</span></p>
+        <p className="local-kicker">주장하지 않는 것 <span>: 지지되지 않는 문장은 쓰지 않습니다</span></p>
         <h2 id="btd-nulls-heading">여기까지만 주장합니다</h2>
         <ul className="btd-facts">
           <li>
@@ -375,7 +377,7 @@ export default async function BehindTheDataPage({
       </section>
 
       <section className="btd-section" aria-labelledby="btd-limits-heading">
-        <p className="local-kicker">한계 <span>— 알고 있는 약점</span></p>
+        <p className="local-kicker">한계 <span>: 알고 있는 약점</span></p>
         <h2 id="btd-limits-heading">이 방법이 못 하는 것</h2>
         <ul className="btd-facts">
           <li>

@@ -5,14 +5,19 @@
   "type": "module",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=22"
+    "node": ">=24.15.0 <25"
   },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test \"lib/**/*.test.ts\" && tsx --test components/local/LocalForecastExperience.test.tsx",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "npm run test:lib && npm run test:ui && npm run test:routes",
+    "test:lib": "node --test \"lib/**/*.test.ts\"",
+    "test:ui": "tsx --test components/local/LocalForecastExperience.test.tsx",
+    "test:routes": "tsx --test \"app/api/**/*.test.ts\"",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "performance:capture": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/local-performance.ts",
     "location:matrix": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/location-matrix.ts",
     "service:health": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/service-health.ts",
@@ -30,7 +35,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/jsdom": "^30.0.0",
-    "@types/node": "^26",
+    "@types/node": "^24.13.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "9.39.5",

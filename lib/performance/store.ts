@@ -1,3 +1,4 @@
+import { COMPARED_PROVIDER_IDS } from "../providers/selection.ts";
 import type {
   CaptureCohort,
   CompletedComparison,
@@ -12,17 +13,6 @@ export type CaptureWriteResult = "inserted" | "existing";
 
 const CATALOG_DROP_GUARD_MIN_ACTIVE_STATIONS = 20;
 const CATALOG_DROP_GUARD_MIN_RETAINED_RATIO = 0.8;
-// MET Norway is absent because it never produced a scored forecast to report. Rows
-// it holds from earlier seeding stay in the tables; nothing reads them, so the page
-// no longer shows a provider's measured performance beside a blend it is not in.
-export const PERFORMANCE_PROVIDERS: readonly PrecipProviderId[] = [
-  "open-meteo",
-  "kma",
-  "pirate-weather",
-  "weather-api",
-  "visual-crossing",
-];
-
 function hasValidProviderProbability(
   comparison: CompletedComparison,
   provider: PrecipProviderId,
@@ -166,7 +156,7 @@ export class InMemoryPerformanceStore implements PerformanceStore {
       })
       .sort((a, b) => b.capture.targetDate.localeCompare(a.capture.targetDate));
     const selected = new Map<string, CompletedComparison>();
-    for (const provider of PERFORMANCE_PROVIDERS) {
+    for (const provider of COMPARED_PROVIDER_IDS) {
       let providerSamples = 0;
       for (const comparison of completed) {
         if (!hasValidProviderProbability(comparison, provider)) continue;

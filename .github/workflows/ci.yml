@@ -2,6 +2,7 @@ name: ci
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 concurrency:
@@ -37,19 +38,49 @@ jobs:
         run: npm ci
 
       - name: Audit dependencies
-        # Block deployable vulnerabilities. The ESLint 9 ecosystem currently
-        # retains a dev-only minimatch/brace-expansion advisory; ESLint 10 is not
-        # yet supported by eslint-config-next's React plugins.
-        run: npm audit --omit=dev --audit-level=high
+        # Check runtime and developer tooling; compatible advisory fixes exist.
+        run: npm audit --audit-level=high
 
       - name: Lint
         run: npm run lint
 
       - name: Typecheck
-        run: npm exec --no -- tsc --noEmit
+        run: npm run typecheck
 
       - name: Test
         run: npm test
 
       - name: Build
         run: npm run build
+
+  store-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: raintoday_contract
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d raintoday_contract"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Verify PostgreSQL behavior against a disposable service
+        # This suite truncates tables. Use only this job's ephemeral database.
+        env:
+          PERFORMANCE_STORE_CONTRACT_URL: postgres://postgres:postgres@localhost:5432/raintoday_contract
+        run: node --test lib/performance/storeContract.test.ts

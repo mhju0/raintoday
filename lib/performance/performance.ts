@@ -1,5 +1,5 @@
 import { buildSeedProfile, seedEffectiveWeights } from "./seedScore.ts";
-import { PERFORMANCE_PROVIDERS } from "./store.ts";
+import { COMPARED_PROVIDER_IDS } from "../providers/selection.ts";
 import type {
   CapturedProviderForecast,
   ForecastCapture,
@@ -411,9 +411,9 @@ export function buildRecentPerformanceProfile(input: ProfileInput): RecentPerfor
   // provider. Rows stored for one since dropped would otherwise be scored and shown
   // beside a blend it is not part of — a service's measured performance on the page
   // next to a forecast it had no part in.
-  const compared = new Set<PrecipProviderId>(PERFORMANCE_PROVIDERS);
+  const compared = new Set<PrecipProviderId>(COMPARED_PROVIDER_IDS);
   const seedProviderIds = Array.from(
-    new Set<PrecipProviderId>([...PERFORMANCE_PROVIDERS, ...providerIds]),
+    new Set<PrecipProviderId>([...COMPARED_PROVIDER_IDS, ...providerIds]),
   ).filter((provider) => compared.has(provider)).sort();
   const seedProfile = buildSeedProfile({
     comparisons: input.seedComparisons ?? [],

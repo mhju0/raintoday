@@ -1,3 +1,4 @@
+import { selectComparedForecasts } from "../providers/selection.ts";
 import { createForecastLocation, type ForecastLocation } from "../location.ts";
 import { forecastProviders } from "../providers/registry.ts";
 import type { ProviderSnapshot } from "../types.ts";
@@ -6,21 +7,10 @@ import { buildRecentPerformanceProfile, DEFAULT_PERFORMANCE_POLICY } from "./per
 import type { PerformanceStore } from "./store.ts";
 import type {
   CaptureCohort,
-  CapturedProviderForecast,
   ForecastCapture,
   ObservationStation,
   PrecipProviderId,
 } from "./types.ts";
-
-// MET Norway is absent: it publishes no precipitation probability for Korea, so the
-// probability gate below dropped every one of its forecasts. See `forecastProviders`.
-const PRECIP_PROVIDERS = new Set<PrecipProviderId>([
-  "open-meteo",
-  "kma",
-  "pirate-weather",
-  "weather-api",
-  "visual-crossing",
-]);
 
 export interface CaptureStationInput {
   station: ObservationStation;
@@ -60,16 +50,6 @@ function addCalendarDays(date: string, days: number): string {
     .slice(0, 10);
 }
 
-function validProbability(value: number | null): value is number {
-  return value !== null && Number.isFinite(value) && value >= 0 && value <= 100;
-}
-
-function validAmount(value: number | null | undefined): number | null {
-  return value !== null && value !== undefined && Number.isFinite(value) && value >= 0
-    ? value
-    : null;
-}
-
 async function readAllForecasts(location: ForecastLocation): Promise<ProviderSnapshot[]> {
   return Promise.all(forecastProviders.map((provider) => provider.read(location)));
 }
@@ -92,28 +72,10 @@ export async function captureStationForecast(
   // three evenings of runner egress failure froze 97 KMA-less captures a retry
   // could never repair. `needs-config` is excluded on purpose; a missing key is
   // permanent, and no runner will ever supply it.
-  const faultedProviders = snapshots
-    .filter((snapshot) =>
-      PRECIP_PROVIDERS.has(snapshot.id as PrecipProviderId) &&
-      snapshot.status.availability === "error"
-    )
-    .map((snapshot) => ({
-      provider: snapshot.id as PrecipProviderId,
-      message: snapshot.status.message,
-    }));
+  const { forecasts, faultedProviders } = selectComparedForecasts(snapshots, targetDate);
   if (faultedProviders.length > 0) {
     return { status: "faulted", reason: "provider-fault", capture: null, faultedProviders };
   }
-  const forecasts = snapshots.flatMap((snapshot): CapturedProviderForecast[] => {
-    if (!PRECIP_PROVIDERS.has(snapshot.id as PrecipProviderId)) return [];
-    const daily = snapshot.daily.find((day) => day.date === targetDate);
-    if (!daily || !validProbability(daily.precipitationProbability)) return [];
-    return [{
-      provider: snapshot.id as PrecipProviderId,
-      probability: daily.precipitationProbability,
-      amountMm: validAmount(daily.precipitationAmount),
-    }];
-  });
   if (forecasts.length === 0) {
     return {
       status: "skipped",

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     // reporting that as a 400 would blame the user for a server fault.
     input = await parseLocalForecastRequest(request);
   } catch (error) {
-    if (error instanceof RangeError || error instanceof TypeError) {
+    if (error instanceof RangeError || error instanceof TypeError || error instanceof SyntaxError) {
       return NextResponse.json({ error: "invalid_location" }, { status: 400 });
     }
     return NextResponse.json({ error: "forecast_unavailable" }, { status: 503 });
@@ -30,13 +30,14 @@ export async function POST(request: Request) {
     // A device fix arrives unnamed. Resolving it here — rather than trusting a
     // client-supplied label — keeps the name derived from the same coordinate
     // the forecast is read for. Enrichment only: a null keeps the placeholder.
-    const resolved = input.location.name === DEVICE_LOCATION_PLACEHOLDER
-      ? await describeKoreanCoordinate(input.location.latitude, input.location.longitude)
-      : null;
-    const located = resolved
-      ? { ...input, location: { ...input.location, name: resolved } }
-      : input;
-    return NextResponse.json(toLocalForecastView(await readLocalForecast(located)), {
+    const [forecast, resolved] = await Promise.all([
+      readLocalForecast(input),
+      input.location.name === DEVICE_LOCATION_PLACEHOLDER
+        ? describeKoreanCoordinate(input.location.latitude, input.location.longitude)
+        : null,
+    ]);
+    if (resolved) forecast.location = { ...forecast.location, name: resolved };
+    return NextResponse.json(toLocalForecastView(forecast), {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch {

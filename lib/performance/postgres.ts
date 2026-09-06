@@ -1,3 +1,4 @@
+import { COMPARED_PROVIDER_IDS } from "../providers/selection.ts";
 import postgres from "postgres";
 import type {
   CaptureCohort,
@@ -9,7 +10,6 @@ import type {
 } from "./types.ts";
 import {
   assertSafeStationCatalogSync,
-  PERFORMANCE_PROVIDERS,
   type CaptureWriteResult,
   type PerformanceStore,
 } from "./store.ts";
@@ -61,7 +61,7 @@ export function buildCompletedComparisonsQuery(
   cohort: CaptureCohort,
   limit: number,
 ): CompletedComparisonsQuery {
-  const providerRows = PERFORMANCE_PROVIDERS
+  const providerRows = COMPARED_PROVIDER_IDS
     .map((_, index) => `($${index + 4}::text)`)
     .join(",\n          ");
   return {
@@ -117,7 +117,7 @@ export function buildCompletedComparisonsQuery(
       where capture.station_id = $1 and capture.cohort = $2
       order by capture.target_date
     `,
-    parameters: [stationId, cohort, limit, ...PERFORMANCE_PROVIDERS],
+    parameters: [stationId, cohort, limit, ...COMPARED_PROVIDER_IDS],
   };
 }
 
