@@ -380,8 +380,8 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             again the moment the other is on screen. */}
         <h1 id="location-heading">비, <b>여기서는</b><br />어떨까요?</h1>
         <p>
-          여러 날씨 서비스를 한곳에서 비교하고, 가까운 관측소에서 최근 실제로
-          얼마나 맞았는지에 따라 예보의 영향을 조정합니다.
+          오늘·내일 비 예보를 여러 날씨 서비스와 비교합니다. 내일 예보는 가까운
+          관측소의 비교 기록이 충분할 때 서비스별 비중을 조정합니다.
         </p>
 
         {/* The same three facts the dashboard's evidence cards end on, said
@@ -400,7 +400,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
           <div>
             <dt>시간축</dt>
             <dd>24시간</dd>
-            <small>3시간 블록 8개로 비가 시작되고 그치는 때</small>
+            <small>3시간 블록 8개로 보는 비 예상 시간대</small>
           </div>
         </dl>
 
@@ -620,14 +620,11 @@ function benchmarkVerdict(
   benchmark: NonNullable<LocalForecastView["evidence"]["benchmark"]>,
 ): string | null {
   const { adaptiveBrier, equalBrier } = benchmark;
+  if (benchmark.status === "insufficient") return "두 계산법을 판정할 비교 기록이 더 필요합니다.";
   if (adaptiveBrier === null || equalBrier === null) return null;
-  if (adaptiveBrier < equalBrier) {
-    return "최근 기록에서는 성능을 반영한 예보가 단순 평균보다 더 잘 맞았습니다.";
-  }
-  if (adaptiveBrier > equalBrier) {
-    return "최근 기록에서는 단순 평균이 더 잘 맞아, 지금은 가중치를 세게 적용하지 않습니다.";
-  }
-  return "최근 기록에서는 두 방식이 비슷하게 맞았습니다.";
+  return benchmark.status === "passing"
+    ? "성능 반영 방식의 점수가 단순 평균보다 나쁘지 않아 비교 기준을 통과했습니다."
+    : "성능 반영 방식의 점수가 단순 평균보다 나빠 비교 기준에 미달했습니다.";
 }
 
 function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
@@ -699,21 +696,19 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
           </strong>
         </div>
         <div>
-          <span>비교한 예보</span>
+          <span>{seedRanked.length > 0 ? "과거 비교 기록 · 서비스별 최소" : "비교한 예보"}</span>
           <strong>
-            {comparisonSampleCount > 0
-              ? seedRanked.length > 0
-                ? `${comparisonSampleCount}일`
-                : `${comparisonSampleCount}회 · ${cohortLabel}`
-              : "수집 전"}
+            {seedRanked.length > 0
+              ? `${Math.min(...seedRanked.map((row) => row.sampleCount))}일`
+              : comparisonSampleCount > 0 ? `${comparisonSampleCount}회 · ${cohortLabel}` : "수집 전"}
           </strong>
         </div>
       </div>
 
       {station && (
         <p className="local-method-note">
-          관측소는 근처 기록일 뿐, 당신이 서 있는 위치가 아닙니다. 기상청 예보 격자는 5 km
-          단위입니다.
+          가까운 관측소의 기록으로 채점합니다. 선택한 위치의 실제 날씨와 다를 수 있으며,
+          기상청 예보 격자는 5 km 단위입니다.
         </p>
       )}
 
@@ -727,17 +722,16 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
             </div>
             {seedRanked.map((provider) => (
               <div className="local-score-row" role="row" key={provider.id}>
-                <strong role="cell">{provider.name}</strong>
+                <strong role="cell">{provider.name}<br /><small>전체 {provider.sampleCount}일 비교</small></strong>
                 <span role="cell">{seedMissLabel(provider)}</span>
                 <span role="cell">{provider.falseAlarms}일</span>
               </div>
             ))}
           </div>
           <p className="local-method-note">
-            이 지역의 실시간 비교가 쌓이기 전이라, 과거 예보 기록으로 각 서비스를
-            채점했습니다. ‘비를 놓친 날’은 실제로 비가 온 날 중 그 서비스가 비를
-            예보하지 않은 날입니다. 확률이 아닌 예상 강수량으로만 채점했고, 이 지역에서
-            실제 관측이 쌓이면 이 추정을 대체합니다.
+            과거 모델 예보의 강수량을 실제 관측과 비교했습니다. ‘비를 놓친 날’은 비가
+            왔지만 모델이 비를 예보하지 않은 날이며, ‘헛예보’는 비를 예보했지만 오지 않은
+            날입니다. 최근 예보와 관측의 비교 기록이 충분해지면 이 추정을 대체합니다.
           </p>
         </>
       ) : emptyMessage === null ? (
@@ -802,7 +796,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
         <p className="local-benchmark-line">
           <b>{verdict}</b>
           <span>
-            미리 정해둔 방식으로 두 계산법을 나란히 채점했습니다 · 성능 반영{" "}
+            별도 사전 저장 예보 비교 · {benchmark?.sampleCount}건 · Brier (낮을수록 좋음) · 성능 반영{" "}
             {benchmark?.adaptiveBrier?.toFixed(3) ?? "기록 없음"} · 단순 평균{" "}
             {benchmark?.equalBrier?.toFixed(3) ?? "기록 없음"}
           </span>
@@ -848,10 +842,10 @@ function blockHint(
   block: LocalForecastTimelineBlock,
   role: "onset" | "peak" | "wet" | "dry",
 ): string {
-  if (block.precipMax === null) return "아직 발표되지 않았습니다. 0%가 아니라 값이 없는 것입니다.";
-  if (role === "onset") return "여기서 비가 시작됩니다.";
+  if (block.precipMax === null) return "강수확률이 발표되지 않았습니다.";
+  if (role === "onset") return "비가 예상되는 구간의 시작입니다.";
   if (role === "peak") return "가장 높은 시간대입니다.";
-  if (role === "wet") return "비 구간입니다.";
+  if (role === "wet") return "비가 예상되는 시간대입니다.";
   if (block.precipMax === 0) return "비 예보 없음.";
   return "기준 아래입니다.";
 }
@@ -872,20 +866,23 @@ function formatMm(mm: number): string {
 }
 
 /** The rain window as the sentence the page leads with. */
-function RainSentence({ run, endsTomorrow }: {
+function RainSentence({ run, endsTomorrow, peak, threshold }: {
   run: TimelineReading["firstRun"];
   endsTomorrow: boolean;
+  peak: TimelineReading["peak"];
+  threshold: number;
 }) {
-  if (!run) return <>앞으로 24시간, <b>비 소식은 없습니다</b></>;
+  if (!peak) return <>시간대별 <b>강수확률을 확인할 수 없습니다</b></>;
+  if (!run) return <>발표된 시간대의 강수확률은 <b>모두 {threshold}% 미만입니다</b></>;
   const onset = run.startIndex === 0
     ? "지금부터"
     : `${run.startsTomorrow ? "내일 " : ""}${clockLabel(run.startHour)}부터`;
   if (!run.endsWithinWindow) {
-    return <>비는 <b>{onset}</b><span className="local-answer-dim">, </span>예보 끝까지 이어집니다</>;
+    return <>비 예상: <b>{onset}</b><span className="local-answer-dim">, </span>예보 끝까지</>;
   }
   return (
     <>
-      비는 <b>{onset}</b>
+      비 예상: <b>{onset}</b>
       <span className="local-answer-dim">, </span>
       <b>{endsTomorrow && !run.startsTomorrow ? "내일 " : ""}{clockLabel(run.endHour)}까지</b>
       {/* The total is the run's own sum from the ribbon's provider — the same
@@ -1010,7 +1007,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
     ? `${Math.round(run.peakProbability)}%${
         run.endsWithinWindow ? ` · ${clockLabel(run.endHour)}까지` : " · 예보 끝까지"
       }${run.sumMm != null ? ` · ${formatMm(run.sumMm)}mm` : ""}`
-    : "비 소식 없음";
+    : peak ? `발표된 확률 ${timeline?.threshold}% 미만` : "시간대 확률 미발표";
 
   const amountRange = forecast.tomorrowAmountRange ?? null;
 
@@ -1087,7 +1084,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
         <p className="local-kicker">결론 <span>: 앞으로 24시간, 한 문장으로</span></p>
         <h1 id="forecast-heading" ref={headingRef} tabIndex={-1}>
           {timeline
-            ? <RainSentence run={run} endsTomorrow={run !== null && dayOffsets[run.endIndex] > 0} />
+            ? <RainSentence run={run} endsTomorrow={run !== null && dayOffsets[run.endIndex] > 0} peak={peak} threshold={timeline.threshold} />
             : <>{today ? "오늘" : "내일"} 비가 올까요?</>}
         </h1>
         {timeline && (
@@ -1097,7 +1094,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             {tomorrow.precipitationAmountMm !== null && (
               <span>내일 예상 강수량 <b>{tomorrow.precipitationAmountMm.toFixed(1)} mm</b></span>
             )}
-            <span>{timeline.threshold}% 넘는 시간대를 비 구간으로 봅니다</span>
+            <span>{timeline.threshold}% 이상인 시간대를 비 예상 구간으로 봅니다</span>
           </p>
         )}
         <p className="local-answer-action">
@@ -1109,7 +1106,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             (today ?? tomorrow).precipitationAmountMm,
             timeline?.threshold ?? RAIN_ONSET_PROBABILITY,
           )}
-          {laterRun && ` 이후 ${laterRun.startsTomorrow ? "내일 " : ""}${laterRun.startHour}시부터 다시 비 구간입니다.`}
+          {laterRun && ` 이후 ${laterRun.startsTomorrow ? "내일 " : ""}${laterRun.startHour}시부터 다시 비가 예상됩니다.`}
         </p>
       </section>
 
@@ -1295,8 +1292,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
                 number is always a plain average — claiming otherwise would
                 assert an accuracy nothing has measured. */}
             <p className="local-day-why">
-              오늘은 <b>성능 가중을 쓰지 않습니다.</b> 관측소 기록은 익일 예보만 채점하므로,
-              오늘 숫자에 얹으면 검증되지 않은 정확도 주장이 됩니다.
+              오늘은 응답한 서비스의 예보를 <b>같은 비중으로 평균했습니다.</b>
             </p>
           </section>
         )}
@@ -1339,11 +1335,10 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
           </p>
           <p className="local-day-why">
             {seeded
-              ? "이 지역의 실시간 비교가 쌓이기 전이라, 과거 예보 기록으로 추정한 적중률을 일부만 반영했습니다."
+              ? "최근 비교 기록이 부족해 과거 모델 예보와 관측을 비교한 결과를 일부 반영했습니다."
               : learned
                 ? <>관측소 {forecast.evidence.station?.name ?? "근처 관측소"}의 <b>{forecast.evidence.comparisonSampleCount}일 기록</b>을 반영했습니다.</>
-                : "아직 이 지역의 성능 기록이 없어 서비스를 동일 비중으로 평균했습니다."}
-            {timeline && " 위 리본과는 계산도 출처도 다릅니다."}
+                : "현재 가중치 적용 조건을 충족하지 않아 응답한 서비스를 같은 비중으로 평균했습니다."}
           </p>
         </section>
       </div>
@@ -1401,8 +1396,8 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
           </div>
           <p className="local-card-why">
             {weighted
-              ? <>막대는 각 서비스가 내다본 내일 강수확률입니다. 비중은 이 예보에서 그 값이 차지한 몫으로, {seeded ? "과거 기록으로 추정한 적중률" : "최근 이 지역의 적중률"}에 따라 다릅니다.</>
-              : "막대는 각 서비스가 내다본 내일 강수확률입니다. 아직 이 지역의 성능 기록이 없어, 모든 서비스를 똑같은 비중으로 평균했습니다."}
+              ? <>막대는 각 서비스의 내일 강수확률입니다. 비중은 이 예보에 반영된 몫이며, {seeded ? "과거 모델 예보와 관측의 비교 결과" : "최근 확률 예보의 채점 결과"}에 따라 조정합니다.</>
+              : "막대는 각 서비스의 내일 강수확률입니다. 현재는 가중치 적용 조건을 충족하지 않아 같은 비중으로 평균합니다."}
           </p>
         </section>
 
@@ -1440,11 +1435,11 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
 
       <footer className="local-footer">
         <p>출처 Open-Meteo · 기상청 · Pirate Weather · WeatherAPI · Visual Crossing 중 응답한 서비스 · 모든 시각 KST</p>
-        <p>관측 검증: 기상청 ASOS · 사용자 위치는 서버에 저장하지 않음</p>
+        <p>관측 검증: 기상청 ASOS · 사용자 좌표는 성능 기록 DB에 저장하지 않습니다.</p>
         {timeline && (
           <p>
             시간대 확률은 {timeline.sourceName} 한 곳의 값이고, 오늘·내일 확률은 여러 곳을 섞은
-            값입니다. 같은 주장이 아닙니다.
+            값입니다.
           </p>
         )}
         {/* The only way into the scoring record. A page nothing links to is a
@@ -1646,7 +1641,7 @@ export default function LocalForecastExperience() {
             </div>
           </div>
           <p className="local-loading-note">
-            응답하지 않는 서비스는 비교에서 빠집니다. 값을 지어내지 않습니다.
+            응답하지 않는 서비스는 비교에서 빠집니다.
           </p>
         </div>
       )}
@@ -1663,7 +1658,7 @@ export default function LocalForecastExperience() {
           <p className="local-state-body">
             {errorRetry
               ? "네트워크나 예보 서비스 쪽 문제일 수 있습니다. 다시 시도하면 같은 좌표로 다시 요청합니다."
-              : "오늘비는 대한민국 행정구역 안의 좌표만 예보합니다. 같은 좌표로 다시 요청해도 결과는 같으므로, 지역을 다시 고르는 것만 보여드립니다."}
+              : "대한민국 안의 지역을 다시 골라 주세요."}
           </p>
           <div className="local-error-actions">
             {/* A provider being briefly down says nothing about the location,

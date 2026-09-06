@@ -27,26 +27,23 @@ export default function OpengraphImage() {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: 6 }}>RAIN TODAY</div>
-          <div style={{ fontSize: 20, color: "#9ba9b1", letterSpacing: 3 }}>KST · LIVE SOURCES</div>
+          <div style={{ fontSize: 20, color: "#9ba9b1", letterSpacing: 3 }}>SOUTH KOREA</div>
         </div>
 
         <div style={{ display: "flex", alignItems: "flex-end", gap: 28 }}>
-          <div style={{ fontSize: 210, fontWeight: 200, lineHeight: 1, color: "#edf5ef" }}>35</div>
-          <div style={{ fontSize: 56, color: "#9ed9d2", paddingBottom: 34 }}>%</div>
           <div
             style={{
               display: "flex",
               flexDirection: "column",
               paddingBottom: 30,
-              paddingLeft: 24,
               gap: 8,
             }}
           >
             <div style={{ fontSize: 24, color: "#9ba9b1", letterSpacing: 3 }}>
-              KOREA · LOCAL RAIN FORECAST
+              LOCAL RAIN FORECASTS
             </div>
-            <div style={{ fontSize: 34, color: "#f3f0e8" }}>
-              Today and tomorrow, where you actually are
+            <div style={{ fontSize: 72, color: "#f3f0e8" }}>
+              Rain today or tomorrow?
             </div>
           </div>
         </div>

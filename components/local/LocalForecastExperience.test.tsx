@@ -1161,7 +1161,7 @@ test("the answer sentence names both ends of the rain window", async () => {
   // knows when it starts and when it stops.
   assert.equal(
     view.container.querySelector("#forecast-heading")?.textContent,
-    "비는 오후 12시부터, 밤 9시까지",
+    "비 예상: 오후 12시부터, 밤 9시까지",
   );
   assert.equal(view.container.querySelectorAll(".local-ribbon-col").length, 3);
   await view.cleanup();
@@ -1185,7 +1185,7 @@ test("a run that never stops inside the series does not claim an end time", asyn
   );
 
   const heading = view.container.querySelector("#forecast-heading")?.textContent ?? "";
-  assert.match(heading, /예보 끝까지 이어집니다/);
+  assert.match(heading, /예보 끝까지/);
   assert.doesNotMatch(heading, /9시까지/, "nothing published showed the rain stopping");
   await view.cleanup();
 });
@@ -1225,7 +1225,7 @@ test("the rain window is marked on the ribbon, and only once rain is actually li
   assert.equal(dry.container.querySelectorAll(".local-ribbon-col.is-wet").length, 0);
   assert.match(
     dry.container.querySelector("#forecast-heading")?.textContent ?? "",
-    /비 소식은 없습니다/,
+    /발표된 시간대의 강수확률은 모두 40% 미만입니다/,
   );
   await dry.cleanup();
 
@@ -1271,7 +1271,7 @@ test("the umbrella advice never contradicts the headline above it", async () => 
 
   assert.match(
     view.container.querySelector("#forecast-heading")?.textContent ?? "",
-    /비 소식은 없습니다/,
+    /발표된 시간대의 강수확률은 모두 40% 미만입니다/,
   );
   assert.match(
     view.container.querySelector(".local-answer-action")?.textContent ?? "",
@@ -1361,7 +1361,7 @@ test("seed evidence shows the wet-day miss rate rather than claiming measured pe
         status: "active",
         statusLabel: "과거 기록 반영 중",
         station: { id: "108", name: "서울", distanceKm: 3.2 },
-        comparisonSampleCount: 92,
+        comparisonSampleCount: 14,
         emptyMessage: null,
         emptyDetail: null,
         scores: [],
@@ -1376,10 +1376,13 @@ test("seed evidence shows the wet-day miss rate rather than claiming measured pe
 
   const evidence = view.container.textContent ?? "";
   assert.match(evidence, /비 온 34일 중 13일/, "the wet-day miss rate must be on screen");
+  assert.match(evidence, /과거 비교 기록 · 서비스별 최소92일/);
+  assert.match(evidence, /전체 92일 비교/);
+  assert.doesNotMatch(evidence, /14일/);
   // The whole point of a separate seed mode: this is a retrospective estimate,
   // so the page must not claim it measured this station's recent performance.
   assert.ok(!evidence.includes("최근 관측 성능 반영"), "seed must not read as measured skill");
-  assert.match(evidence, /과거 예보 기록으로 추정한 적중률을 일부만 반영했습니다/);
+  assert.match(evidence, /과거 모델 예보와 관측을 비교한 결과를 일부 반영했습니다/);
   // The recency half-life is a live-capture rule; a flat archive sample must not
   // borrow it, and the heading must not claim this is recent local measurement.
   assert.ok(!evidence.includes("최근 예보일수록 크게 반영"));
@@ -1488,7 +1491,7 @@ test("the verdict sentence carries the window's own total, and the mm lane rides
   // as the window itself, never the blended day amount.
   assert.equal(
     view.container.querySelector("#forecast-heading")?.textContent,
-    "비는 오후 12시부터, 밤 9시까지, 모두 2.1mm",
+    "비 예상: 오후 12시부터, 밤 9시까지, 모두 2.1mm",
   );
   assert.equal(view.container.querySelectorAll(".local-ribbon-mm").length, 3);
   const label = view.container.querySelector(".local-ribbon-mmlab")?.textContent ?? "";
@@ -1970,4 +1973,17 @@ test("record search announces loading and completion without moving focus", asyn
   await changeInput(view.input, "서");
   assert.equal(status.textContent, "");
   assert.equal(view.input.getAttribute("aria-busy"), "false");
+});
+
+test("an entirely unpublished hourly series cannot announce a dry forecast", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () => Response.json(forecastPayload({
+    timeline: timeline({
+      blocks: [{ label: "지금", rangeLabel: "9–12시", startHour: 9, endHour: 12, precipMax: null, precipSumMm: null, condition: "cloudy", wet: false, dayTag: null }],
+      reading: { firstRun: null, laterRun: null, peak: null },
+    }),
+  })));
+  assert.match(view.container.querySelector("#forecast-heading")?.textContent ?? "", /강수확률을 확인할 수 없습니다/);
+  assert.doesNotMatch(view.container.textContent ?? "", /비 소식 없음|모두 40% 미만/);
+  await view.cleanup();
 });

@@ -121,7 +121,7 @@ test("an unreadable store says so rather than rendering an empty table", () => {
   assert.equal(view.status.benchmark, null);
   assert.deepEqual(view.providers, []);
   assert.deepEqual(view.benchmarkRows, []);
-  assert.ok(view.status.detail.includes("예보는 그대로 동작"));
+  assert.ok(view.status.detail.includes("예보를 제공하는 서비스가 있으면"));
 });
 
 test("a station-less location is distinguished from an unreachable store", () => {
@@ -172,7 +172,7 @@ test("the benchmark offers the single-source comparison that could go against it
     view.benchmarkRows.map((row) => row.label),
     ["성능 반영 평균", "단순 평균", "Open-Meteo 단독", "기상청 단독"],
   );
-  assert.equal(view.benchmarkRows[0].verdict, "이김");
+  assert.equal(view.benchmarkRows[0].verdict, "기준 통과");
   assert.equal(view.benchmarkRows[1].verdict, "기준선");
 });
 
@@ -208,7 +208,7 @@ test("the benchmark never claims a verdict it has not reached", () => {
       },
     }),
   }));
-  assert.equal(lost.benchmarkRows[0].verdict, "짐");
+  assert.equal(lost.benchmarkRows[0].verdict, "기준 미달");
   assert.equal(lost.status.learningApplied, false);
 });
 
@@ -357,4 +357,22 @@ test("a weightless provider is not conjured into the table", () => {
     }),
   );
   assert.equal(view.providers.length, 2);
+});
+
+test("a passing tie is a passed criterion, not a win", () => {
+  const tied = profile();
+  tied.prospectiveBenchmark.equalBrier = tied.prospectiveBenchmark.adaptiveBrier;
+  const view = buildBehindTheDataView(evidence({ profile: tied }));
+  assert.equal(view.benchmarkRows[0].verdict, "기준 통과");
+  assert.doesNotMatch(view.status.detail, /이기/);
+});
+
+test("ramping and insufficient history do not claim fixed strength or no records", () => {
+  for (const rampProgress of [0.1, 0.9]) {
+    const view = buildBehindTheDataView(evidence({ profile: profile({ mode: "ramping", rampProgress }) }));
+    assert.doesNotMatch(view.status.label, /절반/);
+  }
+  const view = buildBehindTheDataView(evidence({ profile: profile({ mode: "equal-fallback" }) }));
+  assert.ok(view.providers.length > 0);
+  assert.doesNotMatch(view.status.detail, /기록이 없습니다/);
 });

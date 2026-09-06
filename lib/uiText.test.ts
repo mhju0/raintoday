@@ -9,7 +9,9 @@ test("rendered copy and metadata use the approved punctuation, including missing
     "../components/local/RecordStationPicker.tsx",
     "../app/behind-the-data/page.tsx",
     "../app/layout.tsx",
+    "../app/page.tsx",
     "../app/opengraph-image.tsx",
+    "../app/not-found.tsx",
     "./localForecastView.ts",
     "./behindTheData.ts",
   ];
