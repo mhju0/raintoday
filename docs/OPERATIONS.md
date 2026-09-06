@@ -61,8 +61,10 @@ Set both sessions to UTC before comparing timestamp representations. On Septembe
 2026, a private backup restored successfully into local PostgreSQL 18: 97 stations,
 3,077 captures, 1,746 observations and 8,822 seed comparisons matched the source.
 This proves that backup's recovery, not a future backup or a managed retention policy.
-Review Neon's current restore retention in the project dashboard; no unverified retention
-period is promised here.
+The Neon dashboard showed a six-hour history retention window on September 6, 2026.
+This is short-term recovery, not a substitute for private backups. With monthly manual
+backups, an older incident could lose up to a month of evidence; take backups more often
+if that loss is unacceptable. Recheck retention after plan or project-setting changes.
 
 `PERFORMANCE_STORE_CONTRACT_URL` is only for a separate disposable test database.
 Its suite truncates tables. Never use the production or recovery database for that suite.
@@ -70,8 +72,11 @@ Its suite truncates tables. Never use the production or recovery database for th
 ## Deployment and rollback
 
 PRs require `verify`, `store-contract` and `Dependency review`. Patch/minor Dependabot
-updates can enable auto-merge after those checks; majors remain manual. The privileged
-automation never checks out PR code and requires Dependabot-authored commits.
+updates with one verified Dependabot commit can enable auto-merge after those checks;
+majors and additional commits require manual review. The privileged automation never
+checks out PR code and disables auto-merge when additional commits appear.
+The repository action allowlist permits the exact reviewed `fetch-metadata` SHA.
+Review a helper update before adding its new SHA to that allowlist.
 
 Keep `.vercelignore` aligned with private/local exclusions in `.gitignore`; the CLI
 upload must not include local archives or agent state. Prefer the Git integration.
