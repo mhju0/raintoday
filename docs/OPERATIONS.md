@@ -8,7 +8,8 @@ see the [reporting policy](../.github/SECURITY.md).
 
 The `maintenance` workflow runs after collection/health runs and every six hours.
 It opens or updates one incident per failing workflow and closes it after a fresh
-successful scheduled run. It flags a missing completed collection after 18 hours
+successful monitored run. Collection monitoring uses scheduled runs only; service
+health monitoring also accepts manual read-only checks. It flags a missing completed collection after 18 hours
 and a missing health check after 10 hours, including disabled workflows. It also
 creates weekly and monthly review issues; an unfinished checklist remains open
 instead of being duplicated. Check off each task with evidence before closing it.

@@ -10,10 +10,10 @@ export function assessRuns(runs: MaintenanceRun[], now: number, maxAgeHours: num
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
   if (!completed || !Number.isFinite(Date.parse(completed.created_at)) ||
       now - Date.parse(completed.created_at) > maxAgeHours * 3_600_000) {
-    return { kind: "stale", detail: `No completed scheduled run within ${maxAgeHours} hours.`, url: completed?.html_url };
+    return { kind: "stale", detail: `No completed monitored run within ${maxAgeHours} hours.`, url: completed?.html_url };
   }
   if (completed.conclusion !== "success") {
-    return { kind: "failed", detail: `Latest completed scheduled run: ${completed.conclusion ?? "unknown"}.`, url: completed.html_url };
+    return { kind: "failed", detail: `Latest completed monitored run: ${completed.conclusion ?? "unknown"}.`, url: completed.html_url };
   }
   return null;
 }
