@@ -105,6 +105,19 @@ function response(overrides: Partial<LocalForecastResponse> = {}): LocalForecast
   };
 }
 
+test("evidence proximity uses the unrounded distance at the 25 km boundary", () => {
+  for (const [distanceKm, expected] of [[25, "local"], [25.001, "regional"], [100, "regional"]] as const) {
+    const input = response();
+    input.performance.station!.distanceKm = distanceKm;
+    const view = toLocalForecastView(input);
+    assert.equal(view.evidence.proximity, expected);
+    assert.equal(view.evidence.station!.distanceKm, Math.round(distanceKm * 10) / 10);
+  }
+  const input = response();
+  input.performance.station = null;
+  assert.equal(toLocalForecastView(input).evidence.proximity, null);
+});
+
 test("every reason the evidence can be missing has its own copy", () => {
   const messages = REASONS.map((reason) =>
     toLocalForecastView(

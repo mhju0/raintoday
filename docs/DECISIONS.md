@@ -1,5 +1,10 @@
 # Decision ledger
 
+September 6, 2026 maintenance update: #124 is closed; local/regional wording is
+implemented for v1.1.0. The approved copy pass supersedes the earlier README-length
+rejection. Security and recovery procedures are in [OPERATIONS.md](OPERATIONS.md).
+Older dated measurements below describe their observation date, not current guarantees.
+
 Compiled 2026-09-04; audited and updated 2026-09-05. Sources are ADRs, Git history,
 GitHub issues and PRs, and prior working
 conversations. Chronological. The point of this file is the part git cannot reconstruct:
@@ -251,20 +256,21 @@ A partial-catalog bug in `--station` was found only by running against a *dirty*
 
 ## 2026-08-19 — Station proximity picks the wording, not eligibility
 
-**Status: ACTIVE as a decision, DEFERRED as an implementation (ADR 0005)**
+**Status: ACTIVE, implemented for v1.1.0 (ADR 0005)**
 
 **Decided.** Keep station eligibility at the existing threshold and let distance choose the
-*language*: `local` at ≤25 km, `regional` at 25–100 km.
+*language*: `local` at ≤25 km, `regional` at >25–100 km.
 
-**Why.** Measurement, not intuition: the 100 km threshold turned out to be **non-binding** —
-no populated place in South Korea is more than ~30 km from an ASOS station. Tightening it
-would have excluded nobody while sounding stricter.
+**Why.** In the measured sample of 36 administrative centres, the largest distance was
+30.2 km. That sample did not justify tightening eligibility; it does not establish a
+nationwide bound for every populated place.
 
 **The near-miss worth remembering.** Area-weighted numbers nearly produced the opposite call.
 **Weight by where people actually are**, not by area.
 
-**Current state.** The `proximity` dimension is **not implemented** in the page. ADR 0005's
-own amendment says so. This is the one decided-and-unbuilt item in the ledger.
+**Current state.** The forecast projection and record page use the unrounded distance
+to select local or regional wording. Station-only links omit visitor-distance claims.
+The policy and 25 km wording boundary live in `lib/performance/stations.ts`.
 
 ---
 
@@ -572,8 +578,9 @@ inside a cohort, on the page. Captures are **not** grouped or filtered by it.
 hour a run actually started. GitHub schedules are best-effort and observed starts drift by
 hours — the 06 cohort has spanned 06–14 KST, the 18 cohort 18–04.
 
-**Why not filter.** Every provider inside one capture shares its lead time, so the drift is
-**common-mode noise on both sides of a comparison, not bias**. And filtering the inverted rows
+**Why not filter.** Every provider inside one capture shares its collection time, but
+different provider update schedules and forecast horizons can still affect comparisons.
+Filtering the inverted rows
 would have cost ~22% of the evening cohort immediately after ADR 0011 widened the window
 precisely because samples were scarce.
 
@@ -799,7 +806,7 @@ so they are not re-proposed as if new.
 | Proposal | Why it was declined |
 | --- | --- |
 | **English UI / i18n** | Biggest cost, least product value — the README captions already translate the interface for an evaluator. The product is for Korean users. |
-| **Shortening the README** | Its density serves the engineer who decides. |
+| **Shortening the README** | Superseded by the owner-approved September 6 public-copy pass. |
 | **Splitting `LocalForecastExperience.tsx`** | 1,801 lines, judged and **deferred**: it serves the reviewer, not the product. Do it only if the code should read as well as the docs do. |
 | **Adding `server-only`** to the service-area module | A new dependency for a guard the tests already provide (ADR 0006). |
 | **Reviving the radar / the cinematic scene** | Removed with an ADR behind it. |
@@ -824,7 +831,7 @@ so they are not re-proposed as if new.
 | Does the blend beat the best single provider? | **UNKNOWN** | The published position is "not yet". A live read on 2026-09-04 had adaptive **and** equal at Brier 0.197, both better than Open-Meteo alone at 0.233 — over 10 comparisons, so noise, but the opposite of what the README and release note say. |
 | Grouping captures by measured lead time | **DEFERRED** | #118. |
 | Eligibility counts cumulatively; the benchmark counts within the window | **UNKNOWN** | A latent asymmetry: a provider can be eligible on lifetime count while its Brier rests on very few recent comparisons. Scoring policy, so it sits behind the ADR gate. |
-| `v1.1.0` and the tagging policy | **APPROVED** | Await fixes and #124 acceptance; retain the existing tag. |
+| `v1.1.0` and the tagging policy | **APPROVED** | #124 accepted September 6; publish from verified main after production checks. Retain v1.0.0. |
 | Retaining the `reliability-state` branch | **ACTIVE** | Owner approved retaining the archive and deployment guard. |
 | The ADR 0005 `proximity` dimension | **APPROVED** | Wording only; implementation queued. |
 | Dependabot auto-merge on patch/minor updates | **APPROVED** | Require passing CI first; major upgrades stay manual. |

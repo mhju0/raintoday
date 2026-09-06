@@ -380,7 +380,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             again the moment the other is on screen. */}
         <h1 id="location-heading">비, <b>여기서는</b><br />어떨까요?</h1>
         <p>
-          오늘·내일 비 예보를 여러 날씨 서비스와 비교합니다. 내일 예보는 가까운
+          오늘·내일 비 예보를 여러 날씨 서비스와 비교합니다. 내일 예보는
           관측소의 비교 기록이 충분할 때 서비스별 비중을 조정합니다.
         </p>
 
@@ -666,11 +666,11 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
     <section className="local-evidence-section" aria-labelledby="evidence-heading">
       <div className="local-section-heading">
         <div>
-          <p className="local-kicker">기록 <span>: 근처 관측소로 채점한 성적</span></p>
+          <p className="local-kicker">기록 <span>: {evidence.proximity === "regional" ? "광역 관측소로 채점한 성적" : "근처 관측소로 채점한 성적"}</span></p>
           <h2 id="evidence-heading" tabIndex={-1}>
             {seedRanked.length > 0
               ? <>과거 기록에서<br />누가 더 잘 맞았나</>
-              : <>최근 이 지역에서<br />누가 더 잘 맞았나</>}
+              : <>{evidence.proximity === "regional" ? "최근 광역 관측 기록에서" : "최근 이 지역에서"}<br />누가 더 잘 맞았나</>}
           </h2>
         </div>
         {/* The status is the sentence people do not understand, so it is the
@@ -682,7 +682,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
 
       <div className="local-evidence-meta">
         <div>
-          <span>비교 관측소</span>
+          <span>{evidence.proximity === "regional" ? "광역 비교 관측소" : "비교 관측소"}</span>
           <strong>{station ? `${station.name} · ${station.distanceKm.toFixed(1)}km` : "아직 연결되지 않음"}</strong>
         </div>
         <div>
@@ -707,7 +707,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
 
       {station && (
         <p className="local-method-note">
-          가까운 관측소의 기록으로 채점합니다. 선택한 위치의 실제 날씨와 다를 수 있으며,
+          {evidence.proximity === "regional" ? "25 km보다 먼 관측소의 광역 기록으로 채점합니다." : "25 km 이내 관측소의 기록으로 채점합니다."} 선택한 위치의 실제 날씨와 다를 수 있으며,
           기상청 예보 격자는 5 km 단위입니다.
         </p>
       )}

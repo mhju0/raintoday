@@ -17,7 +17,7 @@
 > [ADR 0005](../adr/0005-station-proximity-is-language-not-eligibility.md). **Everything
 > below is unchanged.**
 
-**Status:** research complete; Kakao implementation pending credentialed matrix validation
+**Status:** historical research; Kakao search and credentialed matrix validation subsequently completed. See current source/tests and `docs/ROADMAP.md` for status.
 
 **Researched:** 2026-08-14
 

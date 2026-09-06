@@ -4,6 +4,11 @@ status: accepted
 
 # Station proximity changes the wording, not the eligibility
 
+September 6, 2026 implementation: the forecast view and coordinate-based record now
+use local/regional wording. `lib/performance/stations.ts` owns the policy and boundary.
+Classification uses the unrounded distance; station-only records omit visitor distance.
+The historical measurements below are samples, not guarantees for every Korean location.
+
 오늘비 weights providers by how well they recently predicted precipitation at the ASOS
 station nearest the user. `findStationMatch` accepts a station up to
 `maxDistanceKm: 100`, and the local forecast then tells the reader
@@ -24,7 +29,7 @@ derived from the matched distance against a boundary that lives next to `STATION
 | proximity | distance | wording |
 |---|---|---|
 | `local` | ≤ 25 km | "최근 이 지역에서" — the current claim, now earned |
-| `regional` | 25–100 km | same station, same weights, but named as regional evidence |
+| `regional` | >25–100 km | same station, same weights, but named as regional evidence |
 
 `proximity` is orthogonal to `status`. Evidence can be `collecting` at 5 km or `active`
 at 30 km, and conflating the two into one enum would make both harder to read. The
@@ -36,8 +41,8 @@ union are unchanged.
 - **Tighten `maxDistanceKm` to 50.** Rejected: it would fire for nobody. Every populated
   place measured is already within 50 km, so the rule buys no protection and only ever
   bites someone standing somewhere genuinely remote.
-- **Tighten to 25 km.** Rejected: it would strip evidence from roughly 3% of populated
-  places — 평택 at 30.2 km, 남양주 at 23.2 km — and hand them equal weights instead, for
+- **Tighten to 25 km.** Rejected: it would strip evidence from roughly 3% of the sampled
+  centres — 평택 at 30.2 km — and hand them equal weights instead, for
   no demonstrated gain in fidelity.
 - **Adopt KMA AWS to densify the network first.** Rejected for now; see below.
 - **Leave everything alone.** Rejected: the claim "in this area" is not honest at 30 km,
@@ -49,9 +54,9 @@ union are unchanged.
 Recorded in full in `docs/research/nationwide-verification-coverage.md`.
 
 Measured area-weighted over 25,279 land points on a 0.02° grid inside the service-area
-geometry, the current threshold is **non-binding**: 100.0% of land is already within
-100 km of an ASOS station, so `maxDistanceKm: 100` rejects nothing and the distance
-fallback has never fired for any user.
+geometry, the threshold was non-binding in that grid sample: every sampled point was
+within 100 km of an ASOS station. This does not establish that the distance fallback
+has never fired for a user.
 
 That framing is the wrong denominator for a product decision. Repeating the measurement
 over 36 real administrative centres — the largest cities and 구, plus the island cases
@@ -113,7 +118,7 @@ short distances.
 
 Adding `proximity` changes the `/api/local-forecast` payload, so the route, the consuming
 components, and `docs/weather-sources.md` change together. The boundary constant belongs
-beside `STATION_POLICY` in `lib/localForecast.ts`, not in JSX, so that the threshold and
+beside `STATION_POLICY` in `lib/performance/stations.ts`, not in JSX, so that the threshold and
 the eligibility policy stay readable in one place.
 
 The honest fallback is unchanged: with no eligible station the product still says local
@@ -131,5 +136,5 @@ evidence is unavailable and serves equal weights.
   [ADR 0006](./0006-the-elevation-gate-is-non-binding.md) measured the gate as non-binding
   where people actually are. It stays inert rather than being removed.
 
-The coverage measurement and the proximity decision itself are unchanged. Note the
-`proximity` dimension this record calls for is still **not implemented** in the page.
+The coverage measurement and the proximity decision itself were unchanged at that
+amendment. The dimension was subsequently implemented on September 6, as noted above.

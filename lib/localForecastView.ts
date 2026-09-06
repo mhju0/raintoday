@@ -2,6 +2,7 @@ import { buildForecastBlocks } from "./forecast/blocks.ts";
 import { readTimeline, type TimelineReading } from "./forecast/rainWindow.ts";
 import type { LocalForecastEvidence, LocalForecastResponse } from "./localForecast.ts";
 import type { WeatherCondition } from "./types.ts";
+import { evidenceProximity, type EvidenceProximity } from "./performance/stations.ts";
 
 /**
  * The wire contract for the local forecast page.
@@ -50,6 +51,7 @@ export interface LocalForecastSeedScore {
 export interface LocalForecastEvidenceView {
   status: LocalForecastEvidence["status"];
   statusLabel: string;
+  proximity: EvidenceProximity | null;
   /** Null when no Station Match backs this forecast yet. */
   station: { id: string; name: string; distanceKm: number } | null;
   comparisonSampleCount: number;
@@ -306,11 +308,12 @@ export function toLocalForecastView(response: LocalForecastResponse): LocalForec
     evidence: {
       status: response.performance.status,
       statusLabel: STATUS_LABELS[response.performance.status],
+      proximity: response.performance.station ? evidenceProximity(response.performance.station.distanceKm) : null,
       station: response.performance.station
         ? {
             id: response.performance.station.id,
             name: response.performance.station.name,
-            distanceKm: response.performance.station.distanceKm,
+            distanceKm: Math.round(response.performance.station.distanceKm * 10) / 10,
           }
         : null,
       // The comparison count a user is shown is the weakest provider's, so the

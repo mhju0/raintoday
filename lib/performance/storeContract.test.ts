@@ -1,4 +1,5 @@
 import test from "node:test";
+import assert from "node:assert/strict";
 import { InMemoryPerformanceStore } from "./store.ts";
 import { runPerformanceStoreContract } from "./storeContract.ts";
 
@@ -32,6 +33,21 @@ if (contractUrl) {
       await sql.end({ timeout: 5 });
     }
     return new PostgresPerformanceStore(contractUrl);
+  });
+
+  test("serving sessions can read but reject writes even with a writable credential", async () => {
+    const writer = new PostgresPerformanceStore(contractUrl);
+    const reader = new PostgresPerformanceStore(contractUrl, { readOnly: true });
+    try {
+      await writer.initialize();
+      assert.ok(Array.isArray(await reader.listStations()));
+      await assert.rejects(reader.saveObservation({
+        stationId: "108", date: "2026-09-01", observedMm: 0,
+        observedAt: "2026-09-02T00:00:00.000Z", source: "kma-asos",
+      }), { code: "25006" });
+    } finally {
+      await Promise.all([writer.close(), reader.close()]);
+    }
   });
 } else {
   test("postgresql store contract", { skip: "set PERFORMANCE_STORE_CONTRACT_URL to run" }, () => {});

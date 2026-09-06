@@ -77,3 +77,6 @@ skills-lock.json
 
 pnpm-lock.yaml
 pnpm-workspace.yaml
+
+# Do not upload private or machine-specific local material through the CLI.
+/AGENTS.local.md

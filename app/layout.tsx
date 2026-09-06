@@ -21,7 +21,7 @@ const SITE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
   : "http://localhost:3000";
 const TITLE = "오늘비: 내 위치의 오늘·내일 비 예보";
 const DESCRIPTION =
-  "오늘·내일 비 예보를 여러 날씨 서비스와 비교합니다. 내일 예보는 가까운 관측소의 비교 기록이 충분할 때 서비스별 비중을 조정합니다.";
+  "오늘·내일 비 예보를 여러 날씨 서비스와 비교합니다. 내일 예보는 관측소의 비교 기록이 충분할 때 서비스별 비중을 조정합니다.";
 
 export const metadata: Metadata = {
   // Required for the Open Graph image URL to resolve absolutely; without it a
