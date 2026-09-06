@@ -128,12 +128,17 @@ function isoTimestamp(value: string): string {
 export class PostgresPerformanceStore implements PerformanceStore {
   readonly #sql: ReturnType<typeof postgres>;
 
-  constructor(connectionUrl: string) {
+  constructor(connectionUrl: string, options: { readOnly?: boolean } = {}) {
     if (!connectionUrl.trim()) throw new Error("PERFORMANCE_DATABASE_URL is required");
     this.#sql = postgres(connectionUrl, {
       max: 4,
       idle_timeout: 20,
       connect_timeout: 10,
+      connection: options.readOnly ? {
+        statement_timeout: 15_000,
+        idle_in_transaction_session_timeout: 10_000,
+        default_transaction_read_only: true,
+      } : {},
     });
   }
 

@@ -1,5 +1,11 @@
 # Weather and environment sources
 
+The public forecast response labels station evidence as `local` at at most 25 km or
+`regional` beyond 25 km within the existing eligibility policy. Classification happens
+before display rounding. A station-only record does not claim proximity to its visitor.
+Vercel uses a SELECT-only database role; collector credentials and recovery procedures
+are documented in [OPERATIONS.md](OPERATIONS.md).
+
 오늘비 accepts validated coordinates inside the supported South Korea service area and uses `Asia/Seoul`. Exact-coordinate validation tests the coordinate against official SGIS 시도 boundary geometry, so sea and cross-border coordinates are rejected; see [`docs/research/sgis-boundary-acquisition.md`](./research/sgis-boundary-acquisition.md) for the source package, terms, boundary vintage, and update procedure. The geometry is generated offline into a server-only asset and is never sent to the browser. On a cache miss, forecast providers receive the submitted coordinate. Process-local provider caches use a truncated SHA-256 digest of the complete validated numeric coordinate: raw coordinates do not appear in cache keys, and distinct coordinates do not intentionally share provider snapshots. This preserves the Forecast Location contract instead of quantizing one user's response onto another user's coordinate. The exact coordinate also determines the request's KMA grid and observation-station match. The local-performance collector separately requests forecasts at official KMA ASOS coordinates. All upstream calls run on the server. Provider keys and database credentials must never be returned to the browser or written to logs.
 
 The application remains usable without weather-provider keys: Open-Meteo is keyless and supplies a complete forecast on its own — current conditions, the hourly series behind the ribbon, and the daily probability and amount. Manual administrative-area search requires a server-side Kakao REST key, which is also what resolves a device coordinate to its 시·구·동 name; browser current-location selection remains available without it, under the generic "현재 위치" label. The other forecast sources widen the comparison and fail independently.

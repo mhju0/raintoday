@@ -9,6 +9,10 @@
 
 [Open 오늘비](https://raintoday.vercel.app). The interface is in Korean.
 
+Maintenance mode: security fixes, correctness and provider compatibility. See the
+[roadmap](docs/ROADMAP.md) for deferred ideas and [operations guide](docs/OPERATIONS.md)
+for monitoring, recovery and release procedures.
+
 Screenshots below show the September 6, 2026 local production build with live forecast responses and the performance database disabled.
 
 ![Choose a device location, search a Korean administrative area, or open an example](public/screenshots/landing.webp)
@@ -36,7 +40,7 @@ The scoring record shows the current weighting mode, sample counts, provider sco
 - Requests use the submitted coordinate, validated against the supported South Korea service area. Search results use an administrative area's representative point.
 - Browser geolocation requires an explicit button press. The app does not infer location from an IP address.
 - Coordinates are sent to the server and weather providers for the forecast. They are not written to the performance database. The device remembers the last selection at reduced precision; coordinate-based forecasts may be cached temporarily in server memory.
-- Local performance comes from a nearby KMA ASOS Station Match. Conditions there can differ from those at the selected location.
+- Performance evidence comes from a KMA ASOS Station Match: local at up to 25 km, regional beyond 25 km within the existing 100 km eligibility limit. Conditions there can differ from those at the selected location.
 - Probability accuracy and rain-amount error are scored separately.
 - Tomorrow uses recent-performance weights only when evidence and benchmark checks pass. While recent evidence is immature, eligible archive evidence can provide a limited adjustment. Otherwise the responding providers receive equal influence.
 - An unavailable provider is omitted. An unavailable evidence store causes equal weighting; a forecast that cannot be loaded displays an error and retry control.
@@ -147,6 +151,8 @@ The served surface is `/`, `/behind-the-data`, `/api/local-forecast`, `/api/loca
 | [`docs/research/`](docs/research/) | Location and observation-network evidence |
 | [`lib/performance/README.md`](lib/performance/README.md) | Live capture and retrospective seed pipeline |
 | [`docs/VERIFYING.md`](docs/VERIFYING.md) | Tests, fresh worktrees and browser checks |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Maintenance, credentials, backup/restore and releases |
+| [`docs/audits/security-2026-09-06.md`](docs/audits/security-2026-09-06.md) | Security review, fixes and limits |
 
 ## Stack
 

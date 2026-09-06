@@ -3,6 +3,7 @@ import Link from "next/link";
 import { RecordStationPicker } from "@/components/local/RecordStationPicker";
 import { buildBehindTheDataView, resolveRecordLocation } from "@/lib/behindTheData";
 import { captureCohortAt, readRecordEvidence } from "@/lib/localForecast";
+import { evidenceProximity } from "@/lib/performance/stations";
 
 export const metadata: Metadata = {
   title: "이 예보를 어떻게 채점하는가: 오늘비",
@@ -94,7 +95,7 @@ export default async function BehindTheDataPage({
           {view.station ? (
             <div>
               <dt>관측소</dt>
-              <dd>{view.station.name}{stationId === undefined ? ` · ${view.station.distanceKm}km` : ""}</dd>
+              <dd>{view.station.name}{stationId === undefined ? ` · ${view.station.distanceKm.toFixed(1)}km · ${evidenceProximity(view.station.distanceKm) === "local" ? "지역 기록" : "광역 기록"}` : ""}</dd>
             </div>
           ) : null}
           <div>

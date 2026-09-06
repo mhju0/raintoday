@@ -1,5 +1,13 @@
 import type { ObservationStation } from "./types.ts";
 
+export const STATION_POLICY = { maxDistanceKm: 100, maxElevationDifferenceM: 400 };
+export const LOCAL_EVIDENCE_DISTANCE_KM = 25;
+export type EvidenceProximity = "local" | "regional";
+
+export function evidenceProximity(distanceKm: number): EvidenceProximity {
+  return distanceKm <= LOCAL_EVIDENCE_DISTANCE_KM ? "local" : "regional";
+}
+
 export interface StationMatchPolicy {
   maxDistanceKm: number;
   maxElevationDifferenceM: number;

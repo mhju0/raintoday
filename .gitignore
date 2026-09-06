@@ -54,6 +54,10 @@ next-env.d.ts
 .cursor/
 .codex/
 .worktrees/
+.scratch/
+CLAUDE.local.md
+*.dump
+*.backup
 .aider*
 GEMINI.md
 skills-lock.json

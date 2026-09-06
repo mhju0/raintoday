@@ -1,5 +1,9 @@
 # Maintenance audit — 2026-09-05
 
+Historical review. The resulting fixes shipped in #138 and subsequent copy work in
+#139. Current duties are in [ROADMAP.md](ROADMAP.md); the September 6 security and
+recovery review is in [audits/security-2026-09-06.md](audits/security-2026-09-06.md).
+
 Scope: served Next.js paths, provider/store boundaries, frontend state, tests, setup,
 CI/deployment, open work and retained archives. Source and executable behavior take
 precedence over historical explanations.

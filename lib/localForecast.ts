@@ -7,7 +7,7 @@ import {
   DEFAULT_PERFORMANCE_POLICY,
 } from "./performance/performance.ts";
 import { PostgresPerformanceStore } from "./performance/postgres.ts";
-import { findStationMatch } from "./performance/stations.ts";
+import { findStationMatch, STATION_POLICY } from "./performance/stations.ts";
 import type { PerformanceStore } from "./performance/store.ts";
 import type {
   CaptureCohort,
@@ -17,7 +17,6 @@ import type {
 import { forecastProviders } from "./providers/registry.ts";
 import type { HourlyForecast, ProviderSnapshot, WeatherCondition } from "./types.ts";
 
-const STATION_POLICY = { maxDistanceKm: 100, maxElevationDifferenceM: 400 };
 let runtimePerformanceStore: PostgresPerformanceStore | null = null;
 
 export interface LocalForecastEvidence {
@@ -188,7 +187,7 @@ export async function readDatabaseEvidence(
 function performanceStore(): PerformanceStore | null {
   const connectionUrl = process.env.PERFORMANCE_DATABASE_URL?.trim();
   if (!connectionUrl) return null;
-  return runtimePerformanceStore ??= new PostgresPerformanceStore(connectionUrl);
+  return runtimePerformanceStore ??= new PostgresPerformanceStore(connectionUrl, { readOnly: true });
 }
 
 /** Record pages reuse station history for ten minutes and report its actual read time. */
@@ -283,7 +282,7 @@ async function readEvidenceFromStore(
         station: {
           id: stationId,
           name: stationMatch.station.name,
-          distanceKm: Math.round(stationMatch.distanceKm * 10) / 10,
+          distanceKm: stationMatch.distanceKm,
         },
         profile,
       },

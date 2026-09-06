@@ -229,6 +229,7 @@ test("device accuracy is displayed but not sent to the forecast API", async () =
       evidence: {
         status: "unavailable",
         statusLabel: "근거 준비 중",
+        proximity: null,
         station: null,
         comparisonSampleCount: 0,
         emptyMessage: "지역 성능 데이터베이스를 연결하면 이곳에 실제 비교가 표시됩니다.",
@@ -338,6 +339,7 @@ function forecastPayload(overrides: Record<string, unknown> = {}) {
     evidence: {
       status: "unavailable",
       statusLabel: "근거 준비 중",
+      proximity: null,
       station: null,
       comparisonSampleCount: 0,
       emptyMessage: "이 지역의 최근 성능 기록이 아직 없어, 서비스를 똑같은 비중으로 평균했습니다.",
@@ -805,6 +807,7 @@ test("a provider with no seven-day record is not ranked against ones that have i
     evidence: {
       status: "active",
       statusLabel: "가중치 반영 중",
+      proximity: "local",
       station: { id: "108", name: "서울", distanceKm: 3.2 },
       comparisonSampleCount: 40,
       emptyMessage: null,
@@ -1346,6 +1349,19 @@ test("no hourly series leaves the answer on the probability, with no ribbon", as
 });
 
 
+test("regional evidence does not claim a nearby observation station", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const payload = forecastPayload();
+  const view = await mountExperience(async () => Response.json(forecastPayload({
+    evidence: { ...payload.evidence, proximity: "regional", station: { id: "119", name: "수원", distanceKm: 30.2 } },
+  })));
+  const content = view.container.querySelector(".local-evidence-section")?.textContent ?? "";
+  assert.match(content, /광역 관측소/);
+  assert.match(content, /30.2/);
+  assert.doesNotMatch(content, /근처 관측소/);
+  await view.cleanup();
+});
+
 test("seed evidence shows the wet-day miss rate rather than claiming measured performance", async () => {
   window.localStorage.setItem(
     "raintoday.last-location.v1",
@@ -1360,6 +1376,7 @@ test("seed evidence shows the wet-day miss rate rather than claiming measured pe
       evidence: {
         status: "active",
         statusLabel: "과거 기록 반영 중",
+        proximity: "local",
         station: { id: "108", name: "서울", distanceKm: 3.2 },
         comparisonSampleCount: 14,
         emptyMessage: null,
