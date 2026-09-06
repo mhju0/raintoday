@@ -55,13 +55,14 @@ Historical captures stay frozen; do not backfill the missing forecasts.
 
 ### Complete the approved audit fixes
 
-- Keep a provider with zero historical samples at a neutral share in learned/ramping modes;
-  #127 did not fix the fallback in `influence.ts`.
-- **Implemented on the audit branch, pending merge:** GPS record links use the matched
+- **Implemented in #136:** keep a provider with zero historical samples at a
+  neutral share in learned/ramping modes. The shared blend now assigns missing weights the
+  mean of available scored weights, preserving an equal share after normalization.
+- **Merged #137:** GPS record links use the matched
   station id without device coordinates; searched-area coordinates remain shareable.
-- **Implemented on the audit branch, pending merge:** record history is keyed by matched
+- **Merged #137:** record history is keyed by matched
   station + cohort + Korean date, with request-specific distance details preserved.
-- **Implemented on the audit branch, pending merge:** malformed JSON returns 400.
+- **Merged #137:** malformed JSON returns 400.
 - **Merged #135:** Browserslist updated to the compatible patched version.
 
 ---
