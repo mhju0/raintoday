@@ -18,10 +18,12 @@ const ROOT = join(import.meta.dirname, "..");
 
 /**
  * Supplied by the runtime, not by a person. `NODE_ENV` comes from Node, and
- * Vercel injects its own — putting them in an example file would invite someone
+ * Vercel injects its own. Actions supplies the repository and the maintenance
+ * workflow maps its short-lived token; neither belongs in a local env file.
+ * Putting these in an example file would invite someone
  * to set them by hand, which is worse than omitting them.
  */
-const PLATFORM_PROVIDED = /^(NODE_ENV|VERCEL_|NEXT_RUNTIME)/;
+const PLATFORM_PROVIDED = /^(NODE_ENV$|VERCEL_|NEXT_RUNTIME$|GITHUB_REPOSITORY$|GITHUB_TOKEN$)/;
 
 /**
  * Declared on purpose without being read by shipped code: it turns on the
