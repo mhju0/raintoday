@@ -11,3 +11,11 @@
 - Forecast captures are immutable. Retrospective seed comparisons stay separate from prospective captures and benchmarks. Observation read failures must remain faults, never dry days or absent observations.
 - `lib/locationServiceAreaData.ts` and `lib/performance/stationCatalog.ts` are generated. Use `npm run service-area:generate -- <official-SGIS-shapefile>` and `npm run performance:catalog`; recheck island coverage after geometry regeneration. Keep the geometry server-side and raw SGIS files out of Git.
 - `PERFORMANCE_STORE_CONTRACT_URL` must point only to a disposable database: its tests **TRUNCATE tables**. Capture, seed, and observation scripts write evidence; they are not ordinary validation commands.
+
+<!-- antislop:start -->
+## antislop
+
+For UI work or visual audits, read the installed core at `/Users/michaelju/.agents/skills/antislop/SKILL.md` and UI skill at `/Users/michaelju/.agents/skills/antislop-ui/SKILL.md`.
+Use `docs/adr/0009-chart-recorder-redesign.md` and `docs/adr/0010-open-at-the-answer-shelve-the-receipts.md` for the existing visual direction.
+Before starting, ask whether antislop applies during implementation or as an after-work audit, unless the user has already selected a mode in the session. In after mode, report numbered findings and implement only the findings the user approves.
+<!-- antislop:end -->

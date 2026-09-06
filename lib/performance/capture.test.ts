@@ -219,3 +219,18 @@ test("a provider outside the compared set cannot fault a capture", async () => {
   assert.equal(result.status, "inserted");
   assert.deepEqual(result.faultedProviders, []);
 });
+
+test("a compared fault with no target-day entry still refuses capture", async () => {
+  const store = new InMemoryPerformanceStore();
+  const fault = snapshot("kma", null);
+  fault.daily = [];
+  fault.status.availability = "error";
+  fault.status.message = "provider read failed";
+  const result = await captureStationForecast({
+    station, cohort: "18", now: new Date("2026-08-13T18:10:00+09:00"), store,
+    readForecasts: async () => [snapshot("open-meteo", 50, 1), fault],
+  });
+  assert.equal(result.status, "faulted");
+  assert.deepEqual(result.faultedProviders, [{ provider: "kma", message: "provider read failed" }]);
+  assert.deepEqual(await store.loadCaptures(station.id, "18"), []);
+});

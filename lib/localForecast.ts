@@ -1,3 +1,4 @@
+import { selectComparedForecasts } from "./providers/selection.ts";
 import { cachedFetch } from "./cache.ts";
 import type { ForecastLocation } from "./location.ts";
 import { blendPrecipitation } from "./performance/influence.ts";
@@ -10,22 +11,12 @@ import { findStationMatch } from "./performance/stations.ts";
 import type { PerformanceStore } from "./performance/store.ts";
 import type {
   CaptureCohort,
-  CapturedProviderForecast,
   RecentPerformanceProfile,
   PrecipProviderId,
 } from "./performance/types.ts";
 import { forecastProviders } from "./providers/registry.ts";
 import type { HourlyForecast, ProviderSnapshot, WeatherCondition } from "./types.ts";
 
-// MET Norway is absent: it publishes no precipitation probability for Korea, so it
-// could never survive the probability gate below. See `forecastProviders`.
-const PRECIP_PROVIDERS = new Set<PrecipProviderId>([
-  "open-meteo",
-  "kma",
-  "pirate-weather",
-  "weather-api",
-  "visual-crossing",
-]);
 const STATION_POLICY = { maxDistanceKm: 100, maxElevationDifferenceM: 400 };
 let runtimePerformanceStore: PostgresPerformanceStore | null = null;
 
@@ -161,49 +152,23 @@ export function captureCohortAt(date: Date): CaptureCohort {
   return hour >= 6 && hour < 18 ? "06" : "18";
 }
 
-function validProbability(value: number | null): value is number {
-  return value !== null && Number.isFinite(value) && value >= 0 && value <= 100;
-}
-
-function validAmount(value: number | null | undefined): number | null {
-  return value !== null && value !== undefined && Number.isFinite(value) && value >= 0
-    ? value
-    : null;
-}
-
 function buildForecastDay(
   date: string,
   snapshots: readonly ProviderSnapshot[],
   profile: RecentPerformanceProfile | null,
 ): LocalForecastDay | null {
-  const rows = snapshots.flatMap((snapshot) => {
-    if (!PRECIP_PROVIDERS.has(snapshot.id as PrecipProviderId)) return [];
-    const daily = snapshot.daily.find((day) => day.date === date);
-    if (!daily || !validProbability(daily.precipitationProbability)) return [];
-    return [{
-      provider: snapshot.id as PrecipProviderId,
-      probability: daily.precipitationProbability,
-      amountMm: validAmount(daily.precipitationAmount),
-      temperatureMax: daily.temperatureMax,
-      temperatureMin: daily.temperatureMin,
-      condition: daily.condition,
-    }];
-  });
-  if (rows.length === 0) return null;
-  const forecasts: CapturedProviderForecast[] = rows.map((row) => ({
-    provider: row.provider,
-    probability: row.probability,
-    amountMm: row.amountMm,
-  }));
+  const { rows, forecasts } = selectComparedForecasts(snapshots, date);
+  const primary = rows.find((row) => row.available);
+  if (!primary) return null;
   const blend = blendPrecipitation(forecasts, profile);
   return {
     date,
     precipitationProbability: blend.probability,
     precipitationAmountMm: blend.amountMm,
     amountProviderCount: blend.amountProviderCount,
-    temperatureMax: rows[0].temperatureMax,
-    temperatureMin: rows[0].temperatureMin,
-    condition: rows[0].condition,
+    temperatureMax: primary.temperatureMax,
+    temperatureMin: primary.temperatureMin,
+    condition: primary.condition,
   };
 }
 
@@ -345,25 +310,7 @@ export async function readLocalForecast(
   );
   const [snapshots, performance] = await Promise.all([snapshotsPromise, performancePromise]);
   const targetDate = nextCalendarDate(now);
-  const providerRows = snapshots.flatMap((snapshot) => {
-    if (!PRECIP_PROVIDERS.has(snapshot.id as PrecipProviderId)) return [];
-    const daily = snapshot.daily.find((day) => day.date === targetDate);
-    return [{
-      id: snapshot.id as PrecipProviderId,
-      name: snapshot.status.name,
-      probability: daily?.precipitationProbability ?? null,
-      amountMm: validAmount(daily?.precipitationAmount),
-      temperatureMax: daily?.temperatureMax ?? null,
-      temperatureMin: daily?.temperatureMin ?? null,
-      condition: daily?.condition ?? "unknown" as WeatherCondition,
-      available: Boolean(daily && validProbability(daily.precipitationProbability)),
-    }];
-  });
-  const forecasts: CapturedProviderForecast[] = providerRows.flatMap((provider) =>
-    provider.available
-      ? [{ provider: provider.id, probability: provider.probability, amountMm: provider.amountMm }]
-      : [],
-  );
+  const { rows: providerRows, forecasts } = selectComparedForecasts(snapshots, targetDate);
   // Learned influence is evidence for one cohort's next day, so only the target
   // date operates under the profile; later outlook days stay on Equal Fallback.
   const operatingProfile =
