@@ -13,6 +13,11 @@ The old v1.0.0 tag remains unchanged; it contains the earlier SeoulSky applicati
 
 ## Maintenance follow-ups
 
+Collection and health incidents now have automated issue tracking, freshness checks,
+and weekly/monthly review issues. The September 6 KMA connection failure remains an
+upstream incident until scheduled collection recovers; alternate API Hub forecast
+access currently rejects the configured key.
+
 | Work | Trigger and completion |
 | --- | --- |
 | Observe the seed-to-live transition | Review a real station/cohort after two providers and the benchmark meet the sample conditions. Record the mode, provider sample counts and effective weights. No forced captures or promised transition date. |

@@ -1,5 +1,6 @@
 import { classifyKmaResponse } from "../providers/kma.ts";
 import { readResponseBytes } from "../httpResponse.ts";
+import { transportFailure } from "../maintenance.ts";
 import { parseAsosDailyRange } from "./seed.ts";
 import type { ObservationStation, PrecipObservation } from "./types.ts";
 
@@ -190,7 +191,7 @@ export type AsosObservationRead =
   | { status: "failed"; observation?: undefined; reason: string };
 
 function transportReason(error: unknown): string {
-  return error instanceof Error ? error.message : "observation request failed";
+  return transportFailure(error);
 }
 
 export async function fetchAsosObservation(

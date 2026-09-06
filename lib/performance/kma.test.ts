@@ -225,7 +225,7 @@ test("a refused ASOS observation is reported, not silently dropped", async () =>
 
     const dropped = await read(async () => { throw new TypeError("fetch failed"); }, noWait);
     assert.equal(dropped.status, "failed");
-    assert.match(dropped.reason ?? "", /fetch failed/);
+    assert.match(dropped.reason ?? "", /network request failed/);
   });
 });
 
@@ -363,7 +363,7 @@ test("a window ASOS refuses is a fault, never an empty window that reads as no r
     async () => {},
   );
   assert.equal(unreachable.status, "failed");
-  assert.match(unreachable.reason ?? "", /socket hang up/);
+  assert.match(unreachable.reason ?? "", /network request failed/);
   assert.equal(dropped, 3, "a dropped connection is retried");
   });
 });

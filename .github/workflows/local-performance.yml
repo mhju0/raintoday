@@ -82,7 +82,7 @@ jobs:
   # so this re-runs the whole cohort rather than repairing rows in place.
   retry:
     needs: capture
-    if: needs.capture.outputs.failed == 'true'
+    if: ${{ !cancelled() && (needs.capture.outputs.failed == 'true' || needs.capture.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
