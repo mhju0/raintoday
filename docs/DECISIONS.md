@@ -1,5 +1,13 @@
 # Decision ledger
 
+September 6 operational follow-up: require all five providers for service-health's
+all-clear, superseding the earlier four-provider threshold. A missing provider can
+persist while the site serves a usable fallback. Deduplicated maintenance issues
+track collection/health failures and stale schedules; weekly/monthly issues retain
+manual account, backup, security and evidence checks. Transport diagnostics omit
+URLs and retain known error causes. No retrospective forecast repair or unapproved
+alternate data source is introduced. See [OPERATIONS.md](OPERATIONS.md).
+
 September 6, 2026 maintenance update: #124 is closed; local/regional wording is
 implemented for v1.1.0. The approved copy pass supersedes the earlier README-length
 rejection. Security and recovery procedures are in [OPERATIONS.md](OPERATIONS.md).

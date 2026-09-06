@@ -11,9 +11,8 @@
  * one place and not the other leaves the pipeline green while the site degrades,
  * with nothing to report it — this closes that gap.
  *
- * Deliberately tolerant of one missing provider. Losing one of five is ordinary
- * upstream noise and self-heals; losing two is systemic. A check that pages on
- * noise gets ignored, which is worse than not having it.
+ * Report even one missing provider. The maintenance workflow tracks repeated
+ * failures in one issue and closes it after a successful scheduled check.
  *
  * Only Pirate Weather gets a quota check, and not for want of trying: Visual
  * Crossing publishes no rate-limit headers at all and has no usage endpoint —
@@ -26,19 +25,17 @@
  */
 import { FALLBACK_STATION_CATALOG } from "../lib/performance/stationCatalog.ts";
 import { evaluateQuotaRunway } from "../lib/quotaRunway.ts";
+import { parseQuotaHeader } from "../lib/maintenance.ts";
 
 /** Two scheduled cohorts a day, one call per station per cohort. */
 const DAILY_PIPELINE_BURN = FALLBACK_STATION_CATALOG.length * 2;
 /** Calls held back for visitor traffic beyond the pipeline's own projection. */
 const VISITOR_RESERVE = 1_000;
 /**
- * Below this many compared providers the served blend is meaningfully degraded.
- * One short of `forecastProviders`, holding the one-missing-is-noise rule as the
- * compared list grows. Raising this requires the new provider's key to exist in
- * the production environment first — the served path reads a different store from
- * the scheduled jobs, so a key set only in Actions leaves this check red.
+ * All five configured providers must participate for an operational all-clear.
+ * Visitors can still receive a usable forecast during a provider incident.
  */
-const MINIMUM_PROVIDERS = 4;
+const MINIMUM_PROVIDERS = 5;
 
 const REQUEST_TIMEOUT_MS = 20_000;
 const ATTEMPTS = 3;
@@ -206,10 +203,10 @@ async function checkPirateWeatherQuota(): Promise<void> {
       `https://api.pirateweather.net/forecast/${encodeURIComponent(key)}` +
         `/${PROBE.latitude},${PROBE.longitude}?exclude=minutely,hourly,alerts`,
     );
-    const remaining = Number(response.headers.get("ratelimit-remaining"));
-    const reset = Number(response.headers.get("ratelimit-reset"));
-    const limit = Number(response.headers.get("ratelimit-limit"));
-    if (!Number.isFinite(remaining) || !Number.isFinite(reset)) {
+    const remaining = parseQuotaHeader(response.headers.get("ratelimit-remaining"));
+    const reset = parseQuotaHeader(response.headers.get("ratelimit-reset"));
+    const limit = parseQuotaHeader(response.headers.get("ratelimit-limit"));
+    if (!response.ok || remaining === null || reset === null) {
       record("pirate quota", false, `HTTP ${response.status}, quota headers unreadable`);
       return;
     }
@@ -220,7 +217,7 @@ async function checkPirateWeatherQuota(): Promise<void> {
       reserve: VISITOR_RESERVE,
     });
     const summary =
-      `${remaining}/${Number.isFinite(limit) ? limit : "?"} left, ` +
+      `${remaining}/${limit ?? "?"} left, ` +
       `${runway.daysLeft.toFixed(1)}d to reset, need ${runway.needed} ` +
       `(${DAILY_PIPELINE_BURN}/day + ${VISITOR_RESERVE} reserve)`;
     record(

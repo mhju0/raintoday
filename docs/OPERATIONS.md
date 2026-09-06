@@ -6,6 +6,16 @@ see the [reporting policy](../.github/SECURITY.md).
 
 ## Routine review
 
+The `maintenance` workflow runs after collection/health runs and every six hours.
+It opens or updates one incident per failing workflow and closes it after a fresh
+successful scheduled run. It flags a missing completed collection after 18 hours
+and a missing health check after 10 hours, including disabled workflows. It also
+creates weekly and monthly review issues; an unfinished checklist remains open
+instead of being duplicated. Check off each task with evidence before closing it.
+
+Service health now flags even one missing provider. The site can remain usable
+while this check is red. A collection failure still refuses faulted forecast captures.
+
 - Weekly: inspect failed `local-performance` and `service-health` runs, provider gaps,
   Dependabot PRs and Vercel/Neon usage. A green capture can still omit faulted stations.
 - Monthly and before significant data changes: take a private backup and restore it to
@@ -20,6 +30,39 @@ see the [reporting policy](../.github/SECURITY.md).
 GitHub Actions notifications depend on the owner's account settings. Watch this repository
 for workflow failures and verify delivery in GitHub notification settings. These are
 best-effort checks, not an on-call service or an uptime guarantee.
+
+GitHub can disable scheduled workflows in public repositories after 60 days without
+repository activity. A monitor on GitHub cannot report a platform-wide outage or its
+own disabled schedule. Keep an independent monthly calendar reminder to visit Actions,
+check `maintenance` itself and re-enable schedules when necessary. See
+[GitHub's schedule limitations](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
+
+## Incident response
+
+1. Open the linked run and distinguish configuration, transport, quota, database and
+   code failures. A timeout before connection is not proof that an API key expired.
+   Observation logs retain safe transport causes without request URLs or keys.
+2. For an upstream outage, retain the incident and inspect the next scheduled cohort.
+   The collector has one fresh-runner retry, also after setup or timeout failures.
+   Do not dispatch missed cohorts, substitute dry observations, overwrite captures,
+   or drop required providers to make a run pass.
+3. For credentials, renew access in the provider account, update every consuming
+   secret store, redeploy if needed and perform read-only health checks. API Hub
+   station access does not imply permission for its forecast APIs.
+4. For a code regression, reproduce it with a focused test, fix it in a PR, pass the
+   required checks and confirm deployment. Dependency failures go through the same
+   review; the maintenance workflow never generates or merges arbitrary fixes.
+5. For database trouble, check Neon availability and connection/role settings first.
+   Restore only after backing up the current state and rehearsing in isolation.
+6. Record recovery and any permanent evidence gaps. Closing the automated incident
+   means the workflow recovered, not that every missed station or date was restored.
+
+September 6 incident: `apis.data.go.kr` connections timed out from the local probe,
+and scheduled collection and the served KMA forecast failed as well. A separate
+HTTPS probe reached `apihub.kma.go.kr`. Its documented forecast endpoints rejected
+the current API Hub key with HTTP 403, so no gateway switch was made. KMA must restore
+the original route or approve equivalent API access before that fallback is usable.
+This identifies the failing connection boundary, not the provider's internal root cause.
 
 ## Credentials and request limits
 

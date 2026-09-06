@@ -184,7 +184,7 @@ The scheduled collector requires complete provider configuration, although servi
 
 ### Service health
 
-The service check verifies the served page, a forecast with at least four usable provider probabilities, and administrative search. It also checks whether Pirate Weather's remaining quota covers scheduled collection plus a visitor reserve for the rest of the billing period.
+The service check verifies the served page, participation from all five forecast providers, a usable blended probability, and administrative search. It also checks whether Pirate Weather's remaining quota covers scheduled collection plus a visitor reserve for the rest of the billing period.
 
 ```bash
 npm run service:health
@@ -192,6 +192,10 @@ npm run service:health -- --target=local
 ```
 
 It runs every six hours through `.github/workflows/service-health.yml`, using named targets with fixed URLs. It reads live services and consumes provider quota.
+
+The `maintenance` workflow tracks failed or overdue scheduled runs in GitHub issues
+and creates weekly/monthly review checklists. See [OPERATIONS.md](docs/OPERATIONS.md)
+for incident response and the limits of automated monitoring.
 
 ## Verification
 

@@ -176,8 +176,8 @@ test("the capture workflow retries on a fresh runner, identically credentialled"
   assert.match(retry, /needs:\s*capture/, "the retry must follow the first attempt");
   assert.match(
     retry,
-    /if:\s*needs\.capture\.outputs\.failed == 'true'/,
-    "the retry must run exactly when the first attempt failed",
+    /if:\s*\$\{\{ !cancelled\(\) && \(needs\.capture\.outputs\.failed == 'true' \|\| needs\.capture\.result == 'failure'\) \}\}/,
+    "retry capture or setup failures, including job timeouts, unless cancelled",
   );
   // The first attempt tolerates its own failure so a rescued run finishes green;
   // that only works while the output it publishes is the one the retry reads.
