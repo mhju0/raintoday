@@ -8,7 +8,7 @@ import { evidenceProximity } from "@/lib/performance/stations";
 export const metadata: Metadata = {
   title: "이 예보를 어떻게 채점하는가: 오늘비",
   description:
-    "가까운 관측소의 예보 채점 기록과 서비스별 비중, 가중치를 적용하거나 중지하는 조건을 확인합니다.",
+    "관측소의 예보 채점 기록과 서비스별 비중, 가중치를 적용하거나 중지하는 조건을 확인합니다.",
 };
 
 // Rendered per request, because the coordinate arrives in the query string. The
@@ -61,7 +61,7 @@ export default async function BehindTheDataPage({
         <p className="local-eyebrow">오늘비 · 채점 기록</p>
         <h1>이 예보를 어떻게 채점하는가</h1>
         <p className="btd-lede">
-          내일 예보에 반영하는 서비스별 비중과 그 근거를 보여드립니다. 가까운 관측소의
+          내일 예보에 반영하는 서비스별 비중과 그 근거를 보여드립니다. 관측소의
           비교 기록이 충분하면 최근 채점 결과를 쓰고, 기록이 부족한 동안에는 과거 모델
           자료를 일부 반영하거나 같은 비중으로 평균합니다.
         </p>
@@ -366,7 +366,7 @@ export default async function BehindTheDataPage({
         <h2 id="btd-limits-heading">이 방법이 못 하는 것</h2>
         <ul className="btd-facts">
           <li>
-            <strong>선택한 위치와 관측소의 날씨는 다를 수 있습니다.</strong> 채점에는 가까운 ASOS
+            <strong>선택한 위치와 관측소의 날씨는 다를 수 있습니다.</strong> 채점에는 선택된 ASOS
             관측소의 기록을 씁니다. 거리와 고도 차이가 비교 조건을 충족해야 합니다.
           </li>
           <li>

@@ -380,7 +380,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             again the moment the other is on screen. */}
         <h1 id="location-heading">비, <b>여기서는</b><br />어떨까요?</h1>
         <p>
-          오늘·내일 비 예보를 여러 날씨 서비스와 비교합니다. 내일 예보는 가까운
+          오늘·내일 비 예보를 여러 날씨 서비스와 비교합니다. 내일 예보는
           관측소의 비교 기록이 충분할 때 서비스별 비중을 조정합니다.
         </p>
 
