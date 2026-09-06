@@ -20,8 +20,16 @@ jobs:
       pull-requests: write
     steps:
       # This privileged job never checks out or executes pull-request code.
-      # The action rejects metadata when commits are not all Dependabot-authored.
+      # fetch-metadata verifies the first commit only. Additional commits need review.
+      - name: Disable automatic merge when additional commits appear
+        if: github.event.pull_request.commits != 1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr merge "$PR_NUMBER" --disable-auto
       - name: Read Dependabot update metadata
+        if: github.event.pull_request.commits == 1
         id: metadata
         uses: dependabot/fetch-metadata@d7267f607e9d3fb96fc2fbe83e0af444713e90b7 # v2.3.0
         with:

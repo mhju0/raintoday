@@ -70,8 +70,9 @@ Its suite truncates tables. Never use the production or recovery database for th
 ## Deployment and rollback
 
 PRs require `verify`, `store-contract` and `Dependency review`. Patch/minor Dependabot
-updates can enable auto-merge after those checks; majors remain manual. The privileged
-automation never checks out PR code and requires Dependabot-authored commits.
+updates with one verified Dependabot commit can enable auto-merge after those checks;
+majors and additional commits require manual review. The privileged automation never
+checks out PR code and disables auto-merge when additional commits appear.
 
 Keep `.vercelignore` aligned with private/local exclusions in `.gitignore`; the CLI
 upload must not include local archives or agent state. Prefer the Git integration.
