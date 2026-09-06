@@ -5,85 +5,80 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Local performance](https://github.com/mhju0/raintoday/actions/workflows/local-performance.yml/badge.svg)](https://github.com/mhju0/raintoday/actions/workflows/local-performance.yml)
 
-오늘비 ("rain today") is a South Korea local rain forecast. It leads with when rain starts and stops at the user's chosen coordinate, shows the next 24 hours as a horizontal time axis, carries today and tomorrow as two separately-calculated figures, and — when sufficient prospective evidence exists — adjusts each provider's influence on the next-day figure using the Recent Performance Profile from its KMA Station Match.
+오늘비 shows rain forecasts for a chosen location in South Korea. Compare the next 24 hours, today's forecast, and tomorrow's forecast from five weather services. Tomorrow's blend can use nearby-station evidence when the relevant checks pass.
 
-**Live demo:** [raintoday.vercel.app](https://raintoday.vercel.app)
+[Open 오늘비](https://raintoday.vercel.app). The interface is in Korean.
 
-The interface is Korean, for Korean users. The captions below describe what each screen shows.
+Screenshots below show the September 6, 2026 local production build with live forecast responses and the performance database disabled.
 
-![The chooser: pick the device location, or search a Korean administrative area](public/screenshots/landing.webp)
+![Choose a device location, search a Korean administrative area, or open an example](public/screenshots/landing.webp)
 
-*Nothing is requested until the visitor asks — the app never prompts for location automatically or infers it from an IP address. The three figures beside the ways in are the same evidence the forecast ends on, stated before anyone commits a coordinate. There are three ways in and the third is not decorative: Kakao's administrative search matches Hangul only, and geolocation outside the service area is refused, so a visitor with neither used to be handed two errors that pointed at each other.*
+Choose a location to load its forecast. Device location requires a button press; Korean area search and four example locations are also available.
 
-![The rain window as a sentence, above the 24-hour time axis](public/screenshots/forecast.webp)
+![Rain forecast above the 24-hour timeline](public/screenshots/forecast.webp)
 
-*The heading answers when, not whether — a probability alone cannot tell someone leaving at 09:00 from someone leaving at 21:00, and it carries the window's own total amount, because 90% × 1mm and 50% × 20mm are different mornings. The ribbon is eight 3-hour blocks on a plain 0–100% scale, with the umbrella threshold drawn at the value it names and the rain window marked across every block it covers; beneath the bars, a second lane carries each block's own precipitation amount in the palette's third colour — the same provider's hourly amounts, on the lane's own mm scale, never the probability's axis. It is one provider's hourly series and says so, because the day figures below it are a blend of several. A block nobody published is hatched and shows a dash, never 0% — in either band.*
+The timeline shows eight three-hour blocks from one named provider, with rain probability above and rainfall amount below. The heading summarizes the expected rain window.
 
-![Today and tomorrow as two cards, over the two evidence cards](public/screenshots/outlook.webp)
+![Today and tomorrow, followed by provider comparisons](public/screenshots/outlook.webp)
 
-*Today and tomorrow are different calculations, so they are different surfaces and each card carries its own method tag — performance weighting is scored on next-day forecasts only and never claimed for today. On each card the amount stands beside the probability at equal weight, with its own provider count (fewer services publish an amount than a probability), and tomorrow's spread is attributed to the members that said it — 많으면/적으면 with provider names. Below them, on the receipts shelf — one quiet raised surface holding exactly what the 한눈에 fold governs: every provider with the figure it actually gave, drawn as its own bar so the bar tracks the number beside it, and the influence that figure was granted stated separately; then the longer outlook, which returns to a plain equal average from the day after tomorrow. The station the evidence comes from is named once, where the scoring is explained.*
+Today uses equal weights. Tomorrow's card names the method in use, and the comparison below shows each provider's probability and share of the blend.
 
-<img src="public/screenshots/mobile.webp" alt="The same forecast on a phone" width="320">
+<img src="public/screenshots/mobile.webp" alt="The forecast on a phone" width="320">
 
-*On a phone the sentence and both day cards stay whole; only the ribbon scrolls sideways, so nobody has to swipe to get the answer. A sparkline miniature of the timeline pins to the top through the full scroll — the graph is the navigation — carrying the 한눈에 ⇄ 전체 근거 toggle. A first visit opens already folded: the receipts collapse to one-line summaries of their own numbers, and either the toggle or a summary row unfolds them; the choice is remembered per device either way.*
+The timeline scrolls horizontally on a phone. Its pinned miniature carries a control for expanding or folding the supporting evidence.
 
-![The scoring record: the current verdict, then the evidence it rests on](public/screenshots/scoring.webp)
+![Scoring page when the performance database is unavailable](public/screenshots/scoring.webp)
 
-*`/behind-the-data` is the scoring record, rendered from the database on each request rather than written down once. It opens with the mode the blend is actually in and the comparison count against the bar it has to clear, so nobody has to infer whether learning is on. Below the three rules for reading any number on the site, the evidence table names each provider's samples, wet and dry days, Brier score and granted influence — and an ineligible provider is labelled short of samples, never as bad. The benchmark table states the benchmark's own verdict rather than what is being served, and includes the single-source rows on purpose: in this reading the blend has not yet beaten Open-Meteo alone, and a page that only showed comparisons it won would not be worth publishing.*
+The scoring record shows the current weighting mode, sample counts, provider scores and benchmark results. Evidence can be shared for up to ten minutes; the page shows when it was read.
 
 ## Product contract
 
-- The forecast target is the user's exact submitted coordinate inside the supported South Korea service area, validated against official administrative boundaries.
-- The user explicitly taps for browser geolocation or searches for a Korean place. The app does not prompt automatically or infer location from an IP address.
-- User coordinates are used for the request and are not written to the performance database.
-- Local performance is evidence from the KMA Station Match, not a claim that the station is the user's location.
-- Rain probability is the initial accuracy target. Rain-amount error is reported separately and never substituted for probability accuracy.
-- Until evidence passes every gate, the forecast uses equal influence among providers that supplied a valid value.
+- Requests use the submitted coordinate, validated against the supported South Korea service area. Search results use an administrative area's representative point.
+- Browser geolocation requires an explicit button press. The app does not infer location from an IP address.
+- Coordinates are sent to the server and weather providers for the forecast. They are not written to the performance database. The device remembers the last selection at reduced precision; coordinate-based forecasts may be cached temporarily in server memory.
+- Local performance comes from a nearby KMA ASOS Station Match. Conditions there can differ from those at the selected location.
+- Probability accuracy and rain-amount error are scored separately.
+- Tomorrow uses recent-performance weights only when evidence and benchmark checks pass. While recent evidence is immature, eligible archive evidence can provide a limited adjustment. Otherwise the responding providers receive equal influence.
+- An unavailable provider is omitted. An unavailable evidence store causes equal weighting; a forecast that cannot be loaded displays an error and retry control.
 
 ## How recent performance works
 
-The [`local-performance`](.github/workflows/local-performance.yml) workflow is scheduled at 06:10 and 18:10 KST. For every active KMA ASOS station it can read, one run:
+The [`local-performance`](.github/workflows/local-performance.yml) workflow is scheduled at 06:10 and 18:10 KST. For each active KMA ASOS station it can read, a run:
 
-1. stores one completed daily precipitation observation — yesterday for the 18 KST cohort, two days back for the 06 KST one;
-2. captures each available provider's next-day rain probability and amount;
-3. freezes the adaptive and equal-weight outputs before the outcome exists;
-4. writes the immutable capture and corrected station-day observation to PostgreSQL.
+1. stores completed daily observations, using yesterday for the 18 KST group and two days back for the 06 KST group;
+2. captures provider forecasts for the next day;
+3. computes the adaptive and equal-weight forecasts before the outcome exists;
+4. stores the immutable forecasts and station-day observations in PostgreSQL.
 
-A cohort label records **which scheduled slot** a capture belongs to, not the clock hour it was taken at. GitHub runs scheduled workflows on a best-effort basis and can start them hours late: across the captures stored so far, cohort `06` rows were actually taken between 06 and 14 KST and cohort `18` rows between 18 and 04 KST. Lead time therefore varies inside a cohort, which weakens — but does not remove — the reason the two are scored separately.
+Morning and evening capture groups are scored separately. A group identifies the scheduled slot; collection may start late. The scoring record reports the measured time between collection and the target day. Providers within a capture share the collection time, but their different update schedules and forecast horizons can still affect the comparison. [Issue 118](https://github.com/mhju0/raintoday/issues/118) records the investigation and decision.
 
-Rather than leave that invisible, the profile measures it: every capture's real distance from the start of its target day is derived from `capturedAt`, and `/behind-the-data` states the spread for the station it is showing. It is not filtered out of the scoring pool, because every provider inside one capture shares that capture's lead time, so the drift is common to each side of the comparisons the blend rests on — noise rather than bias. A manual dispatch, though, is a person choosing a label rather than the scheduler slipping, so it is refused outright when the clock contradicts the cohort it names. The remaining question — whether to group by measured lead time once samples are plentiful — is [#118](https://github.com/mhju0/raintoday/issues/118).
+The morning group reads an older observation date because the previous day's ASOS summary may not yet be published. Observation request failures are faults, never missing observations or dry days. Transient failures receive bounded retries; rejected credentials are not retried.
 
-The two cohorts deliberately read different days. ASOS compiles a calendar day's summary some hours after midnight, not at it, so at 06 KST most of yesterday's rows do not exist yet — and a day the record has not compiled answers exactly the same NODATA as a station that has no row at all. Reading yesterday at 06 KST therefore recorded absences that were nothing of the kind. The early cohort reaches one day further back: both cohorts then read a published day, every date still gets two reads, and the later one is a real second chance rather than a premature one.
+The station catalog is the collector's only KMA apihub request. If catalog retries fail, collection can continue using stored stations without activating or retiring any. Forecast providers and the data.go.kr observation API are read separately.
 
-The station catalog is the run's only call to KMA apihub — the captures read the weather providers and the observations read data.go.kr — so an apihub outage no longer discards a cohort that never needed it. The catalog read backs off across three attempts, and if it still fails the run proceeds on the stations already recorded, reports `catalogSource: "store"`, and applies no activation or retirement until a catalog read succeeds again.
+A compared provider's read fault prevents that capture from being stored. A retry cannot fill in an immutable capture later. The run tolerates a limited share of failed captures and retries a failed cohort on a fresh runner; a second failure fails the workflow.
 
-The observation read distinguishes a station ASOS has no row for from a request that was refused or dropped. Only the first is an absence; the second is counted in `observationsFailed`, named in `failures`, and fails the run. Throttled and dropped reads are retried with a short backoff, and a refused key is not retried at all.
+Probability scores use completed days, including dry days, within a 60-day operating window and a 14-day half-life. The page reports Brier scores, misses, false alarms, rainy-day amount MAE, and a separate seven-day Brier slice.
 
-The capture path draws the same line and is stricter about what it keeps. A capture is refused outright when a compared provider's read faults, because a capture is frozen and never overwritten — one short a provider is permanent and reads exactly like an honest one. Refusing is not the same as alerting: since a refused capture stores nothing, a few of them are missing data rather than wrong data, and the run fails only when they pass a tolerated share of the cohort. When an attempt does fail, the workflow runs the cohort again on a fresh runner, which is a fresh egress address and so an independent draw; a run the retry rescues finishes green, and only a double failure alerts.
+Learned influence requires at least 30 comparable captures per provider, with both wet and dry evidence. It increases gradually through 60 captures and uses provider floors and caps. A provider without sufficient history keeps a neutral share. Serving renormalizes influence across providers that supplied the requested value.
 
-The serving profile keeps the two capture cohorts separate. Provider probability performance uses all completed days—including dry days—with a 60-day operating window and a 14-day half-life. It reports Brier score, misses, false alarms, and rainy-day amount MAE. Public evidence also includes the latest seven-day Brier slice.
+The Prospective Benchmark compares adaptive and equal forecasts stored before the outcome. It passes when enough comparable samples exist and the adaptive Brier score is no worse than the equal score, including ties. Insufficient samples or regression suspend learned weighting. The condition is checked when evidence is read.
 
-Learned influence requires at least 30 comparable captures per provider plus both wet and dry evidence. It ramps from equal to learned influence, applies provider floors and caps, and renormalizes over the providers that actually answered the current request. A provider short of that evidence is held at its **equal share**, never at the lower bound — absence of evidence is not evidence of poor performance, and the floor is for a provider that has been measured and scored badly. The Prospective Benchmark freezes adaptive and equal outputs before outcomes and suspends learning if the adaptive output regresses or lacks a fair comparison set.
+Learned influence applies only to tomorrow. Today and days 2–7 use equal-provider averages. These records do not yet establish that 오늘비 is more accurate overall across locations and seasons.
 
-Learned influence applies only to tomorrow, the lead time the Capture Cohorts measure. Days 2–7 remain an equal-provider outlook until those horizons have their own prospective evidence.
+### Archive evidence while recent records accumulate
 
-This supports the claim “weighted by recently observed local performance.” It does not yet support a claim that 오늘비 is more accurate overall; that requires accumulated prospective results.
+A station can be seeded with retrospective evidence: an underlying model's day-ahead forecast from a public archive, paired with the KMA ASOS observation. This stays separate from prospective Forecast Captures:
 
-### Seed evidence before live evidence exists
+- Seed scores use rainfall amount and rain/no-rain outcomes. They never enter the probability Brier score or Prospective Benchmark.
+- Seed comparisons have their own table, without a capture group or frozen blend.
+- Seed influence moves halfway from equal weights toward the weights calculated from archive scores.
+- Mature recent evidence replaces the seed. Seed evidence cannot override a benchmark suspension.
+- Providers without a suitable archive proxy keep a neutral share. WeatherAPI has no published model lineage with a public archive. Visual Crossing's hourly archive cost exceeds this project's backfill budget.
 
-Prospective evidence takes about a month per station to mature, which would leave a first-time visitor on equal weights. To avoid that, a station can be seeded with **retrospective** evidence rebuilt from public archives: what each provider's underlying model forecast a day ahead, joined to the KMA ASOS observation for that date.
+The forecast identifies archive-based weighting and shows provider sample counts, missed wet days and false alarms. The separate prospective comparison has its own count and verdict.
 
-Seed evidence is a separate class from a Forecast Capture, and stays separate:
-
-- It is scored on forecast **amount** and rain/no-rain outcome, because archives publish no probability. It never enters the Brier path.
-- It is stored in its own table, carries no cohort and no frozen blend, and therefore can never reach the Prospective Benchmark.
-- Its influence is capped at half the distance from equal weighting, because it rests on model proxies rather than each provider's own published forecast.
-- It applies **only** while live evidence is immature. It never overrides a benchmark suspension, and mature live evidence supersedes it entirely.
-- A provider with no honest archive proxy is not seeded at all and keeps a neutral share rather than being demoted for lacking one. That is currently WeatherAPI, which publishes no model lineage with a public archive, and Visual Crossing, whose archive exists but is billed per hour — 24 records a station-day, so one station's ~90 days would cost more than two days of the entire free allowance, against 97 stations.
-
-The page says which of the two is driving the blend, and in seed mode shows the wet-day miss rate rather than a Brier table.
-
-Backfill is a one-shot offline job, not something a visitor waits on:
+Backfill is an offline operation that writes evidence:
 
 ```bash
 npm run performance:seed -- --start=2025-06-01 --end=2025-08-31
@@ -91,17 +86,13 @@ npm run performance:seed -- --start=2025-06-01 --end=2025-08-31
 
 ## User flow
 
-The forecast is the site, so it is served at `/`:
+1. Choose device location, search for a Korean area, or select an example.
+2. Read the expected rain window and next 24 hours from the named hourly provider. The rain-window threshold is 40% or higher. Lower values do not mean rain is impossible; unpublished values remain labelled as missing.
+3. Compare today and tomorrow, each labelled with its calculation method. Rainfall amount has its own provider count.
+4. Expand the provider comparison, longer outlook and scoring evidence if needed.
+5. Open the evidence-status link to the station's [`/behind-the-data`](https://raintoday.vercel.app/behind-the-data) record. Device-location links carry only the public station ID; area links carry the area's representative coordinate.
 
-1. choose precise browser location, search for a Korean place, or take one of the worked examples;
-2. read when rain starts and stops, as one sentence;
-3. read the shape of the next 24 hours on a horizontal time axis — eight 3-hour blocks from a single named provider, probability above and that provider's own per-block amounts on a second lane below;
-4. compare today and tomorrow, each tagged with how it was calculated;
-5. inspect the Station Match, each provider's probability and influence, and the longer outlook;
-6. inspect the evidence the weighting rests on — recent Brier scores, misses and false alarms per provider when live evidence is driving it, the wet-day miss rate when seed evidence is;
-7. follow the evidence status itself — it is the sentence people do not understand, so it is the way in — to [`/behind-the-data`](https://raintoday.vercel.app/behind-the-data), the scoring record for **that** station: what the benchmark has decided today, how far ahead its captures were made, and the conditions under which the app stops trusting its own learning. The link carries the coordinate, so it opens on the station that produced the status rather than on Seoul, and the record can be pointed anywhere with the same administrative search the chooser uses.
-
-There is no ambient scene behind any of it. The page is one vertical read whose graph is also its navigation: a miniature of the timeline stays pinned while the evidence scrolls, carrying the 한눈에 ⇄ 전체 근거 density toggle. A first visit opens at 한눈에 — the folded sections leave one-line summaries carrying their own numbers, and tapping one unfolds the real section — while a stored choice is never overridden. Each section opens with a small mono label naming whose number it carries, and the timeline itself can be scrubbed (pointer or arrow keys) for one block's full reading. Beyond those, the summary rows, and "위치 바꾸기" there is nothing to operate.
+A first visit opens the supporting evidence folded under 한눈에. A summary row or the pinned control expands it, and the device remembers the choice. Pointer movement or arrow keys inspect individual timeline blocks.
 
 ## Architecture
 
@@ -115,11 +106,10 @@ flowchart TB
   Local --> Providers["Forecast provider snapshots at user coordinates"]
   Local --> Match["ASOS Station Match"]
   Match --> Database["PostgreSQL performance evidence"]
-  Providers --> Blend["Equal or recent-performance influence"]
-  Database --> Profile["Cohort-specific Brier profile and guardrail"]
+  Providers --> Blend["Equal or evidence-based influence"]
+  Database --> Profile["Capture-group Brier profile and benchmark"]
   Profile --> Blend
   Blend --> Browser
-
   Schedule["06:10 and 18:10 KST workflow"] --> Catalog["KMA ASOS station catalog"]
   Schedule --> Captures["Immutable next-day provider captures"]
   Schedule --> Observations["Completed KMA ASOS observations"]
@@ -128,35 +118,35 @@ flowchart TB
   Observations --> Database
 ```
 
-Important boundaries:
+| Module | Responsibility |
+| --- | --- |
+| `lib/location.ts` | Service-area admission before KMA grid conversion or provider requests |
+| `lib/exampleLocations.ts` | Tested examples using Kakao representative points |
+| `lib/providers/` | Provider snapshots and the ordered registry shared by capture and serving |
+| `lib/performance/performance.ts` | Scores, evidence requirements, weights and the Prospective Benchmark |
+| `lib/performance/store.ts`, `postgres.ts` | Persistence contract and production adapter |
+| `lib/performance/capture.ts`, `batch.ts` | Immutable captures and nationwide collection |
+| `lib/performance/influence.ts` | Shared blend calculation for capture and serving |
+| `lib/performance/seed.ts`, `seedScore.ts`, `precipSkill.ts`, `backfill.ts` | Archive reconstruction, scoring and offline backfill |
+| `lib/localForecast.ts` | Coordinate forecasts, nearby-station evidence and shared record reads |
+| `lib/localForecastView.ts` | Public forecast response and display fields |
+| `lib/forecast/` | Three-hour blocks and threshold-based rain windows |
+| `app/api/` | Rate-limited forecast and location-search HTTP adapters |
+| `app/behind-the-data`, `lib/behindTheData.ts` | Per-request scoring page and its view model |
+| `lib/quotaRunway.ts` | Provider quota runway used by the service-health check |
 
-- `lib/location.ts` validates Korean coordinates and converts them to KMA grid coordinates; `lib/exampleLocations.ts` holds the chooser's worked examples, which are Kakao's own representative points and are tested against the service-area geometry.
-- `lib/providers/*` reads normalized provider snapshots at a requested location; `lib/providers/registry.ts` holds the single ordered list of compared providers, and the first one that answers becomes the comparison primary.
-- `lib/performance/performance.ts` owns scoring, evidence gates, bounded weights, and the Prospective Benchmark.
-- `lib/performance/store.ts` defines persistence; `lib/performance/postgres.ts` is the production adapter.
-- `lib/performance/capture.ts` freezes one station/cohort prediction; `lib/performance/batch.ts` orchestrates the nationwide bounded run.
-- `lib/localForecast.ts` combines exact-coordinate forecasts with nearby-station evidence without persisting user coordinates.
-- `lib/performance/influence.ts` derives Effective Influence and the blend it produces, for both the capture and serving paths.
-- `lib/performance/seed.ts` rebuilds retrospective day-ahead evidence from public archives; `lib/performance/seedScore.ts` scores it through the pure daily skill function in `lib/performance/precipSkill.ts`; `lib/performance/backfill.ts` orchestrates the one-shot offline run.
-- `lib/localForecastView.ts` projects that response onto the flat contract `/api/local-forecast` returns, so the page never reads the domain model directly.
-- `lib/forecast/blocks.ts` folds a now-anchored hourly series into eight 3-hour blocks; `lib/forecast/rainWindow.ts` reads the rain window out of them. A block with no published probability stays null rather than 0%, and an unpublished block ends a run rather than extending it.
-- `app/api/local-forecast` and `app/api/locations/search` are rate-limited HTTP adapters.
-- `app/behind-the-data` is the scoring record, rendered per request from the same evidence read the forecast uses, shared for ten minutes across visitors of one station and dated by when that read happened; `lib/behindTheData.ts` derives its view. It reads the performance store directly from the server component rather than adding a third API route.
-- `lib/quotaRunway.ts` turns an upstream provider's remaining monthly quota into a runway, which the service-health check reads.
-
-The served surface is small and closed: `/`, `/behind-the-data`, `/api/local-forecast`, `/api/locations/search`, `/icon.svg` and `/opengraph-image`, plus a 404. The retired `/atmosphere` and `/diagnostics` paths answer real HTTP redirects to `/`, independent of JavaScript; every other path 404s.
-
-오늘비 grew out of a cinematic Seoul-only sky scene, and for a while carried a second, single-station precipitation-scoring pipeline beside the served one. Both are gone from the tree, together with the radar renderer and the air-quality reading that only that scene ever displayed. `lib/performance/` is now the only scoring pipeline in the repository, and it is the one a visitor reads. What was tried and why it was dropped is kept in [`docs/adr/`](docs/adr/) rather than in the code.
+The served surface is `/`, `/behind-the-data`, `/api/local-forecast`, `/api/locations/search`, `/icon.svg`, `/opengraph-image`, and a Korean 404 page. Retired `/atmosphere` and `/diagnostics` URLs redirect to `/`.
 
 ## Documents
 
 | Document | Contents |
 | --- | --- |
-| [`CONTEXT.md`](CONTEXT.md) | Domain glossary: Forecast Location, Station Match, Capture Cohort, Effective Influence, and the rest |
-| [`docs/weather-sources.md`](docs/weather-sources.md) | Provider contracts, configuration, cache behavior, failure modes, and attribution |
-| [`docs/adr/`](docs/adr/) | Decision records: Korean location selection, the service-area boundary, the two station gates, the retired second scoring pipeline, the chart-recorder redesign, the glance-first fold, and the operating window |
-| [`docs/research/`](docs/research/) | Source evidence: the SGIS boundary package's provenance, nationwide station coverage, why the AWS network is not adopted, and the elevation gate |
-| [`lib/performance/README.md`](lib/performance/README.md) | The nationwide pipeline: live captures, retrospective seed evidence, and the mode gate |
+| [`CONTEXT.md`](CONTEXT.md) | Domain glossary |
+| [`docs/weather-sources.md`](docs/weather-sources.md) | Provider contracts, configuration, caching, failures and attribution |
+| [`docs/adr/`](docs/adr/) | Architecture, coverage and visual-design decisions |
+| [`docs/research/`](docs/research/) | Location and observation-network evidence |
+| [`lib/performance/README.md`](lib/performance/README.md) | Live capture and retrospective seed pipeline |
+| [`docs/VERIFYING.md`](docs/VERIFYING.md) | Tests, fresh worktrees and browser checks |
 
 ## Stack
 
@@ -164,15 +154,15 @@ The served surface is small and closed: `/`, `/behind-the-data`, `/api/local-for
 | --- | --- |
 | App | Next.js 16, React 19, TypeScript |
 | Styling | Tailwind CSS 4 and custom responsive CSS |
-| Forecasts | Open-Meteo, KMA, Pirate Weather, WeatherAPI, Visual Crossing — in that order |
-| Ground truth | KMA ASOS daily precipitation |
+| Forecasts, in provider order | Open-Meteo, KMA, Pirate Weather, WeatherAPI, Visual Crossing |
+| Observations | KMA ASOS daily precipitation |
 | Persistence | PostgreSQL via Postgres.js |
-| Scheduling | GitHub Actions: fixed KST evidence cohorts, and a six-hourly service check |
-| Production dependencies | `next`, `react`, `react-dom`, `postgres`, and nothing else |
+| Scheduling | GitHub Actions: two KST evidence groups and a six-hourly service check |
+| Production dependencies | `next`, `react`, `react-dom`, `postgres` |
 
 ## Run locally
 
-Use Node.js 24.15 or later in the 24.x line, matching CI (`nvm use` reads `.nvmrc`).
+Use Node.js 24.15 or later in the 24.x line, matching CI. `nvm use` reads `.nvmrc`.
 
 ```bash
 npm ci
@@ -180,32 +170,22 @@ install -m 600 .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Open-Meteo provides a keyless forecast baseline; configure `KAKAO_REST_API_KEY` for Korean administrative-area search and for naming a device coordinate. Optional weather providers activate when configured.
+Open [localhost:3000](http://localhost:3000). Open-Meteo provides a keyless baseline. Configure `KAKAO_REST_API_KEY` for area search and device-coordinate naming. Optional weather providers activate when configured.
 
-To collect regional performance, configure:
+For regional collection, configure `PERFORMANCE_DATABASE_URL`, `KMA_APIHUB_KEY` (station-catalog subscription), `KMA_OBSERVATION_API_KEY` (ASOS daily subscription), and every compared-provider credential in [`.env.example`](.env.example).
 
-- `PERFORMANCE_DATABASE_URL`: a standard PostgreSQL connection URL;
-- `KMA_APIHUB_KEY`: subscribed to the KMA surface-observation station catalog, which is all this key is used for;
-- `KMA_OBSERVATION_API_KEY`: subscribed to the KMA ASOS daily service;
-- all compared-provider credentials listed in [`.env.example`](.env.example); the scheduled
-  collector requires complete configuration even though serving can degrade without these keys.
-
-The scheduled workflow runs the fixed cohorts. Capture, seed, and observation commands
-write evidence; they are not verification commands. Do not manually dispatch a production
-cohort to accelerate acceptance or backfill forecasts.
-
-The scheduled workflow needs the same values as GitHub Actions secrets. If the database or station catalog is unavailable, the public forecast remains usable with an explicit equal-weight/no-evidence state.
+The scheduled collector requires complete provider configuration, although serving can work with fewer providers. Its GitHub Actions secrets need the same values. Capture, seed and observation commands write evidence; they are not verification commands. Do not manually dispatch a production cohort to accelerate acceptance or backfill forecasts.
 
 ### Service health
 
-The scheduled evidence jobs prove the collector's credentials work; they say nothing about the served path, and production reads its keys from a different store. A separate check watches what a visitor actually gets, and the one upstream quota low enough for this project to reach:
+The service check verifies the served page, a forecast with at least four usable provider probabilities, and administrative search. It also checks whether Pirate Weather's remaining quota covers scheduled collection plus a visitor reserve for the rest of the billing period.
 
 ```bash
 npm run service:health
 npm run service:health -- --target=local
 ```
 
-It asserts the page answers, that a forecast still blends at least four of the five compared providers with a usable probability, and that administrative search still resolves. It also reads Pirate Weather's `ratelimit-*` headers and fails when what is left will not cover the scheduled pipeline's burn for the rest of the billing period plus a reserve held back for visitors — runway rather than a fixed threshold, because the same balance is comfortable on the last day of a period and fatal on the first. It runs every six hours from `.github/workflows/service-health.yml`. Targets are named rather than free-form URLs, so every address it requests is a constant in the script.
+It runs every six hours through `.github/workflows/service-health.yml`, using named targets with fixed URLs. It reads live services and consumes provider quota.
 
 ## Verification
 
@@ -213,42 +193,33 @@ It asserts the page answers, that a forecast still blends at least four of the f
 npm run verify
 ```
 
-`npm run verify` runs lint, route-type generation and TypeScript, tests, and a production
-build. `npm test` runs the library, JSDOM component, and route-handler suites. Each is
-available separately as `test:lib`, `test:ui`, and `test:routes`.
-For focused feedback, run `node --test lib/localForecast.test.ts` or
-`npm exec --no -- tsx --test --test-name-pattern="GPS" components/local/LocalForecastExperience.test.tsx`.
-See [the verification guide](docs/VERIFYING.md) for fresh checkouts, worktrees, and browser checks. The PostgreSQL performance store is held to the same executable contract as the in-memory one, but only when a disposable database is supplied:
+This runs lint, route-type generation, TypeScript, tests and a production build. Suites are also available as `test:lib`, `test:ui` and `test:routes`. For focused checks:
+
+```bash
+node --test lib/localForecast.test.ts
+npm exec --no -- tsx --test --test-name-pattern="GPS" components/local/LocalForecastExperience.test.tsx
+```
+
+The PostgreSQL adapter uses the same contract suite as the in-memory store. Run it only against a disposable database:
 
 ```bash
 PERFORMANCE_STORE_CONTRACT_URL=postgres://… npm test
 ```
 
-CI runs this contract against its own disposable PostgreSQL service on every PR.
-The suite truncates that database's tables, so it must never be a production URL. Without it, the PostgreSQL contract is reported as skipped rather than passing.
-
-Manual product checks should cover:
-
-- location permission only after the location button is pressed;
-- Korea-only place search and location switching;
-- desktop and narrow mobile layouts;
-- equal influence when performance evidence is missing or insufficient;
-- station name, distance, sample depth, and recent scores when evidence is active;
-- no user coordinates in PostgreSQL performance tables;
-- `/behind-the-data` naming the mode it is actually in, with the comparison count shown against its bar.
+The suite truncates tables. CI supplies disposable PostgreSQL; without a test URL, the local SQL contract is reported as skipped. See [the verification guide](docs/VERIFYING.md) for browser and database checks.
 
 ## Limits
 
-- Initial launch covers South Korea and precipitation only.
-- Exact-coordinate admission uses the official SGIS 시도 boundary geometry, so offshore and cross-border coordinates are rejected. The geometry is simplified to a 10 m tolerance, so a decision within roughly 25 m of the coastline can differ from the unsimplified source. Manual place search remains country-filtered to Korea.
-- ASOS is the first observation network. AWS eligibility remains a later audited expansion.
-- Scoring policy defaults are: rain at 0.1 mm; miss/false-alarm decisions at 50%; at least 30 comparable captures with both wet and dry evidence; influence ramping through 60 captures; provider influence bounded to 5–60%; and an `exp(-12 × Brier)` score transform. They are pinned to the code by a test, so this sentence cannot drift from the policy object.
-- The two station gates — distance at most 100 km, elevation difference at most 400 m — are retained but **non-binding in practice**, and are documented as such in [ADR 0005](docs/adr/0005-station-proximity-is-language-not-eligibility.md) and [ADR 0006](docs/adr/0006-the-elevation-gate-is-non-binding.md). No populated place in Korea is more than about 30 km from an ASOS station, and no populated centre exceeds the elevation limit, so distance selects the *wording* the page uses rather than deciding eligibility.
-- A location may have no eligible observation station even when forecasts are available.
-- Provider availability and forecast horizon vary; missing values are omitted, never treated as zero.
-- Prospective evidence needs time to accumulate. A station begins on retrospective seed evidence where a backfill has been run, and on equal influence otherwise.
-- Seed evidence uses each provider's underlying model as a proxy (GFS for Pirate Weather, KMA's own model for KMA), not the provider's published product. It is capped, labelled as retrospective, and replaced by live evidence as soon as that matures.
-- The offline backfill reads the station catalog from KMA apihub `stn_inf`; without that subscription it falls back to the committed catalog in `lib/performance/stationCatalog.ts`, which must be regenerated with `npm run performance:catalog` before nationwide seeding.
+- South Korea and precipitation only.
+- Service-area admission uses official SGIS 시도 geometry simplified to a 10 m tolerance. Decisions within roughly 25 m of the coastline may differ from the unsimplified geometry. Manual search is country-filtered to Korea.
+- ASOS is the observation network. AWS adoption remains outside the current scope.
+- Scoring policy defaults are: rain at 0.1 mm; miss/false-alarm decisions at 50%; at least 30 comparable captures with both wet and dry evidence; influence ramping through 60 captures; provider influence bounded to 5–60%; and an `exp(-12 × Brier)` score transform. A test checks these documented values against the policy object.
+- Station eligibility requires distance at most 100 km and elevation difference at most 400 m. The coverage study's 36 administrative centres had a maximum nearest-station distance of 30.2 km; this is not a measurement of every inhabited location. See [ADR 0005](docs/adr/0005-station-proximity-is-language-not-eligibility.md), [ADR 0006](docs/adr/0006-the-elevation-gate-is-non-binding.md), and the [coverage study](docs/research/nationwide-verification-coverage.md).
+- A location can have forecasts but no eligible observation station.
+- Provider availability and horizon vary. Missing values are omitted, never treated as zero.
+- Prospective evidence takes time to accumulate. A station uses eligible archive evidence while recent evidence is immature, and equal influence otherwise.
+- Seed evidence uses underlying models, such as GFS for Pirate Weather and KMA's model for KMA, as proxies for the provider's published product.
+- Offline backfill falls back to the committed station catalog when KMA apihub `stn_inf` is unavailable. Regenerate it with `npm run performance:catalog` before nationwide seeding.
 - Weather information is not suitable for safety-critical decisions.
 
 ## License

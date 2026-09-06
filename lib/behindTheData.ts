@@ -64,7 +64,7 @@ export interface BehindTheDataBenchmarkRow {
   label: string;
   brierScore: number;
   /** The benchmark's judgement, not what is served — the banner says that. */
-  verdict: "이김" | "짐" | "판정 전" | "기준선" | "참고";
+  verdict: "기준 통과" | "기준 미달" | "판정 전" | "기준선" | "참고";
 }
 
 export interface BehindTheDataView {
@@ -102,7 +102,7 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
       label: "성능 기록을 읽을 수 없음",
       detail: evidence.reason === "no-eligible-station"
         ? "이 위치에는 대조할 수 있는 관측소가 없어, 모든 예보 서비스를 똑같은 비중으로 평균합니다."
-        : "성능 기록 저장소에 닿지 못했습니다. 예보는 그대로 동작하며, 모든 예보 서비스를 똑같은 비중으로 평균합니다.",
+        : "채점 기록을 불러오지 못했습니다. 예보를 제공하는 서비스가 있으면 같은 비중으로 평균합니다.",
       benchmark: null,
       benchmarkSampleCount: null,
     };
@@ -118,7 +118,7 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
         learningApplied: true,
         influenceSource: "learned",
         label: "학습 가중치 사용 중",
-        detail: "최근 이 지역에서 더 잘 맞은 서비스에 더 큰 비중을 주고 있습니다. 이 방식이 단순 평균을 이기고 있다고 판정된 상태입니다.",
+        detail: "최근 비교 기록에 따라 서비스별 비중을 조정합니다. 필요한 표본이 모였고, 이 방식의 점수가 단순 평균보다 나쁘지 않아 적용 중입니다.",
       };
     case "ramping":
       return {
@@ -126,8 +126,8 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
         mode: "ramping",
         learningApplied: true,
         influenceSource: "learned",
-        label: "학습 가중치 적용 중 · 아직 절반의 세기",
-        detail: "증거가 쌓이는 만큼만 단순 평균에서 학습 쪽으로 옮겨가는 중입니다. 표본이 늘수록 반영 폭이 커집니다.",
+        label: "학습 가중치를 점진적으로 반영 중",
+        detail: "비교 기록이 늘수록 서비스별 비중의 조정 폭을 키웁니다. 현재는 계산된 가중치를 일부만 반영합니다.",
       };
     case "seed":
       return {
@@ -141,7 +141,7 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
         // The seed is deliberately not described as learning: it is retrospective,
         // scored on amount only, capped, and it can never rescue a suspension.
         label: "과거 기록으로 임시 가중 중",
-        detail: "이 지역의 라이브 채점 표본이 아직 부족해, 공개 아카이브로 만든 과거 기록을 절반의 세기로만 쓰고 있습니다. 라이브 증거가 자라면 이 값은 완전히 대체됩니다.",
+        detail: "최근 비교 기록이 부족해 과거 모델 예보와 관측을 비교한 결과를 임시로 씁니다. 같은 비중에서 과거 기록으로 계산한 비중까지 차이의 절반만 반영하며, 최근 기록이 충분해지면 대체합니다.",
       };
     case "suspended":
       return {
@@ -152,7 +152,7 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
         label: "학습 정지됨",
         detail: profile.reason === "benchmark-regression"
           ? "학습한 가중치가 단순 평균보다 나빴습니다. 그래서 지금은 모든 예보 서비스를 똑같은 비중으로 평균합니다."
-          : "학습이 이기고 있는지 판정할 만큼 비교 표본이 모이지 않았습니다. 판정 전까지는 모든 예보 서비스를 똑같은 비중으로 평균합니다.",
+          : "두 계산법을 비교할 표본이 부족합니다. 판정 전까지는 응답한 예보 서비스를 같은 비중으로 평균합니다.",
       };
     default:
       return {
@@ -161,7 +161,7 @@ function statusOf(evidence: LocalForecastEvidence): BehindTheDataStatus {
         learningApplied: false,
         influenceSource: "none",
         label: "똑같은 비중으로 평균 중",
-        detail: "이 지역에는 아직 채점된 기록이 없습니다. 모든 예보 서비스를 똑같은 비중으로 평균합니다.",
+        detail: "가중치를 적용할 비교 기록이 충분하지 않습니다. 응답한 예보 서비스를 같은 비중으로 평균합니다.",
       };
   }
 }
@@ -184,9 +184,9 @@ function benchmarkRowsOf(profile: RecentPerformanceProfile): BehindTheDataBenchm
   // captures it has not ruled at all, and calling the adaptive row "in use" then
   // would claim a judgement that has not happened.
   const adaptiveVerdict = benchmark.status === "passing"
-    ? "이김"
+    ? "기준 통과"
     : benchmark.status === "regression"
-      ? "짐"
+      ? "기준 미달"
       : "판정 전";
   const rows: BehindTheDataBenchmarkRow[] = [
     { label: "성능 반영 평균", brierScore: benchmark.adaptiveBrier, verdict: adaptiveVerdict },

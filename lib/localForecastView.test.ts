@@ -248,8 +248,8 @@ test("the unconfigured-database message asks nothing of the visitor", () => {
 });
 
 test("the capture cohort is resolved to display copy, not a bare code", () => {
-  assert.equal(toLocalForecastView(response({ captureCohort: "06" })).cohortLabel, "오전 6시 발표 기준");
-  assert.equal(toLocalForecastView(response({ captureCohort: "18" })).cohortLabel, "오후 6시 발표 기준");
+  assert.equal(toLocalForecastView(response({ captureCohort: "06" })).cohortLabel, "오전 수집 기록");
+  assert.equal(toLocalForecastView(response({ captureCohort: "18" })).cohortLabel, "오후 수집 기록");
 });
 
 /**

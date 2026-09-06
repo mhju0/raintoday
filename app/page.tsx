@@ -38,13 +38,13 @@ export default function HomePage() {
             비, 여기서는 어떨까요?
           </h1>
           <p style={{ maxWidth: "40ch", lineHeight: 1.7, color: "#b7c2ce", margin: 0 }}>
-            내 위치의 오늘·내일 강수 예보와 날씨 서비스별 최근 지역 관측 성능을 비교합니다.
+            내 위치의 오늘과 내일 비 예보를 확인하세요. 내일 예보는 관측 기록이 충분하고 비교 기준을 통과하면 서비스별 비중을 조정합니다.
           </p>
           <p style={{ fontSize: "0.85rem", letterSpacing: "0.18em", color: "#8a97a6", margin: 0 }}>
-            대한민국 전역 · 오늘과 내일 강수 · 최근 관측 성능
+            대한민국 · 오늘과 내일 비 예보
           </p>
-          <p style={{ maxWidth: "44ch", fontSize: "0.8rem", lineHeight: 1.7, color: "#5e6c7b", margin: 0 }}>
-            위치 선택과 라이브 예보를 보려면 JavaScript를 켜 주세요. 예보: Open-Meteo ·
+          <p style={{ maxWidth: "44ch", fontSize: "0.8rem", lineHeight: 1.7, color: "#8996a5", margin: 0 }}>
+            위치 선택과 예보를 보려면 JavaScript를 켜 주세요. 예보: Open-Meteo ·
             기상청 외. 관측 검증: 기상청 ASOS.
           </p>
         </div>
