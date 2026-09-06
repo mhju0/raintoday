@@ -197,6 +197,12 @@ test("empty and failed searches expose distinct status and retry UI", async () =
   await settleDebounce();
   assert.match(view.container.textContent ?? "", /지역 검색이 잠시 원활하지 않아요/);
   assert.equal(view.container.querySelector(".local-form-status button")?.textContent, "다시 시도");
+  shouldFail = false;
+  await act(async () => view.container.querySelector<HTMLButtonElement>(".local-form-status button")!.click());
+  await settleDebounce();
+  assert.equal(view.input.value, "오류동", "retry keeps the same query");
+  assert.match(view.container.textContent ?? "", /일치하는 행정구역을 찾지 못했어요/);
+  assert.equal(view.container.querySelector(".local-form-status button"), null);
   await view.cleanup();
 });
 
@@ -1307,7 +1313,7 @@ test("a block nobody forecast is drawn empty rather than as a confident 0%", asy
 
   const first = view.container.querySelector(".local-ribbon-col");
   assert.ok(first?.querySelector(".local-ribbon-track.is-na"), "a gap is hatched, not filled");
-  assert.match(first?.textContent ?? "", /—/);
+  assert.match(first?.textContent ?? "", /미발표/);
   assert.equal(
     first?.querySelector(".local-ribbon-bar"),
     null,
@@ -1482,7 +1488,7 @@ test("the verdict sentence carries the window's own total, and the mm lane rides
   // as the window itself, never the blended day amount.
   assert.equal(
     view.container.querySelector("#forecast-heading")?.textContent,
-    "비는 오후 12시부터, 밤 9시까지 — 모두 2.1mm",
+    "비는 오후 12시부터, 밤 9시까지, 모두 2.1mm",
   );
   assert.equal(view.container.querySelectorAll(".local-ribbon-mm").length, 3);
   const label = view.container.querySelector(".local-ribbon-mmlab")?.textContent ?? "";
@@ -1506,7 +1512,7 @@ test("the mm lane keeps a gap hatched and a published zero real", async () => {
   );
   const cells = [...view.container.querySelectorAll(".local-ribbon-mm")];
   assert.equal(cells.length, 3);
-  assert.equal(cells[0].querySelector(".local-ribbon-mmval")?.textContent, "—");
+  assert.equal(cells[0].querySelector(".local-ribbon-mmval")?.textContent, "미발표");
   assert.ok(cells[0].querySelector(".local-ribbon-mmtrack.is-na"), "no published amount is a hatched gap");
   assert.equal(cells[1].querySelector(".local-ribbon-mmval")?.textContent, "0");
   assert.ok(cells[1].querySelector(".local-ribbon-mmtrack i.is-zero"), "a published 0 keeps a real tick");
@@ -1803,4 +1809,165 @@ test("the chooser previews the instrument it is about to fill, empty and honest"
   assert.ok(!preview.className.includes("is-waiting"), "nothing is loading yet, so nothing pulses");
   assert.match(preview.textContent ?? "", /위치를 고르면 여기 그려집니다/);
   await view.cleanup();
+});
+
+const { RecordStationPicker } = await import("./RecordStationPicker");
+const { AppRouterContext } = await import("next/dist/shared/lib/app-router-context.shared-runtime.js");
+
+async function mountRecordPicker(fetchImpl: typeof fetch) {
+  globalThis.fetch = fetchImpl;
+  document.body.replaceChildren();
+  const container = document.createElement("div");
+  document.body.append(container);
+  const destinations: string[] = [];
+  const router = {
+    bfcacheId: "test",
+    back() {}, forward() {}, refresh() {}, hmrRefresh() {},
+    push(href: string) { destinations.push(href); },
+    replace() {}, prefetch() {},
+  };
+  const root = createRoot(container);
+  await act(async () => root.render(
+    <AppRouterContext.Provider value={router}>
+      <RecordStationPicker stationName="서울" />
+    </AppRouterContext.Provider>,
+  ));
+  await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+  return {
+    container,
+    input: container.querySelector<HTMLInputElement>("input")!,
+    destinations,
+    async cleanup() { await act(async () => root.unmount()); },
+  };
+}
+
+const searchResult = kakaoResult({
+  id: "1168058000", name: "삼성1동", label: "서울특별시 강남구 삼성1동",
+  latitude: 37.5143123, longitude: 127.0628123,
+});
+
+for (const [label, mount] of [["chooser", mountChooser], ["record picker", mountRecordPicker]] as const) {
+  test(`${label}: normalizes Location Candidate queries and ignores an older error body`, async (t) => {
+    let finishBody!: () => void;
+    let firstSignal: AbortSignal | null | undefined;
+    const queries: string[] = [];
+    const view = await mount(async (input, options) => {
+      queries.push(new URL(String(input), "http://localhost").searchParams.get("q")!);
+      if (queries.length === 1) {
+        firstSignal = options?.signal;
+        return new Response(new ReadableStream({
+          start(controller) {
+            finishBody = () => {
+              controller.enqueue(new TextEncoder().encode(JSON.stringify({ error: "search_not_configured" })));
+              controller.close();
+            };
+          },
+        }), { status: 503 });
+      }
+      return Response.json({ results: [searchResult] });
+    });
+    t.after(() => view.cleanup());
+    await changeInput(view.input, "  서울　　강남  ");
+    await settleDebounce();
+    assert.equal(queries[0], "서울 강남");
+    await changeInput(view.input, "삼성동");
+    assert.equal(firstSignal?.aborted, true);
+    await settleDebounce();
+    await act(async () => { finishBody(); });
+    assert.match(view.container.textContent ?? "", /서울특별시 강남구 삼성1동/);
+    assert.doesNotMatch(view.container.textContent ?? "", /이곳에서는 지역 검색을 쓸 수 없어요/);
+  });
+
+  test(`${label}: shortening a query clears results and cancels pending work`, async (t) => {
+    let finish!: (response: Response) => void;
+    const signals: AbortSignal[] = [];
+    const view = await mount(async (_input, options) => {
+      signals.push(options!.signal!);
+      return signals.length === 1
+        ? Response.json({ results: [searchResult] })
+        : new Promise<Response>((resolve) => { finish = resolve; });
+    });
+    t.after(() => view.cleanup());
+    await changeInput(view.input, "삼성동");
+    await settleDebounce();
+    assert.match(view.container.textContent ?? "", /서울특별시 강남구 삼성1동/);
+    await changeInput(view.input, "서울시");
+    assert.doesNotMatch(view.container.textContent ?? "", /서울특별시 강남구 삼성1동/);
+    await settleDebounce();
+    await changeInput(view.input, "서");
+    assert.equal(signals[1].aborted, true);
+    await act(async () => { finish(Response.json({ results: [searchResult] })); });
+    assert.doesNotMatch(view.container.textContent ?? "", /서울특별시 강남구 삼성1동/);
+    await settleDebounce();
+    assert.equal(signals.length, 2, "a short query never requests candidates");
+  });
+
+  test(`${label}: unmount aborts an outstanding search`, async () => {
+    let signal: AbortSignal | null | undefined;
+    let finish!: (response: Response) => void;
+    const view = await mount(async (_input, options) => {
+      signal = options?.signal;
+      return new Promise<Response>((resolve) => { finish = resolve; });
+    });
+    await changeInput(view.input, "삼성동");
+    await settleDebounce();
+    await view.cleanup();
+    assert.equal(signal?.aborted, true);
+    await act(async () => { finish(Response.json({ results: [searchResult] })); });
+    assert.equal(view.container.textContent, "");
+  });
+}
+
+test("record picker distinguishes rejected queries, throttling, configuration, and transient failures", async (t) => {
+  const responses = [
+    Response.json({ error: "invalid_query" }, { status: 400 }),
+    Response.json({}, { status: 429 }),
+    Response.json({ error: "search_not_configured" }, { status: 503 }),
+    new Response("upstream failed", { status: 502 }),
+    Response.json({ results: [] }),
+  ];
+  const messages = [/검색어를 인식하지 못했어요/, /검색 요청이 많아요/, /이곳에서는 지역 검색을 쓸 수 없어요/, /잠시 후 다시 시도해 주세요/, /일치하는 행정구역이 없어요/];
+  const view = await mountRecordPicker(async () => responses.shift()!);
+  t.after(() => view.cleanup());
+  for (const [index, message] of messages.entries()) {
+    await changeInput(view.input, `서울${index}`);
+    await settleDebounce();
+    assert.match(view.container.textContent ?? "", message);
+  }
+});
+
+test("record picker selects an Area Representative and keeps its navigation destination", async (t) => {
+  const view = await mountRecordPicker(async () => Response.json({ results: [searchResult] }));
+  t.after(() => view.cleanup());
+  assert.equal(document.activeElement, view.input);
+  await changeInput(view.input, "삼성동");
+  await settleDebounce();
+  await act(async () => view.container.querySelector<HTMLButtonElement>("li button")!.click());
+  const destination = new URL(view.destinations[0], "http://localhost");
+  assert.equal(destination.pathname, "/behind-the-data");
+  assert.equal(destination.searchParams.get("lat"), "37.51431");
+  assert.equal(destination.searchParams.get("lon"), "127.06281");
+  assert.equal(destination.searchParams.get("name"), "삼성1동");
+  assert.equal(view.container.querySelector("input"), null);
+});
+
+test("record search announces loading and completion without moving focus", async (t) => {
+  let finish!: (response: Response) => void;
+  const view = await mountRecordPicker(() => new Promise<Response>((resolve) => { finish = resolve; }));
+  t.after(() => view.cleanup());
+  const status = view.container.querySelector<HTMLElement>("[role=status]")!;
+  assert.equal(status.getAttribute("aria-live"), "polite");
+  assert.equal(view.input.getAttribute("aria-describedby"), status.id);
+  await changeInput(view.input, "서울");
+  assert.equal(view.input.getAttribute("aria-busy"), "true");
+  assert.match(status.textContent ?? "", /지역을 찾는 중/);
+  await settleDebounce();
+  await act(async () => finish(Response.json({ results: [searchResult] })));
+  assert.equal(view.input.getAttribute("aria-busy"), "false");
+  assert.match(status.textContent ?? "", /지역 1곳을 찾았어요/);
+  assert.equal(view.container.querySelector("[role=status]"), status, "one live region survives the transition");
+  assert.equal(document.activeElement, view.input);
+  await changeInput(view.input, "서");
+  assert.equal(status.textContent, "");
+  assert.equal(view.input.getAttribute("aria-busy"), "false");
 });

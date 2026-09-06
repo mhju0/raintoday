@@ -14,7 +14,7 @@ import {
 } from "./location.ts";
 import type { LocalForecastEvidence } from "./localForecast.ts";
 import { DEFAULT_PERFORMANCE_POLICY } from "./performance/performance.ts";
-import { PERFORMANCE_PROVIDERS } from "./performance/store.ts";
+import { COMPARED_PROVIDER_IDS } from "./providers/selection.ts";
 import type {
   LeadTimeSummary,
   PrecipProviderId,
@@ -206,7 +206,7 @@ function benchmarkRowsOf(profile: RecentPerformanceProfile): BehindTheDataBenchm
 /** Assemble everything `/behind-the-data` renders from one evidence read. */
 export function buildBehindTheDataView(evidence: LocalForecastEvidence): BehindTheDataView {
   const profile = evidence.profile;
-  const compared = new Set<PrecipProviderId>(PERFORMANCE_PROVIDERS);
+  const compared = new Set<PrecipProviderId>(COMPARED_PROVIDER_IDS);
   const scored = (profile?.providers ?? []).filter((row) => compared.has(row.provider));
   const providers = scored.map((row): BehindTheDataProviderRow => ({
     provider: row.provider,
@@ -227,7 +227,7 @@ export function buildBehindTheDataView(evidence: LocalForecastEvidence): BehindT
   // is that a sceptical reader can check it. A newly added source is in exactly
   // this state for its first month: weighted neutrally (#122), scored not at all.
   const shown = new Set(scored.map((row) => row.provider));
-  for (const provider of PERFORMANCE_PROVIDERS) {
+  for (const provider of COMPARED_PROVIDER_IDS) {
     if (shown.has(provider)) continue;
     const influence = profile?.effectiveWeights[provider];
     if (typeof influence !== "number") continue;

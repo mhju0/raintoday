@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildCompletedComparisonsQuery } from "./postgres.ts";
-import { PERFORMANCE_PROVIDERS } from "./store.ts";
+import { COMPARED_PROVIDER_IDS } from "../providers/selection.ts";
 
 /**
  * Behaviour lives in `storeContract.test.ts`, which runs the same suite against
@@ -13,7 +13,7 @@ test("PostgreSQL comparison query binds every placeholder it declares", () => {
   const query = buildCompletedComparisonsQuery("108", "06", 60);
   const placeholders = new Set(query.text.match(/\$\d+/g) ?? []);
 
-  assert.deepEqual(query.parameters, ["108", "06", 60, ...PERFORMANCE_PROVIDERS]);
+  assert.deepEqual(query.parameters, ["108", "06", 60, ...COMPARED_PROVIDER_IDS]);
   assert.equal(placeholders.size, query.parameters.length);
   for (let index = 1; index <= query.parameters.length; index += 1) {
     assert.ok(placeholders.has(`$${index}`), `query never binds $${index}`);

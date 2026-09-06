@@ -592,3 +592,89 @@ test("a failed record refresh reports a fault rather than a stale verdict, then 
   t.mock.timers.tick(30_001);
   assert.equal((await readRecordEvidence("108", "06", new Date(), store)).evidence.status, "collecting");
 });
+
+test("serving and capture share compared-provider eligibility without hiding unavailable rows", async () => {
+  const now = new Date("2026-08-13T18:10:00+09:00");
+  const station = {
+    id: "108", name: "서울", network: "ASOS" as const,
+    latitude: 37.5714, longitude: 126.9658, elevationM: 85.7,
+    activeFrom: "2026-01-01", activeTo: null,
+  };
+  const location = createForecastLocation(station);
+  for (const invalid of [null, -1, 101, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const store = new InMemoryPerformanceStore();
+    await store.syncStations([station], "2026-08-13");
+    const missingDay = snapshot("weather-api", 80, 2);
+    missingDay.daily[0].date = "2026-08-15";
+    const retired = snapshot("met-norway", 100, 100);
+    retired.status.availability = "error";
+    const primary = snapshot("kma", invalid, 5);
+    primary.current = {
+      time: now.toISOString(), temperature: 27, apparentTemperature: null,
+      humidity: null, windSpeed: null, windDirection: null, precipitation: null,
+      cloudCover: null, condition: "cloudy",
+    };
+    primary.hourly = [{
+      time: now.toISOString(), temperature: 27, precipitationProbability: 20,
+      windSpeed: null, humidity: null, condition: "cloudy",
+    }];
+    primary.daily[0].temperatureMax = 99;
+    const snapshots = [
+      primary,
+      snapshot("visual-crossing", 100, 4),
+      retired,
+      snapshot("open-meteo", 0, Number.NaN),
+      missingDay,
+      snapshot("pirate-weather", 50, -1),
+    ];
+    const readForecasts = async () => snapshots;
+    const captured = await captureStationForecast({ station, cohort: "18", now, store, readForecasts });
+    const served = await readLocalForecast({ location, elevationM: null }, {
+      now, readForecasts,
+      readEvidence: () => readPerformanceEvidenceFromStore(store, location, null, "18", now),
+    });
+    assert.deepEqual(captured.capture?.providers, [
+      { provider: "visual-crossing", probability: 100, amountMm: 4 },
+      { provider: "open-meteo", probability: 0, amountMm: null },
+      { provider: "pirate-weather", probability: 50, amountMm: null },
+    ]);
+    assert.deepEqual(served.providers.map((row) => row.id), [
+      "kma", "visual-crossing", "open-meteo", "weather-api", "pirate-weather",
+    ]);
+    assert.deepEqual(served.providers.filter((row) => row.available).map((row) => row.id),
+      captured.capture?.providers.map((row) => row.provider));
+    assert.equal(served.providers.find((row) => row.id === "kma")?.probability, invalid);
+    assert.equal(served.providers.find((row) => row.id === "weather-api")?.available, false);
+    assert.equal(served.recommendation.precipitationProbability, captured.capture?.frozenBlend.adaptiveProbability);
+    assert.deepEqual(served.effectiveInfluence, captured.capture?.frozenBlend.influence);
+    assert.equal(served.recommendation.precipitationAmountMm, 4);
+    assert.equal(served.recommendation.amountProviderCount, 1);
+    assert.equal(served.recommendation.temperatureMax, 31, "daily weather comes from the first eligible day");
+    assert.equal(served.current?.sourceName, "kma", "current weather does not depend on daily eligibility");
+    assert.equal(served.hourly?.sourceName, "kma");
+    assert.deepEqual(served.hourly?.entries, primary.hourly, "the ribbon stays one provider's series");
+  }
+});
+
+test("all active provider adapters can contribute through both serving and capture", async () => {
+  const { forecastProviders } = await import("./providers/registry.ts");
+  const store = new InMemoryPerformanceStore();
+  const station = {
+    id: "108", name: "서울", network: "ASOS" as const,
+    latitude: 37.5714, longitude: 126.9658, elevationM: null,
+    activeFrom: "2026-01-01", activeTo: null,
+  };
+  const location = createForecastLocation(station);
+  const now = new Date("2026-08-13T18:10:00+09:00");
+  const readForecasts = async () => forecastProviders.map((provider) => snapshot(provider.id, 40, 0));
+  const captured = await captureStationForecast({ station, cohort: "18", now, store, readForecasts });
+  const served = await readLocalForecast({ location, elevationM: null }, {
+    now, readForecasts,
+    readEvidence: async () => ({ status: "unavailable", reason: "database-not-configured", station: null, profile: null }),
+  });
+  const ids = forecastProviders.map((provider) => provider.id);
+  assert.deepEqual(captured.capture?.providers.map((provider) => provider.provider), ids);
+  assert.deepEqual(served.providers.filter((provider) => provider.available).map((provider) => provider.id), ids);
+  assert.equal(served.recommendation.amountProviderCount, ids.length);
+  assert.equal(served.recommendation.precipitationAmountMm, 0);
+});

@@ -91,7 +91,7 @@ Each provider is seeded from the model that actually drives it:
 
 Two of the five are not seeded, for different reasons. WeatherAPI publishes no model lineage with a public forecast archive, and a guessed proxy would be a fabricated measurement of a real product. Visual Crossing has an archive, but it is billed per hour — 24 records a station-day, so roughly 90 days for a single station costs about 2,300 of a 1,000/day allowance, against 97 stations — so it is unreachable on the free tier whatever the endpoint returns. Both are omitted rather than given a proxy, and both keep a neutral share so they are still blended: a provider short of evidence has not been measured, and absence of evidence is not evidence of poor performance.
 
-MET Norway is absent for a third reason: it is no longer compared at all, because it publishes no precipitation probability for Korea. `PrecipProviderId` still admits `met-norway` so historical capture and seed rows stay readable, but `PERFORMANCE_PROVIDERS` narrows both scoring and display to the providers actually blended — a service's measured performance must never appear beside a forecast it had no part in.
+MET Norway is absent for a third reason: it is no longer compared at all, because it publishes no precipitation probability for Korea. `PrecipProviderId` still admits `met-norway` so historical capture and seed rows stay readable, but `COMPARED_PROVIDER_IDS` in `lib/providers/selection.ts` narrows both scoring and display to the providers actually blended — a service's measured performance must never appear beside a forecast it had no part in.
 
 Archives publish no probability, so seed rows carry an amount only. They are scored with `precipSkill.ts` — rain/no-rain with an asymmetric miss penalty, plus an amount term on days it actually rained — and weighted through the same bounded floor/cap projection the live path uses.
 
@@ -123,6 +123,7 @@ npm run performance:catalog                     # regenerate the fallback statio
 | `capture.ts` | Freeze one station/cohort prediction |
 | `batch.ts` | Nationwide bounded live cohort run |
 | `influence.ts` | Effective Influence and the blend it produces |
+| `../providers/selection.ts` | Active provider membership and daily eligibility shared by serving and capture |
 | `stations.ts` | Station Match against distance and elevation gates |
 | `kma.ts` | ASOS station catalog, daily observations, and past observation windows |
 | `observations.ts` | One-shot backfill of ground truth the cohorts missed |

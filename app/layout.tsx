@@ -19,7 +19,7 @@ const notoSansKr = Noto_Sans_KR({
 const SITE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   : "http://localhost:3000";
-const TITLE = "오늘비 — 내 위치의 오늘·내일 비 예보";
+const TITLE = "오늘비: 내 위치의 오늘·내일 비 예보";
 const DESCRIPTION =
   "내 위치의 오늘·내일 비 예보를 날씨 서비스별로 비교하고, 가까운 관측소의 최근 관측 성능을 반영합니다.";
 

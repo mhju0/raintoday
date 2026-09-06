@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import type { ForecastLocationSearchResult } from "@/lib/locationSearch";
+import { useLocationCandidateSearch } from "./useLocationCandidateSearch";
 
 /**
  * Change which station's record the page is showing.
@@ -16,69 +16,24 @@ import type { ForecastLocationSearchResult } from "@/lib/locationSearch";
 export function RecordStationPicker({ stationName }: { stationName: string | null }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<ForecastLocationSearchResult[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
+  const search = useLocationCandidateSearch();
   const inputRef = useRef<HTMLInputElement>(null);
-  const sequence = useRef(0);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  // Below the minimum query length there is nothing to show. Deriving that from
-  // the query rather than clearing state inside the effect keeps the effect's
-  // only job asynchronous, which is also what the compiler's rule is asking for.
-  const tooShort = query.trim().length < 2;
-  const visibleResults = tooShort ? [] : results;
-  const visibleMessage = tooShort ? null : message;
-
-  useEffect(() => {
-    const normalized = query.trim();
-    if (normalized.length < 2) return;
-    const controller = new AbortController();
-    const mine = ++sequence.current;
-    const timer = window.setTimeout(async () => {
-      try {
-        const response = await fetch(
-          `/api/locations/search?q=${encodeURIComponent(normalized)}`,
-          { signal: controller.signal },
-        );
-        if (mine !== sequence.current) return;
-        if (response.status === 429) {
-          setResults([]);
-          setMessage("검색 요청이 많아요. 잠시 후 다시 시도해 주세요.");
-          return;
-        }
-        if (!response.ok) {
-          // A missing credential is permanent here; anything else may pass.
-          const reason = await response.clone().json().then(
-            (body: { error?: unknown }) => body?.error,
-            () => undefined,
-          );
-          setResults([]);
-          setMessage(
-            reason === "search_not_configured"
-              ? "이곳에서는 지역 검색을 쓸 수 없어요."
-              : "지역을 찾지 못했어요. 잠시 후 다시 시도해 주세요.",
-          );
-          return;
-        }
-        const payload = (await response.json()) as { results: ForecastLocationSearchResult[] };
-        if (mine !== sequence.current) return;
-        setResults(payload.results);
-        setMessage(payload.results.length === 0 ? "일치하는 행정구역이 없어요." : null);
-      } catch {
-        if (controller.signal.aborted || mine !== sequence.current) return;
-        setResults([]);
-        setMessage("지역을 찾지 못했어요. 잠시 후 다시 시도해 주세요.");
-      }
-    }, 250);
-    return () => {
-      controller.abort();
-      window.clearTimeout(timer);
-    };
-  }, [query]);
+  const messages = {
+    searching: "지역을 찾는 중이에요. 잠시만 기다려 주세요.",
+    invalid: "검색어를 인식하지 못했어요. 시·구·동 이름으로 더 짧게 입력해 주세요.",
+    "rate-limited": "검색 요청이 많아요. 잠시 후 다시 시도해 주세요.",
+    "not-configured": "이곳에서는 지역 검색을 쓸 수 없어요.",
+    unavailable: "지역을 찾지 못했어요. 잠시 후 다시 시도해 주세요.",
+    empty: "일치하는 행정구역이 없어요.",
+  };
+  const message = search.status === "ready"
+    ? `지역 ${search.results.length}곳을 찾았어요. 아래에서 골라 주세요.`
+    : search.status in messages ? messages[search.status as keyof typeof messages] : null;
 
   if (!open) {
     return (
@@ -101,13 +56,15 @@ export function RecordStationPicker({ stationName }: { stationName: string | nul
         type="search"
         autoComplete="off"
         placeholder="시·구·동 이름"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        aria-busy={search.status === "searching"}
+        aria-describedby="btd-picker-status"
+        value={search.query}
+        onChange={(event) => search.updateQuery(event.target.value)}
       />
-      {visibleMessage ? <p className="btd-picker-message">{visibleMessage}</p> : null}
-      {visibleResults.length > 0 && (
+      <p id="btd-picker-status" className="btd-picker-message" role="status" aria-live="polite" aria-atomic="true">{message}</p>
+      {search.results.length > 0 && (
         <ul className="btd-picker-results">
-          {visibleResults.map((result) => (
+          {search.results.map((result) => (
             <li key={result.id}>
               <button
                 type="button"
@@ -120,6 +77,7 @@ export function RecordStationPicker({ stationName }: { stationName: string | nul
                     lon: result.longitude.toFixed(5),
                     name: result.name,
                   });
+                  search.cancel();
                   router.push(`/behind-the-data?${params}`);
                   setOpen(false);
                 }}

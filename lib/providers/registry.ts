@@ -1,4 +1,5 @@
-import type { WeatherProvider } from "./base";
+import { COMPARED_PROVIDER_IDS, type ComparedProviderId } from "./selection.ts";
+import type { WeatherProvider } from "./base.ts";
 import { kmaProvider } from "./kma.ts";
 import { openMeteoProvider } from "./open-meteo.ts";
 import { pirateWeatherProvider } from "./pirate-weather.ts";
@@ -20,10 +21,11 @@ import { weatherApiProvider } from "./weather-api.ts";
  * their detailed model — and both scoring gates require a next-day probability.
  * With the second reader gone, nothing consumed the wider list, so there is one.
  */
-export const forecastProviders: readonly WeatherProvider[] = [
-  openMeteoProvider,
-  kmaProvider,
-  pirateWeatherProvider,
-  weatherApiProvider,
-  visualCrossingProvider,
-];
+const providers: Record<ComparedProviderId, WeatherProvider> = {
+  "open-meteo": openMeteoProvider,
+  kma: kmaProvider,
+  "pirate-weather": pirateWeatherProvider,
+  "weather-api": weatherApiProvider,
+  "visual-crossing": visualCrossingProvider,
+};
+export const forecastProviders: readonly WeatherProvider[] = COMPARED_PROVIDER_IDS.map((id) => providers[id]);

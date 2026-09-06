@@ -15,6 +15,7 @@ import {
   type ForecastLocationSelection,
 } from "@/lib/locationPrecision";
 import type { ForecastLocationSearchResult } from "@/lib/locationSearch";
+import { useLocationCandidateSearch } from "./useLocationCandidateSearch";
 
 type ViewState =
   | { kind: "idle" }
@@ -72,12 +73,8 @@ const DEVICE_PLACEHOLDER_NAME = "현재 위치";
  */
 class ForecastOutOfServiceAreaError extends Error {}
 
-function normalizeLocationQuery(query: string): string {
-  return query.normalize("NFKC").trim().replace(/\s+/g, " ");
-}
-
 function probabilityLabel(probability: number | null): string {
-  if (probability === null) return "—";
+  if (probability === null) return "미발표";
   return `${Math.round(probability)}%`;
 }
 
@@ -285,18 +282,26 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   /** A forecast is loading over this view; dim it and take it out of the tab order. */
   busy?: boolean;
 }) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<ForecastLocationSearchResult[]>([]);
+  const search = useLocationCandidateSearch();
+  const { query, results } = search;
   const [expanded, setExpanded] = useState(true);
-  const [searching, setSearching] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [retryAvailable, setRetryAvailable] = useState(false);
-  const [retryVersion, setRetryVersion] = useState(0);
-  const [activeResultIndex, setActiveResultIndex] = useState(-1);
+  const [notice, setMessage] = useState<string | null>(null);
+  const [activeResultIndex, setActiveResultIndex] = useState(0);
   const [locating, setLocating] = useState(false);
   const listboxId = useId();
-  const requestSequence = useRef(0);
-  const activeRequest = useRef<AbortController | null>(null);
+  const searching = search.status === "searching";
+  const retryAvailable = expanded && search.retryAvailable;
+  const searchMessages = {
+    "too-short": "지역 이름을 두 글자 이상 입력해 주세요.",
+    invalid: "검색어를 인식하지 못했어요. 시·구·동 이름으로 더 짧게 입력해 주세요.",
+    "rate-limited": "검색 요청이 많아요. 잠시 후 다시 시도해 주세요.",
+    "not-configured": "이곳에서는 지역 검색을 쓸 수 없어요. 아래 예시나 위의 ‘내 위치로 보기’를 사용해 주세요.",
+    unavailable: "지역 검색이 잠시 원활하지 않아요. 다시 시도해 주세요.",
+    empty: "대한민국 안에서 일치하는 행정구역을 찾지 못했어요. 시·구·동을 함께 입력해 보세요.",
+  };
+  const message = notice ?? (expanded && search.status in searchMessages
+    ? searchMessages[search.status as keyof typeof searchMessages]
+    : null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Returning from a forecast puts the user back here on purpose, so land them
@@ -308,89 +313,10 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
 
   const visibleResults = expanded ? results : [];
 
-  useEffect(() => {
-    const normalized = normalizeLocationQuery(query);
-    const sequence = requestSequence.current;
-    if (normalized.length < 2) return;
-
-    const controller = new AbortController();
-    activeRequest.current = controller;
-
-    const timeout = window.setTimeout(async () => {
-      try {
-        const response = await fetch(
-          `/api/locations/search?q=${encodeURIComponent(normalized)}`,
-          { signal: controller.signal },
-        );
-        if (response.status === 429) {
-          if (sequence !== requestSequence.current) return;
-          setResults([]);
-          setActiveResultIndex(-1);
-          setRetryAvailable(true);
-          setMessage("검색 요청이 많아요. 잠시 후 다시 시도해 주세요.");
-          return;
-        }
-        if (response.status === 400) {
-          // The server rejected the query itself, so retrying it unchanged
-          // cannot succeed. Saying "temporarily unavailable" here would be
-          // dishonest and would offer a retry that never helps.
-          if (sequence !== requestSequence.current) return;
-          setResults([]);
-          setActiveResultIndex(-1);
-          setRetryAvailable(false);
-          setMessage("검색어를 인식하지 못했어요. 시·구·동 이름으로 더 짧게 입력해 주세요.");
-          return;
-        }
-        if (response.status === 503) {
-          // Distinguish "this deployment has no search credential" from a
-          // passing upstream failure: only one of them is worth retrying.
-          const reason = await response.clone().json().then(
-            (body: { error?: unknown }) => body?.error,
-            () => undefined,
-          );
-          if (sequence !== requestSequence.current) return;
-          if (reason === "search_not_configured") {
-            setResults([]);
-            setActiveResultIndex(-1);
-            setRetryAvailable(false);
-            setMessage("이곳에서는 지역 검색을 쓸 수 없어요. 아래 예시나 위의 ‘내 위치로 보기’를 사용해 주세요.");
-            return;
-          }
-        }
-        if (!response.ok) throw new Error("unavailable");
-        const payload = (await response.json()) as { results: ForecastLocationSearchResult[] };
-        if (sequence !== requestSequence.current) return;
-        setResults(payload.results);
-        setExpanded(true);
-        setActiveResultIndex(payload.results.length > 0 ? 0 : -1);
-        setRetryAvailable(false);
-        setMessage(
-          payload.results.length === 0
-            ? "대한민국 안에서 일치하는 행정구역을 찾지 못했어요. 시·구·동을 함께 입력해 보세요."
-            : null,
-        );
-      } catch {
-        if (controller.signal.aborted || sequence !== requestSequence.current) return;
-        setResults([]);
-        setActiveResultIndex(-1);
-        setRetryAvailable(true);
-        setMessage("지역 검색이 잠시 원활하지 않아요. 다시 시도해 주세요.");
-      } finally {
-        if (sequence === requestSequence.current) setSearching(false);
-      }
-    }, 250);
-
-    return () => {
-      window.clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [query, retryVersion]);
-
   // An in-flight search must not land on top of a coordinate the visitor has
   // already committed, whichever of the two ways in they took.
   const commitChoice = (choice: ChosenForecastLocation) => {
-    requestSequence.current += 1;
-    activeRequest.current?.abort();
+    search.cancel();
     onChoose(choice);
   };
 
@@ -417,7 +343,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
     // text under a different control.
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => onChoose({
+      (position) => commitChoice({
         name: DEVICE_PLACEHOLDER_NAME,
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -531,19 +457,10 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             ref={inputRef}
             value={query}
             onChange={(event) => {
-              const nextQuery = event.target.value;
-              const normalized = normalizeLocationQuery(nextQuery);
-              requestSequence.current += 1;
-              activeRequest.current?.abort();
-              setQuery(nextQuery);
-              setResults([]);
+              search.updateQuery(event.target.value);
               setExpanded(true);
-              setActiveResultIndex(-1);
-              setSearching(normalized.length >= 2);
-              setRetryAvailable(false);
-              setMessage(
-                normalized.length === 1 ? "지역 이름을 두 글자 이상 입력해 주세요." : null,
-              );
+              setActiveResultIndex(0);
+              setMessage(null);
             }}
             placeholder="동네, 도시 이름 검색"
             autoComplete="off"
@@ -553,7 +470,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             aria-expanded={visibleResults.length > 0}
             aria-controls={listboxId}
             aria-activedescendant={
-              activeResultIndex >= 0 ? `${listboxId}-option-${activeResultIndex}` : undefined
+              visibleResults[activeResultIndex] ? `${listboxId}-option-${activeResultIndex}` : undefined
             }
             aria-busy={searching}
             onKeyDown={(event) => {
@@ -583,12 +500,11 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
                 // pattern — discarding them left no way back but retyping.
                 setExpanded(false);
                 setActiveResultIndex(-1);
-                setRetryAvailable(false);
                 setMessage(null);
               }
             }}
           />
-          <button type="submit" disabled={searching || activeResultIndex < 0}>
+          <button type="submit" disabled={searching || !visibleResults[activeResultIndex]}>
             {searching ? "찾는 중" : "선택"}
           </button>
         </form>
@@ -605,11 +521,8 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
               <button
                 type="button"
                 onClick={() => {
-                  requestSequence.current += 1;
-                  setSearching(true);
-                  setRetryAvailable(false);
                   setMessage(null);
-                  setRetryVersion((current) => current + 1);
+                  search.retry();
                 }}
               >
                 다시 시도
@@ -699,7 +612,7 @@ function missedDays(score: LocalForecastView["evidence"]["scores"][number]): str
 
 /** The wet-day miss rate — where the real difference between services lives. */
 function seedMissLabel(score: LocalForecastView["evidence"]["seedScores"][number]): string {
-  if (score.wetDays <= 0) return "—";
+  if (score.wetDays <= 0) return "기록 없음";
   return `비 온 ${score.wetDays}일 중 ${score.misses}일`;
 }
 
@@ -756,7 +669,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
     <section className="local-evidence-section" aria-labelledby="evidence-heading">
       <div className="local-section-heading">
         <div>
-          <p className="local-kicker">기록 <span>— 근처 관측소로 채점한 성적</span></p>
+          <p className="local-kicker">기록 <span>: 근처 관측소로 채점한 성적</span></p>
           <h2 id="evidence-heading" tabIndex={-1}>
             {seedRanked.length > 0
               ? <>과거 기록에서<br />누가 더 잘 맞았나</>
@@ -858,11 +771,11 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
                 {ranked.map((provider) => (
                   <div className="local-score-row" role="row" key={provider.id}>
                     <strong role="cell">{provider.name}</strong>
-                    <span role="cell">{provider.last7DaysBrier?.toFixed(3) ?? "—"}</span>
+                    <span role="cell">{provider.last7DaysBrier?.toFixed(3) ?? "기록 없음"}</span>
                     <span role="cell">{provider.windowBrier.toFixed(3)}</span>
                     <span role="cell">누락 {provider.misses} · 오보 {provider.falseAlarms}</span>
                     <span role="cell">
-                      {provider.rainyAmountMae === null ? "—" : `${provider.rainyAmountMae.toFixed(1)} mm`}
+                      {provider.rainyAmountMae === null ? "기록 없음" : `${provider.rainyAmountMae.toFixed(1)} mm`}
                       {provider.rainyAmountSampleCount > 0 && ` · ${provider.rainyAmountSampleCount}일`}
                     </span>
                   </div>
@@ -890,8 +803,8 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
           <b>{verdict}</b>
           <span>
             미리 정해둔 방식으로 두 계산법을 나란히 채점했습니다 · 성능 반영{" "}
-            {benchmark?.adaptiveBrier?.toFixed(3) ?? "—"} · 단순 평균{" "}
-            {benchmark?.equalBrier?.toFixed(3) ?? "—"}
+            {benchmark?.adaptiveBrier?.toFixed(3) ?? "기록 없음"} · 단순 평균{" "}
+            {benchmark?.equalBrier?.toFixed(3) ?? "기록 없음"}
           </span>
         </p>
       )}
@@ -901,7 +814,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
 
 /** "31° / 23°", with an em dash wherever a provider published no value. */
 function formatRange(high: number | null, low: number | null): string {
-  const one = (value: number | null) => (value === null ? "—" : `${Math.round(value)}°`);
+  const one = (value: number | null) => (value === null ? "미발표" : `${Math.round(value)}°`);
   return `${one(high)} / ${one(low)}`;
 }
 
@@ -980,7 +893,7 @@ function RainSentence({ run, endsTomorrow }: {
           rain stop AND every block in the run published an amount: an open run
           or a partial sum would claim a total the data never stated. */}
       {run.sumMm != null && (
-        <span className="local-answer-mm">{" — 모두 "}<b>{formatMm(run.sumMm)}mm</b></span>
+        <span className="local-answer-mm">{", 모두 "}<b>{formatMm(run.sumMm)}mm</b></span>
       )}
     </>
   );
@@ -1171,7 +1084,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
       </div>
 
       <section className="local-answer" aria-labelledby="forecast-heading">
-        <p className="local-kicker">결론 <span>— 앞으로 24시간, 한 문장으로</span></p>
+        <p className="local-kicker">결론 <span>: 앞으로 24시간, 한 문장으로</span></p>
         <h1 id="forecast-heading" ref={headingRef} tabIndex={-1}>
           {timeline
             ? <RainSentence run={run} endsTomorrow={run !== null && dayOffsets[run.endIndex] > 0} />
@@ -1310,14 +1223,14 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
                     </span>
                     <span className="local-ribbon-cfoot">
                       <span className={`local-ribbon-val${empty ? " is-na" : ""}`}>
-                        {probability === null ? "—" : <>{Math.round(probability)}<span>%</span></>}
+                        {probability === null ? "미발표" : <>{Math.round(probability)}<span>%</span></>}
                       </span>
                       <span className="local-ribbon-hint">{blockHint(block, role)}</span>
                     </span>
                     {laneVisible && (
                       <span className="local-ribbon-mm">
                         <span className={`local-ribbon-mmval${block.precipSumMm == null ? " is-na" : ""}`}>
-                          {block.precipSumMm == null ? "—" : formatMm(block.precipSumMm)}
+                          {block.precipSumMm == null ? "미발표" : formatMm(block.precipSumMm)}
                         </span>
                         <span
                           className={`local-ribbon-mmtrack${block.precipSumMm == null ? " is-na" : ""}`}
@@ -1351,7 +1264,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
         </section>
       )}
 
-      <p className="local-kicker">{today ? "오늘 · 내일" : "내일"} <span>— 여러 서비스를 섞은 하루 숫자</span></p>
+      <p className="local-kicker">{today ? "오늘 · 내일" : "내일"} <span>: 여러 서비스를 섞은 하루 숫자</span></p>
       <div className="local-days">
         {today && (
           <section className="local-day" aria-labelledby="today-heading">
@@ -1364,12 +1277,12 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             <div className="local-day-nums">
               <p className="local-day-value">
                 {today.precipitationProbability === null
-                  ? "—"
+                  ? <span className="local-missing-value">미발표</span>
                   : <>{Math.round(today.precipitationProbability)}<span>%</span></>}
               </p>
               <p className="local-day-mm">
                 {today.precipitationAmountMm === null
-                  ? <b className="is-na">—</b>
+                  ? <b className="is-na">미발표</b>
                   : <b>{formatMm(today.precipitationAmountMm)}mm</b>}
                 <small>{amountMeta(today.amountProviderCount, forecast.comparedProviderCount)}</small>
               </p>
@@ -1404,12 +1317,12 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
           <div className="local-day-nums">
             <p className="local-day-value">
               {tomorrow.precipitationProbability === null
-                ? "—"
+                ? <span className="local-missing-value">미발표</span>
                 : <>{Math.round(tomorrow.precipitationProbability)}<span>%</span></>}
             </p>
             <p className="local-day-mm">
               {tomorrow.precipitationAmountMm === null
-                ? <b className="is-na">—</b>
+                ? <b className="is-na">미발표</b>
                 : <b>{formatMm(tomorrow.precipitationAmountMm)}mm</b>}
               <small>
                 {amountMeta(tomorrow.amountProviderCount, forecast.comparedProviderCount)}
@@ -1439,22 +1352,22 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
       {folded ? (
         <div className="local-stubs">
           <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("influence-heading")}>
-            <span><b>서비스 {forecast.comparedProviderCount}곳 비교</b>{spreadStub && <> — {spreadStub}</>}</span>
+            <span><b>서비스 {forecast.comparedProviderCount}곳 비교</b>{spreadStub && <>: {spreadStub}</>}</span>
             <span className="local-stub-go">펼치기</span>
           </button>
           {forecast.outlook.length > 1 && (
             <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("outlook-heading")}>
-              <span><b>{forecast.outlook.length}일 전망</b> — 모레부터는 동일 비중 평균</span>
+              <span><b>{forecast.outlook.length}일 전망</b>: 모레부터는 동일 비중 평균</span>
               <span className="local-stub-go">펼치기</span>
             </button>
           )}
           <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("evidence-heading")}>
-            <span><b>과거 기록</b> — {forecast.evidence.statusLabel}</span>
+            <span><b>과거 기록</b>: {forecast.evidence.statusLabel}</span>
             <span className="local-stub-go">펼치기</span>
           </button>
         </div>
       ) : (<>
-      <p className="local-kicker">근거 <span>— 이 숫자가 나온 방식</span></p>
+      <p className="local-kicker">근거 <span>: 이 숫자가 나온 방식</span></p>
       <div className="local-evidence-cards">
         <section className="local-card" aria-labelledby="influence-heading">
           <div className="local-card-head">
