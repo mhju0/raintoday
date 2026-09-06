@@ -73,6 +73,9 @@ PRs require `verify`, `store-contract` and `Dependency review`. Patch/minor Depe
 updates can enable auto-merge after those checks; majors remain manual. The privileged
 automation never checks out PR code and requires Dependabot-authored commits.
 
+Keep `.vercelignore` aligned with private/local exclusions in `.gitignore`; the CLI
+upload must not include local archives or agent state. Prefer the Git integration.
+
 After merging, verify Vercel's deployed Git SHA matches `main`; a successful merge is
 not proof that the deployment webhook ran. If necessary, deploy the verified commit
 through Vercel and check the production alias before publishing a release.

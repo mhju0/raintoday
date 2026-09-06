@@ -1,0 +1,82 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# local design/research artifacts; canonical public docs remain trackable
+/docs/design/
+/docs/superpowers/
+/docs/CLAUDE_ENV_INVENTORY.md
+
+# Local assistant and editor configuration. These files support individual
+# workflows but are not part of the application or its public documentation.
+.claude/
+.serena/
+.agents/
+.cursor/
+.codex/
+.worktrees/
+.scratch/
+CLAUDE.local.md
+*.dump
+*.backup
+.aider*
+GEMINI.md
+skills-lock.json
+.github/copilot-instructions.md
+
+# Local source-media archive for the retired cinematic scene. The scene and its
+# code are gone; these clips are kept on disk deliberately and stay out of git.
+/public/cinematic/locations/
+
+# The raw SGIS boundary package is an offline generator input, never a runtime
+# or repository artifact. Only lib/locationServiceAreaData.ts is committed.
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
+# Do not upload private or machine-specific local material through the CLI.
+/AGENTS.local.md
