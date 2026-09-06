@@ -35,7 +35,7 @@ async function syncIssue(key: string, title: string, body: string | null) {
       if (existing.body !== next) await api(`/issues/${existing.number}`, "PATCH", { body: next });
     } else await api("/issues", "POST", { title, body: next });
   } else if (existing) {
-    await api(`/issues/${existing.number}/comments`, "POST", { body: "The latest completed scheduled run is successful and within the freshness limit. Closing this incident; missed forecast captures remain missing. See the workflow history for evidence." });
+    await api(`/issues/${existing.number}/comments`, "POST", { body: "The latest completed monitored run is successful and within the freshness limit. Closing this incident; missed forecast captures remain missing. See the workflow history for evidence." });
     await api(`/issues/${existing.number}`, "PATCH", { state: "closed", state_reason: "completed" });
   }
 }
@@ -43,11 +43,14 @@ async function syncIssue(key: string, title: string, body: string | null) {
 const now = Date.now();
 for (const [workflow, hours] of [["local-performance", 18], ["service-health", 10]] as const) {
   const config = await api<{ state: string }>(`/actions/workflows/${workflow}.yml`);
-  const { workflow_runs: runs } = await api<{ workflow_runs: MaintenanceRun[] }>(`/actions/workflows/${workflow}.yml/runs?branch=main&event=schedule&per_page=20`);
+  // A manual health check is a valid fresh probe. A manual collection must not
+  // conceal a missed scheduled cohort.
+  const event = workflow === "local-performance" ? "&event=schedule" : "";
+  const { workflow_runs: runs } = await api<{ workflow_runs: MaintenanceRun[] }>(`/actions/workflows/${workflow}.yml/runs?branch=main${event}&per_page=20`);
   const finding = assessRuns(runs, now, hours);
   const detail = config.state !== "active" ? `Workflow is ${config.state}. Re-enable it after reviewing the cause.` : finding?.detail;
   await syncIssue(workflow, `Operations: ${workflow} needs attention`, detail ?
-    `${detail}\n\n${finding?.url ? `[Latest completed run](${finding.url})` : `[Workflow](https://github.com/${repository}/actions/workflows/${workflow}.yml)`}\n\nFollow [the incident procedure](https://github.com/${repository}/blob/main/docs/OPERATIONS.md#incident-response). Do not rerun missed forecast cohorts or weaken required-provider checks. This issue updates in place while the problem persists and closes after a fresh successful scheduled run.` : null);
+    `${detail}\n\n${finding?.url ? `[Latest completed run](${finding.url})` : `[Workflow](https://github.com/${repository}/actions/workflows/${workflow}.yml)`}\n\nFollow [the incident procedure](https://github.com/${repository}/blob/main/docs/OPERATIONS.md#incident-response). Do not rerun missed forecast cohorts or weaken required-provider checks. This issue updates in place while the problem persists and closes after a fresh successful monitored run.` : null);
 }
 
 // One outstanding checklist per cadence. Overdue work stays visible instead of
