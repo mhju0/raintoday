@@ -1,4 +1,4 @@
-import { assessRuns, type MaintenanceRun } from "../lib/maintenance.ts";
+import { assessExpiries, assessRuns, CREDENTIAL_EXPIRIES, type MaintenanceRun } from "../lib/maintenance.ts";
 
 const repository = process.env.GITHUB_REPOSITORY;
 const token = process.env.GITHUB_TOKEN;
@@ -53,6 +53,18 @@ for (const [workflow, hours] of [["local-performance", 18], ["service-health", 1
     `${detail}\n\n${finding?.url ? `[Latest completed run](${finding.url})` : `[Workflow](https://github.com/${repository}/actions/workflows/${workflow}.yml)`}\n\nFollow [the incident procedure](https://github.com/${repository}/blob/main/docs/OPERATIONS.md#incident-response). Do not rerun missed forecast cohorts or weaken required-provider checks. This issue updates in place while the problem persists and closes after a fresh successful monitored run.` : null);
 }
 
+// Renewal needs a person signed in to the portal, so the reminder has to exist
+// well before the date and stay open until someone acts. Unlike the run-freshness
+// incidents this cannot self-close: only a renewed 활용기간 clears it, and that is
+// visible in the portal, not from here.
+// Never pass a healthy result to syncIssue: its close path narrates a successful
+// monitored run, which is not what clears a renewal, and it would auto-close the
+// reminder the moment someone edited a date without actually renewing.
+const expiries = assessExpiries(CREDENTIAL_EXPIRIES, now);
+console.log(`credentials: ${expiries ? "renewal due" : "no subscription within 30 days"}${dryRun ? " (dry run)" : ""}`);
+if (expiries) await syncIssue("credentials", `Operations: renew KMA API subscriptions${expiries.urgent ? " (urgent)" : ""}`,
+  `${expiries.detail}\n\nRenew the 활용신청 in the portal, then update the key in every store that consumes it (Vercel for serving, GitHub Secrets for scheduled collection) and update the date in \`CREDENTIAL_EXPIRIES\` (lib/maintenance.ts). A renewal is not visible from CI, so **close this issue by hand** once the portal shows the new 활용기간.\n\nSee [credentials and request limits](https://github.com/${repository}/blob/main/docs/OPERATIONS.md#credentials-and-request-limits). Do not paste keys into this issue.`);
+
 // One outstanding checklist per cadence. Overdue work stays visible instead of
 // producing another copy every week. Closing it permits the next period's issue.
 const kst = new Date(now + 9 * 3_600_000);
@@ -60,7 +72,7 @@ const weekStart = new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst
 weekStart.setUTCDate(weekStart.getUTCDate() - (weekStart.getUTCDay() + 6) % 7);
 const periods = [
   { key: "weekly", period: weekStart.toISOString().slice(0, 10), tasks: "- [ ] Review operational incidents and collection coverage, including partial station failures.\n- [ ] Review Dependabot PRs and security alerts; investigate failed checks before merging.\n- [ ] Check Vercel/Neon usage and provider quota/expiry notices.\n- [ ] Open a forecast and its scoring record; note missing providers or stale observations." },
-  { key: "monthly", period: kst.toISOString().slice(0, 7), tasks: "- [ ] Take a private database backup and verify an isolated restore with counts/checksums.\n- [ ] Check actual provider-key expiry dates and 30/7-day reminders.\n- [ ] Review firewall logs and unexpected traffic; test changes in preview.\n- [ ] Check GitHub scheduled workflows remain enabled and failure notifications arrive.\n- [ ] Review one station/cohort's sample counts, benchmark and weights.\n- [ ] Review roadmap and operating instructions for stale claims." },
+  { key: "monthly", period: kst.toISOString().slice(0, 7), tasks: "- [ ] Take a private database backup and verify an isolated restore with counts/checksums.\n- [ ] Reconcile the portal's 활용기간 dates against `CREDENTIAL_EXPIRIES` (lib/maintenance.ts).\n- [ ] Review firewall logs and unexpected traffic; test changes in preview.\n- [ ] Check GitHub scheduled workflows remain enabled and failure notifications arrive.\n- [ ] Review one station/cohort's sample counts, benchmark and weights.\n- [ ] Review roadmap and operating instructions for stale claims." },
 ];
 for (const { key, period, tasks } of periods) {
   const marker = `<!-- raintoday-maintenance:${key} -->`;
