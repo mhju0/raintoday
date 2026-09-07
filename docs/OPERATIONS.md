@@ -75,8 +75,29 @@ GitHub Actions retains the separate collector credential. Only scheduled collect
 
 Rotate a key in every store that consumes it, then deploy and inspect the relevant
 scheduled health result. Do not paste credentials into issues, logs or command arguments.
-Use the actual data.go.kr application expiry date for reminders 30 and 7 days before
-expiry. No date can be inferred from the key itself.
+No date can be inferred from a key itself, so the 활용기간 end dates are recorded in
+`CREDENTIAL_EXPIRIES` (`lib/maintenance.ts`) and the maintenance workflow opens a
+renewal issue 30 days out and escalates it at 7. Read from the portals 2026-09-07:
+
+| Variable | Subscription | Portal | 만료예정일 |
+| --- | --- | --- | --- |
+| `KMA_SHORT_TERM_API_KEY` | 기상청_단기예보 조회서비스 | data.go.kr | 2028-03-27 |
+| `KMA_OBSERVATION_API_KEY` | 기상청_지상(종관, ASOS) 일자료 조회서비스 | data.go.kr | 2028-06-18 |
+| `KMA_APIHUB_KEY` | 지상관측 지점정보 조회 (`stn_inf`) | apihub.kma.go.kr | 2028-08-19 |
+
+Renewal is a person's job in the portal and is invisible from CI, so the issue closes
+by hand; update the table and `CREDENTIAL_EXPIRIES` together when it does.
+
+The account also holds approved subscriptions this project no longer calls: 기상특보
+(retired with the second KMA key), 레이더영상 and apihub 레이더 강수량(HSR) (retired
+with the radar routes), and 한국환경공단 에어코리아 대기오염정보. They are deliberately
+absent from the table — let them lapse rather than renewing them.
+
+The apihub account is approved for `stn_inf` station-information endpoints and radar
+only. That is the documented reason the September 6 forecast probe returned HTTP 403:
+the key was never approved for forecast endpoints, so no expiry or rotation would have
+changed the result. Treat the apihub forecast fallback as unavailable until a
+corresponding 활용신청 is approved.
 
 Application limits are process-local. The Vercel firewall's **Dynamic request volume**
 rule observes `/api/` traffic above 150 requests per IP per 60 seconds; it initially
