@@ -23,7 +23,7 @@ access currently rejects the configured key.
 | Observe the seed-to-live transition | Review a real station/cohort after two providers and the benchmark meet the sample conditions. Record the mode, provider sample counts and effective weights. No forced captures or promised transition date. |
 | Watch provider coverage | Check scheduled capture and service-health failures; inspect provider-specific gaps even when the overall run passes. Visual Crossing quota has no verified remaining-usage endpoint. |
 | Review dependencies | Patch/minor Dependabot PRs may merge after required CI; major versions stay manual. Revisit the TypeScript and ESLint compatibility holds using current package metadata. |
-| Renew credentials | Use the provider account's actual expiry date and renewal reminders. Keep the Actions and Vercel credential stores aligned by purpose. |
+| Renew credentials | The 활용기간 end dates are recorded in `CREDENTIAL_EXPIRIES` (`lib/maintenance.ts`); the maintenance workflow opens a renewal issue 30 days out and escalates at 7. It closes by hand, because a renewal happens in the portal and is not observable from CI. Keep the Actions and Vercel credential stores aligned by purpose. |
 | Recovery and costs | Follow [OPERATIONS.md](OPERATIONS.md) for backup/restore, rollback, notification checks and the review schedule. |
 
 These are ongoing operating duties, not unfinished product features. Time-dependent
