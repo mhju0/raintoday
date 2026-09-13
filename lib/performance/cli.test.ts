@@ -197,9 +197,16 @@ test("the capture workflow makes at most three fresh-runner attempts, identicall
     const body = bodyOf(name);
     assert.match(
       body,
-      /timeout-minutes: 25\n\s*continue-on-error: true/,
-      `${name} must leave the final verdict authoritative after a job timeout`,
+      /timeout-minutes: 35\n\s*continue-on-error: true/,
+      `${name} needs headroom above its bounded steps`,
     );
+    for (const [step, minutes] of [["checkout", 1], ["setup", 2], ["preflight", 1], ["egress", 1], ["install", 3], ["capture", 20]] as const) {
+      assert.match(
+        body,
+        new RegExp(`id: ${step}[\\s\\S]*?timeout-minutes: ${minutes}`),
+        `${name} must bound its ${step} step`,
+      );
+    }
     assert.match(body, /node scripts\/performance-transport-preflight\.ts/);
     assert.ok(
       body.indexOf("performance-transport-preflight.ts") < body.indexOf("npm ci"),

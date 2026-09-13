@@ -44,8 +44,9 @@ check `maintenance` itself and re-enable schedules when necessary. See
    code failures. A timeout before connection is not proof that an API key expired.
    Observation logs retain safe transport causes without request URLs or keys.
 2. For an upstream outage, retain the incident and inspect the next scheduled cohort.
-   The collector makes at most three sequential fresh-runner attempts, also after
-   setup, install or capture timeout failures. Before installing dependencies, each
+   The collector makes at most three sequential fresh-runner attempts. Checkout,
+   setup, preflight, install and capture have individual timeouts so an ordinary
+   step hang can hand off to the next runner. Before installing dependencies, each
    runner makes two credential-free 10-second requests to the exact ASOS endpoint.
    Any HTTP response proves that transport path is reachable; it does not prove that
    credentials, the database, other providers or the eventual capture will work.
@@ -76,7 +77,9 @@ also stored no cohort evidence. The next scheduled run recovered on its retry. R
 did not record the first runner's egress address, so it does not establish that the two
 attempts used distinct addresses or locate the fault inside GitHub or KMA. The transport
 preflight and third runner reduce time spent on a known-bad ASOS route; they cannot
-guarantee collection when failures are correlated or occur after that probe.
+guarantee collection when failures are correlated or occur after that probe. A hard
+GitHub job or runner timeout marks the workflow cancelled; GitHub retains that final
+state even if a later attempt captures successfully.
 
 ## Credentials and request limits
 

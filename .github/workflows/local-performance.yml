@@ -24,12 +24,14 @@ permissions:
 
 # A runner that cannot reach the exact KMA ASOS service is discarded before npm
 # install or any database/provider activity. Each job is a fresh runner. Individual
-# failures are tolerated so a later recovery can make the workflow green; `verdict`
-# is the single authority that fails the run when no capture actually succeeded.
+# failures are tolerated so a later recovery can make a completed workflow green;
+# `verdict` fails a non-cancelled run when no capture actually succeeded. GitHub
+# keeps a hard job/runner timeout cancelled even if a later attempt succeeds, so
+# ordinary hangs are bounded at the step level below a larger job budget.
 jobs:
   capture_1:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     continue-on-error: true
     outputs:
       succeeded: ${{ steps.capture.outcome == 'success' }}
@@ -37,6 +39,7 @@ jobs:
       - name: Checkout code
         id: checkout
         continue-on-error: true
+        timeout-minutes: 1
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -45,6 +48,7 @@ jobs:
         id: setup
         if: steps.checkout.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 2
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
@@ -54,11 +58,14 @@ jobs:
         id: preflight
         if: steps.setup.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 1
         run: node scripts/performance-transport-preflight.ts
 
       - name: Record this runner's egress address
+        id: egress
         if: always() && steps.setup.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 1
         run: |
           address="$(curl -sS --max-time 10 https://api.ipify.org || true)"
           echo "egress_ip=${address:-unknown}"
@@ -67,6 +74,7 @@ jobs:
         id: install
         if: steps.preflight.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 3
         run: npm ci
 
       - name: Capture observations and next-day forecasts
@@ -96,7 +104,7 @@ jobs:
     needs: capture_1
     if: ${{ always() && !cancelled() && needs.capture_1.outputs.succeeded != 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     continue-on-error: true
     outputs:
       succeeded: ${{ steps.capture.outcome == 'success' }}
@@ -104,6 +112,7 @@ jobs:
       - name: Checkout code
         id: checkout
         continue-on-error: true
+        timeout-minutes: 1
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -112,6 +121,7 @@ jobs:
         id: setup
         if: steps.checkout.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 2
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
@@ -121,11 +131,14 @@ jobs:
         id: preflight
         if: steps.setup.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 1
         run: node scripts/performance-transport-preflight.ts
 
       - name: Record this runner's egress address
+        id: egress
         if: always() && steps.setup.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 1
         run: |
           address="$(curl -sS --max-time 10 https://api.ipify.org || true)"
           echo "egress_ip=${address:-unknown}"
@@ -134,6 +147,7 @@ jobs:
         id: install
         if: steps.preflight.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 3
         run: npm ci
 
       - name: Capture observations and next-day forecasts
@@ -163,7 +177,7 @@ jobs:
     needs: [capture_1, capture_2]
     if: ${{ always() && !cancelled() && needs.capture_1.outputs.succeeded != 'true' && needs.capture_2.outputs.succeeded != 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     continue-on-error: true
     outputs:
       succeeded: ${{ steps.capture.outcome == 'success' }}
@@ -171,6 +185,7 @@ jobs:
       - name: Checkout code
         id: checkout
         continue-on-error: true
+        timeout-minutes: 1
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -179,6 +194,7 @@ jobs:
         id: setup
         if: steps.checkout.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 2
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
@@ -188,11 +204,14 @@ jobs:
         id: preflight
         if: steps.setup.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 1
         run: node scripts/performance-transport-preflight.ts
 
       - name: Record this runner's egress address
+        id: egress
         if: always() && steps.setup.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 1
         run: |
           address="$(curl -sS --max-time 10 https://api.ipify.org || true)"
           echo "egress_ip=${address:-unknown}"
@@ -201,6 +220,7 @@ jobs:
         id: install
         if: steps.preflight.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 3
         run: npm ci
 
       - name: Capture observations and next-day forecasts

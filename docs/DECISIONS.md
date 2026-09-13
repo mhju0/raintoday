@@ -558,15 +558,19 @@ its retry. Collection now makes at most three sequential fresh-runner attempts. 
 `npm ci`, each runner uses Node's built-in `fetch` to make two credential-free, 10-second
 requests to the exact ASOS endpoint with redirects disabled. Any HTTP response, including
 401, proves transport and cancels the unused body; two transport failures discard the
-runner before database or provider activity. A final verdict fails unless a collector step
-actually succeeded, while setup, preflight, install and collector failures remain eligible
-for recovery by the next runner. Cancellation stops the chain.
+runner before database or provider activity. Checkout, setup, preflight, install and
+collector steps have individual timeouts below a larger job budget, leaving ordinary
+failures eligible for recovery by the next runner. For a completed, non-cancelled graph,
+the final verdict fails unless a collector step actually succeeded. Cancellation stops
+the chain.
 
 **Residual risk.** The preflight covers one KMA ASOS transport path only. It does not test
 credentials, database access, other providers or later availability, and three runners can
 still share a correlated outage. Run #64 recorded only the retry's egress address, so it
 does not prove that the two failed attempts had distinct addresses. Missing cohorts remain
-missing; the recovery never rewrites immutable captures.
+missing; the recovery never rewrites immutable captures. GitHub retains `cancelled` after a
+hard job or runner timeout even if a later collector succeeds, so the larger job timeout is
+only a last bound, not a recoverable failure path.
 
 ---
 
