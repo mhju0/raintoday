@@ -534,8 +534,8 @@ indefinitely.
 **Status: ACTIVE (#103, PR #111)**
 
 **Decided.** A capture is **refused outright** when a compared provider's read faults, and a
-failed cohort re-runs as a separate `retry` job on a **fresh runner**, with
-`continue-on-error` output wiring so a rescued run finishes green.
+failed cohort re-runs on a **fresh runner**, with `continue-on-error` output wiring so a
+rescued run finishes green.
 
 **Why — the probe verdict.** An hourly probe over 2026-08-27..30 found the blackout follows
 the **egress address**, not the hour: 3 of 12 rounds lost every Korean host (22:28, 08:15 and
@@ -552,8 +552,21 @@ is an honest absence — no runner will ever supply a missing key. Because captu
 and immutable, one short a provider **by fault** is permanent and indistinguishable from an
 honest one. This is precisely why the 18 KST cohort's KMA-less rows can never be repaired.
 
-**Residual risk:** a double failure (both the run and its fresh-runner retry hitting a
-blackout) at roughly 6%. One occurred on 2026-09-01 and reset #124's count.
+**2026-09-14 recovery amendment (run #64).** The two-attempt workflow spent about 19
+minutes on each runner before both failed, while the following scheduled run recovered on
+its retry. Collection now makes at most three sequential fresh-runner attempts. Before
+`npm ci`, each runner uses Node's built-in `fetch` to make two credential-free, 10-second
+requests to the exact ASOS endpoint with redirects disabled. Any HTTP response, including
+401, proves transport and cancels the unused body; two transport failures discard the
+runner before database or provider activity. A final verdict fails unless a collector step
+actually succeeded, while setup, preflight, install and collector failures remain eligible
+for recovery by the next runner. Cancellation stops the chain.
+
+**Residual risk.** The preflight covers one KMA ASOS transport path only. It does not test
+credentials, database access, other providers or later availability, and three runners can
+still share a correlated outage. Run #64 recorded only the retry's egress address, so it
+does not prove that the two failed attempts had distinct addresses. Missing cohorts remain
+missing; the recovery never rewrites immutable captures.
 
 ---
 

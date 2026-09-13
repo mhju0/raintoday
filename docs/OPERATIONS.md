@@ -44,7 +44,11 @@ check `maintenance` itself and re-enable schedules when necessary. See
    code failures. A timeout before connection is not proof that an API key expired.
    Observation logs retain safe transport causes without request URLs or keys.
 2. For an upstream outage, retain the incident and inspect the next scheduled cohort.
-   The collector has one fresh-runner retry, also after setup or timeout failures.
+   The collector makes at most three sequential fresh-runner attempts, also after
+   setup, install or capture timeout failures. Before installing dependencies, each
+   runner makes two credential-free 10-second requests to the exact ASOS endpoint.
+   Any HTTP response proves that transport path is reachable; it does not prove that
+   credentials, the database, other providers or the eventual capture will work.
    Do not dispatch missed cohorts, substitute dry observations, overwrite captures,
    or drop required providers to make a run pass.
 3. For credentials, renew access in the provider account, update every consuming
@@ -64,6 +68,15 @@ HTTPS probe reached `apihub.kma.go.kr`. Its documented forecast endpoints reject
 the current API Hub key with HTTP 403, so no gateway switch was made. KMA must restore
 the original route or approve equivalent API access before that fallback is usable.
 This identifies the failing connection boundary, not the provider's internal root cause.
+
+September 13 incident, run #64: the first collector attempt and its single fresh-runner
+retry both exhausted their capture windows. The first reported transport timeouts for
+all 97 ASOS observations and provider faults for all 97 forecast captures; the retry
+also stored no cohort evidence. The next scheduled run recovered on its retry. Run #64
+did not record the first runner's egress address, so it does not establish that the two
+attempts used distinct addresses or locate the fault inside GitHub or KMA. The transport
+preflight and third runner reduce time spent on a known-bad ASOS route; they cannot
+guarantee collection when failures are correlated or occur after that probe.
 
 ## Credentials and request limits
 
