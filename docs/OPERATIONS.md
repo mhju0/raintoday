@@ -184,6 +184,13 @@ checks out PR code and disables auto-merge when additional commits appear.
 The repository action allowlist permits the exact reviewed `fetch-metadata` SHA.
 Review a helper update before adding its new SHA to that allowlist.
 
+September 15: the workflow used `dependabot/fetch-metadata` v3.1.0 while the
+repository allowlist still permitted only the older pin. This blocked workflows
+before job conditions were evaluated, including non-Dependabot PRs. Added only the
+verified v3.1.0 commit `25dd0e34f4fe68f24cc83900b1fe3fe149efef98` to the existing
+allowlist; selected-action restrictions and required SHA pinning remain enabled.
+When updating this helper, review both the workflow pin and the repository setting.
+
 Keep `.vercelignore` aligned with private/local exclusions in `.gitignore`; the CLI
 upload must not include local archives or agent state. Prefer the Git integration.
 
