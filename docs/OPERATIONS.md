@@ -50,6 +50,12 @@ check `maintenance` itself and re-enable schedules when necessary. See
    runner makes two credential-free 10-second requests to the exact ASOS endpoint.
    Any HTTP response proves that transport path is reachable; it does not prove that
    credentials, the database, other providers or the eventual capture will work.
+   If later reads show that a failed phase has recovered, the batch waits past the
+   provider failure cooldown and retries eligible earlier failures once before
+   changing runners.
+   Successful records are not revisited; unresolved failures still fail the cohort
+   under the existing rules. Authentication, parsing and database errors are not
+   treated as recoverable observation transport failures.
    Do not dispatch missed cohorts, substitute dry observations, overwrite captures,
    or drop required providers to make a run pass.
 3. For credentials, renew access in the provider account, update every consuming
@@ -80,6 +86,25 @@ preflight and third runner reduce time spent on a known-bad ASOS route; they can
 guarantee collection when failures are correlated or occur after that probe. A hard
 GitHub job or runner timeout marks the workflow cancelled; GitHub retains that final
 state even if a later attempt captures successfully.
+
+September 15 incident: [collection run 34910557704](https://github.com/mhju0/raintoday/actions/runs/34910557704)
+rejected two unreachable runners. The middle runner reached ASOS, then lost early
+station reads before recovering: it saved 77 observations and 69 captures, leaving
+20 observation failures and 28 refused captures. The collector now gives those
+failed reads one recovery pass on a runner that has demonstrated progress. The pass
+keeps the original cohort and dates and never overwrites existing captures.
+
+[Health run 34900117003](https://github.com/mhju0/raintoday/actions/runs/34900117003)
+received HTTP 200 with Visual Crossing missing. Health checks now confirm an
+incomplete forecast once after the provider failure-cache cooldown. They still
+require all five expected providers and a valid probability. Recovery is reported;
+a persistently incomplete forecast remains a failure. This does not change the
+forecast endpoint's fallback behavior or bypass its cache.
+
+Credential-free [runner diagnostics](https://github.com/mhju0/raintoday/actions/runs/34972383553)
+reached ASOS with both Node 24 and IPv4 curl on three runners. These samples do not
+identify the earlier network failure or justify forcing a different IP family.
+Recovery tests use fixtures; never dispatch an extra production cohort to test them.
 
 ## Credentials and request limits
 

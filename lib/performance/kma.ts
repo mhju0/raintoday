@@ -188,7 +188,13 @@ export function parseAsosDailyObservation(raw: unknown): number | null {
 export type AsosObservationRead =
   | { status: "observed"; observation: PrecipObservation; reason?: undefined }
   | { status: "absent"; observation?: undefined; reason?: undefined }
-  | { status: "failed"; observation?: undefined; reason: string };
+  | {
+      status: "failed";
+      observation?: undefined;
+      reason: string;
+      /** True only when the final internal attempt failed before an HTTP response. */
+      retryable?: boolean;
+    };
 
 function transportReason(error: unknown): string {
   return transportFailure(error);
@@ -206,7 +212,13 @@ export async function fetchAsosObservation(
   );
   // Reporting this per station is noisy, but an unset key silently scoring every
   // station as unobserved is how a whole pipeline stalls without anyone noticing.
-  if (!key) return { status: "failed", reason: "KMA_OBSERVATION_API_KEY is not configured" };
+  if (!key) {
+    return {
+      status: "failed",
+      reason: "KMA_OBSERVATION_API_KEY is not configured",
+      retryable: false,
+    };
+  }
   const compactDate = date.replace(/-/g, "");
   const params = new URLSearchParams({
     serviceKey: key,
@@ -221,6 +233,7 @@ export async function fetchAsosObservation(
   });
 
   let reason = "observation request failed";
+  let retryable = false;
   for (let attempt = 0; attempt < ASOS_OBSERVATION_ATTEMPTS; attempt += 1) {
     if (attempt > 0) await delay(ASOS_OBSERVATION_RETRY_BASE_MS * 2 ** (attempt - 1));
     let response: Response;
@@ -230,6 +243,7 @@ export async function fetchAsosObservation(
       });
     } catch (error) {
       reason = transportReason(error);
+      retryable = true;
       continue;
     }
     const bytes = await readResponseBytes(response, { maxBytes: MAX_ASOS_OBSERVATION_BYTES });
@@ -239,10 +253,17 @@ export async function fetchAsosObservation(
     if (classified.class === "empty") return { status: "absent" };
     if (classified.class === "forbidden") {
       // A key the service refuses will be refused again; retrying only spends quota.
-      return { status: "failed", reason: `forbidden — ${classified.detail}` };
+      return {
+        status: "failed",
+        reason: `forbidden — ${classified.detail}`,
+        retryable: false,
+      };
     }
     if (classified.class !== "ok") {
       reason = `${classified.class} — ${classified.detail}`;
+      // An HTTP response proves this runner can reach ASOS. Do not carry a
+      // previous transport attempt's eligibility across a terminal API answer.
+      retryable = false;
       continue;
     }
     const observedMm = parseAsosDailyObservation(classified.json);
@@ -260,7 +281,7 @@ export async function fetchAsosObservation(
       },
     };
   }
-  return { status: "failed", reason };
+  return { status: "failed", reason, retryable };
 }
 
 function parseIsoDate(value: string): number {
