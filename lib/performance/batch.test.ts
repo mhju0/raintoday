@@ -54,6 +54,293 @@ function forecastSnapshot(): ProviderSnapshot {
   };
 }
 
+function faultSnapshot(): ProviderSnapshot {
+  return {
+    ...forecastSnapshot(),
+    status: {
+      ...forecastSnapshot().status,
+      availability: "error",
+      message: "connection timed out",
+      lastUpdated: null,
+    },
+    daily: [],
+  };
+}
+
+function observed(stationId: string, date: string, now: Date) {
+  return {
+    status: "observed" as const,
+    observation: {
+      stationId,
+      date,
+      observedMm: 1.2,
+      observedAt: now.toISOString(),
+      source: "kma-asos" as const,
+    },
+  };
+}
+
+test("a partial transport outage retries only the early failed reads after later stations recover", async () => {
+  const store = new InMemoryPerformanceStore();
+  const observationCalls = new Map<string, number>();
+  const forecastCalls = new Map<string, number>();
+  const events: string[] = [];
+  const retryWaits: number[] = [];
+
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store,
+    fetchStations: async () => stations,
+    fetchObservation: async (stationId, date, now) => {
+      const call = (observationCalls.get(stationId) ?? 0) + 1;
+      observationCalls.set(stationId, call);
+      events.push(`observation:${stationId}:${date}:${call}`);
+      if (stationId === "108" && call === 1) {
+        return { status: "failed", reason: "connection timed out", retryable: true };
+      }
+      return observed(stationId, date, now);
+    },
+    readForecasts: async (location) => {
+      const stationId = stations.find((station) => station.name === location.name)!.id;
+      const call = (forecastCalls.get(stationId) ?? 0) + 1;
+      forecastCalls.set(stationId, call);
+      events.push(`forecast:${stationId}:2026-08-14:${call}`);
+      return stationId === "108" && call === 1 ? [faultSnapshot()] : [forecastSnapshot()];
+    },
+    concurrency: 1,
+    retryDelay: async (ms) => { retryWaits.push(ms); },
+  });
+
+  assert.equal(result.observationsStored, 2);
+  assert.equal(result.observationsFailed, 0);
+  assert.equal(result.capturesInserted, 2);
+  assert.equal(result.capturesFaulted, 0);
+  assert.equal(result.observationsRecovered, 1);
+  assert.equal(result.capturesRecovered, 1);
+  assert.deepEqual(result.failures, []);
+  assert.deepEqual(retryWaits, [31_000], "both phases share one wait beyond the cache cooldown");
+  assert.deepEqual(Object.fromEntries(observationCalls), { "108": 2, "159": 1 });
+  assert.deepEqual(Object.fromEntries(forecastCalls), { "108": 2, "159": 1 });
+  assert.deepEqual(events.slice(-2), [
+    "observation:108:2026-08-12:2",
+    "forecast:108:2026-08-14:2",
+  ], "the failed station keeps observation-before-capture ordering and dates on retry");
+  assert.equal((await store.loadObservations("108")).length, 1, "recovery stores one observation");
+  assert.equal((await store.loadCaptures("108", "18")).length, 1, "recovery stores one immutable capture");
+  assert.equal((await store.loadObservations("108"))[0]?.date, "2026-08-12");
+  assert.equal((await store.loadCaptures("108", "18"))[0]?.targetDate, "2026-08-14");
+});
+
+test("a persistent transport outage remains failed without a blind retry", async () => {
+  let observationCalls = 0;
+  let forecastCalls = 0;
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store: new InMemoryPerformanceStore(),
+    fetchStations: async () => [stations[0]],
+    fetchObservation: async () => {
+      observationCalls += 1;
+      return { status: "failed", reason: "connection timed out", retryable: true };
+    },
+    readForecasts: async () => {
+      forecastCalls += 1;
+      return [faultSnapshot()];
+    },
+    concurrency: 1,
+  });
+
+  assert.equal(observationCalls, 1, "without later observation progress a blind retry cannot help");
+  assert.equal(forecastCalls, 1, "without later capture progress a blind retry cannot help");
+  assert.equal(result.observationsFailed, 1);
+  assert.equal(result.capturesFaulted, 1);
+  assert.deepEqual(result.failures.map(({ phase, kind }) => ({ phase, kind })), [
+    { phase: "observation", kind: "error" },
+    { phase: "capture", kind: "provider-fault" },
+  ]);
+});
+
+test("a phase that fails last is not retried without evidence of later recovery", async () => {
+  const observationCalls = new Map<string, number>();
+  const forecastCalls = new Map<string, number>();
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store: new InMemoryPerformanceStore(),
+    fetchStations: async () => stations,
+    fetchObservation: async (stationId, date, now) => {
+      observationCalls.set(stationId, (observationCalls.get(stationId) ?? 0) + 1);
+      return stationId === "159"
+        ? { status: "failed", reason: "connection timed out", retryable: true }
+        : observed(stationId, date, now);
+    },
+    readForecasts: async (location) => {
+      const stationId = stations.find((station) => station.name === location.name)!.id;
+      forecastCalls.set(stationId, (forecastCalls.get(stationId) ?? 0) + 1);
+      return stationId === "159" ? [faultSnapshot()] : [forecastSnapshot()];
+    },
+    concurrency: 1,
+    retryDelay: async () => assert.fail("a last failure must not start the recovery pass"),
+  });
+
+  assert.deepEqual(Object.fromEntries(observationCalls), { "108": 1, "159": 1 });
+  assert.deepEqual(Object.fromEntries(forecastCalls), { "108": 1, "159": 1 });
+  assert.equal(result.observationsFailed, 1);
+  assert.equal(result.capturesFaulted, 1);
+});
+
+test("resolved absence and skip count as recovery without claiming stored evidence", async () => {
+  const observationCalls = new Map<string, number>();
+  const forecastCalls = new Map<string, number>();
+  const emptyForecast = { ...forecastSnapshot(), daily: [] };
+  const store = new InMemoryPerformanceStore();
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store,
+    fetchStations: async () => stations,
+    fetchObservation: async (stationId, date, now) => {
+      const call = (observationCalls.get(stationId) ?? 0) + 1;
+      observationCalls.set(stationId, call);
+      if (stationId === "108") {
+        return call === 1
+          ? { status: "failed", reason: "connection timed out", retryable: true }
+          : { status: "absent" };
+      }
+      return observed(stationId, date, now);
+    },
+    readForecasts: async (location) => {
+      const stationId = stations.find((station) => station.name === location.name)!.id;
+      const call = (forecastCalls.get(stationId) ?? 0) + 1;
+      forecastCalls.set(stationId, call);
+      if (stationId === "108") return call === 1 ? [faultSnapshot()] : [emptyForecast];
+      return [forecastSnapshot()];
+    },
+    concurrency: 1,
+    retryDelay: async () => {},
+  });
+
+  assert.equal(result.observationsRecovered, 1);
+  assert.equal(result.capturesRecovered, 1);
+  assert.equal(result.observationsStored, 1);
+  assert.equal(result.observationsAbsent, 1);
+  assert.equal(result.capturesInserted, 1);
+  assert.equal(result.capturesSkipped, 1);
+  assert.deepEqual(result.failures, []);
+  assert.deepEqual(await store.loadObservations("108"), []);
+  assert.deepEqual(await store.loadCaptures("108", "18"), []);
+});
+
+test("an absent observation is not repeated when only its capture needs recovery", async () => {
+  const observationCalls = new Map<string, number>();
+  const forecastCalls = new Map<string, number>();
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store: new InMemoryPerformanceStore(),
+    fetchStations: async () => stations,
+    fetchObservation: async (stationId) => {
+      observationCalls.set(stationId, (observationCalls.get(stationId) ?? 0) + 1);
+      return { status: "absent" };
+    },
+    readForecasts: async (location) => {
+      const stationId = stations.find((station) => station.name === location.name)!.id;
+      const call = (forecastCalls.get(stationId) ?? 0) + 1;
+      forecastCalls.set(stationId, call);
+      return stationId === "108" && call === 1 ? [faultSnapshot()] : [forecastSnapshot()];
+    },
+    concurrency: 1,
+    retryDelay: async () => {},
+  });
+
+  assert.deepEqual(Object.fromEntries(observationCalls), { "108": 1, "159": 1 });
+  assert.deepEqual(Object.fromEntries(forecastCalls), { "108": 2, "159": 1 });
+  assert.equal(result.observationsAbsent, 2);
+  assert.equal(result.capturesInserted, 2);
+  assert.equal(result.capturesRecovered, 1);
+  assert.deepEqual(result.failures, []);
+});
+
+test("database write errors are reported once and are never retried as transport failures", async () => {
+  class FailingWriteStore extends InMemoryPerformanceStore {
+    override async saveObservation(): Promise<void> {
+      throw new Error("observation database unavailable");
+    }
+    override async saveCapture(): Promise<"inserted"> {
+      throw new Error("capture database unavailable");
+    }
+  }
+  let observationCalls = 0;
+  let forecastCalls = 0;
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store: new FailingWriteStore(),
+    fetchStations: async () => [stations[0]],
+    fetchObservation: async (stationId, date, now) => {
+      observationCalls += 1;
+      return observed(stationId, date, now);
+    },
+    readForecasts: async () => {
+      forecastCalls += 1;
+      return [forecastSnapshot()];
+    },
+    concurrency: 1,
+  });
+
+  assert.equal(observationCalls, 1);
+  assert.equal(forecastCalls, 1);
+  assert.equal(result.observationsFailed, 1);
+  assert.deepEqual(result.failures.map((failure) => failure.message), [
+    "observation database unavailable",
+    "capture database unavailable",
+  ]);
+});
+
+test("a successful existing capture is not repeated while its observation recovers", async () => {
+  const store = new InMemoryPerformanceStore();
+  const now = new Date("2026-08-13T18:10:00+09:00");
+  await runPerformanceBatch({
+    cohort: "18",
+    now,
+    store,
+    fetchStations: async () => stations,
+    fetchObservation: async (stationId, date, at) => observed(stationId, date, at),
+    readForecasts: async () => [forecastSnapshot()],
+    concurrency: 1,
+  });
+
+  let observationCalls = 0;
+  let forecastCalls = 0;
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now,
+    store,
+    fetchStations: async () => stations,
+    fetchObservation: async (stationId, date, at) => {
+      observationCalls += 1;
+      return stationId === "108" && observationCalls === 1
+        ? { status: "failed", reason: "connection timed out", retryable: true }
+        : observed(stationId, date, at);
+    },
+    readForecasts: async () => {
+      forecastCalls += 1;
+      return [forecastSnapshot()];
+    },
+    concurrency: 1,
+    retryDelay: async () => {},
+  });
+
+  assert.equal(observationCalls, 3);
+  assert.equal(forecastCalls, 2);
+  assert.equal(result.observationsStored, 2);
+  assert.equal(result.observationsRecovered, 1);
+  assert.equal(result.capturesExisting, 2);
+  assert.deepEqual(result.failures, []);
+  assert.equal((await store.loadCaptures("108", "18")).length, 1);
+});
+
 test("nationwide batch stores yesterday's observation before an idempotent next-day capture", async () => {
   const store = new InMemoryPerformanceStore();
   const result = await runPerformanceBatch({
@@ -78,10 +365,12 @@ test("nationwide batch stores yesterday's observation before an idempotent next-
   assert.deepEqual(result, {
     stationCount: 2,
     observationsStored: 2,
+    observationsRecovered: 0,
     capturesInserted: 2,
     capturesExisting: 0,
     capturesSkipped: 0,
     capturesFaulted: 0,
+    capturesRecovered: 0,
     failures: [],
     catalogSource: "kma",
     catalogError: null,

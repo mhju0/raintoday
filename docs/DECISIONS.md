@@ -861,3 +861,35 @@ so they are not re-proposed as if new.
 | The ADR 0005 `proximity` dimension | **APPROVED** | Wording only; implementation queued. |
 | Dependabot auto-merge on patch/minor updates | **APPROVED** | Require passing CI first; major upgrades stay manual. |
 | data.go.kr key 활용기간 expiry | **Human-only** | A lapse fails the daily run loudly, so it is caught — but it is the one calendar item worth setting. |
+
+---
+
+## 2026-09-15 — Recover partial collection before discarding a reachable runner
+
+**Status: ACTIVE**
+
+Collection run `34910557704` proved a case the initial transport check cannot cover:
+a runner passed the check, lost early requests, then successfully collected later
+stations. Its 20 failed observations and 28 refused captures were never revisited.
+The other two runners could not reach ASOS at all.
+
+A batch may make one additional pass over eligible failed phases after the provider
+failure-cache cooldown. Each failure requires later progress in the same phase during the first
+pass. An entirely failed forecast phase does not get another nationwide pass merely
+because observations worked. Retry only explicitly retryable observation transport
+failures and refused provider-fault captures; never retry ambiguous database writes
+or convert an error to a dry observation. Successful and absent observations and
+inserted, existing or skipped captures keep their first outcomes. The retry retains
+cohort, target dates, batch time, concurrency bounds and immutable store operations.
+Final failure counts describe unresolved outcomes; recovered counts remain visible.
+
+The served-health checker also confirms one semantically incomplete HTTP-200 forecast
+after the same cooldown. An HTTP success is not sufficient: all five expected provider
+IDs and a usable probability must be present. A persistent gap remains red. This is
+bounded confirmation, not a lower health threshold or a cache bypass.
+
+A credential-free diagnostic on three GitHub runners returned ASOS HTTP 401 from both
+Node 24 and IPv4 curl in all paired probes. No IP-family or runner-platform change is
+supported by those samples. These changes handle reproduced recovery gaps; they do
+not establish or repair the external network's root cause, and they do not backfill
+missed historical captures.

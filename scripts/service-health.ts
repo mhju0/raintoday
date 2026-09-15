@@ -26,6 +26,7 @@
 import { FALLBACK_STATION_CATALOG } from "../lib/performance/stationCatalog.ts";
 import { evaluateQuotaRunway } from "../lib/quotaRunway.ts";
 import { parseQuotaHeader } from "../lib/maintenance.ts";
+import { checkForecastResponse } from "../lib/serviceHealth.ts";
 
 /** Two scheduled cohorts a day, one call per station per cohort. */
 const DAILY_PIPELINE_BURN = FALLBACK_STATION_CATALOG.length * 2;
@@ -35,8 +36,6 @@ const VISITOR_RESERVE = 1_000;
  * All five configured providers must participate for an operational all-clear.
  * Visitors can still receive a usable forecast during a provider incident.
  */
-const MINIMUM_PROVIDERS = 5;
-
 const REQUEST_TIMEOUT_MS = 20_000;
 const ATTEMPTS = 3;
 const RETRY_GAP_MS = 5_000;
@@ -116,45 +115,31 @@ async function checkHomePage(base: string): Promise<void> {
 async function checkForecast(base: string): Promise<void> {
   try {
     const started = Date.now();
-    const response = await fetchWithRetry(`${base}/api/local-forecast`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(PROBE),
+    const result = await checkForecastResponse(`${base}/api/local-forecast`, {
+      requestInit: {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(PROBE),
+      },
+      onIncomplete(detail, attempt) {
+        process.stdout.write(
+          `  WARN  forecast attempt ${attempt} incomplete: ${detail}; confirming after cache cooldown\n`,
+        );
+      },
     });
     const ms = Date.now() - started;
-    if (!response.ok) {
-      record("forecast", false, `HTTP ${response.status} in ${ms}ms`);
+    if (!result.ok) {
+      record("forecast", false, `${result.detail} after ${result.attempts} attempt(s) in ${ms}ms`);
       return;
     }
-    const body = (await response.json()) as {
-      influence?: { id: string }[];
-      recommendation?: { precipitationProbability?: unknown };
-    };
-    const providers = body.influence ?? [];
-    const probability = body.recommendation?.precipitationProbability;
-    // A probability outside 0..100 means something fabricated a number rather
-    // than omitting an unavailable source, which the honest-fallback rule forbids.
-    const usable =
-      typeof probability === "number" &&
-      Number.isFinite(probability) &&
-      probability >= 0 &&
-      probability <= 100;
-    const names = providers.map((provider) => provider.id).join(", ");
-    if (providers.length < MINIMUM_PROVIDERS) {
-      record("forecast", false, `only ${providers.length} providers [${names}] in ${ms}ms`);
-      return;
-    }
-    if (!usable) {
-      record("forecast", false, `probability not usable: ${String(probability)}`);
-      return;
-    }
+    const recovery = result.recovered ? `, recovered on attempt ${result.attempts}` : "";
     record(
       "forecast",
       true,
-      `${providers.length} providers, ${probability.toFixed(0)}% in ${ms}ms`,
+      `${result.providerCount} providers, ${result.probability.toFixed(0)}%${recovery} in ${ms}ms`,
     );
   } catch (error) {
-    record("forecast", false, `unreachable after ${ATTEMPTS} attempts: ${(error as Error).message}`);
+    record("forecast", false, `unreachable: ${(error as Error).message}`);
   }
 }
 

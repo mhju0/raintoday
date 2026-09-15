@@ -1,5 +1,6 @@
 import type { ForecastLocation } from "../location.ts";
 import type { ProviderSnapshot } from "../types.ts";
+import { DEFAULT_FAILURE_RETRY_MS } from "../cache.ts";
 import { captureStationForecast } from "./capture.ts";
 import { fetchAsosObservation, fetchKmaAsosStations, type AsosObservationRead } from "./kma.ts";
 import type { PerformanceStore } from "./store.ts";
@@ -24,11 +25,15 @@ export interface PerformanceBatchResult {
   observationsAbsent: number;
   /** Stations whose observation could not be read. Always also in `failures`. */
   observationsFailed: number;
+  /** Failed observation reads resolved during the one end-of-batch retry pass. */
+  observationsRecovered: number;
   capturesInserted: number;
   capturesExisting: number;
   capturesSkipped: number;
   /** Stations whose capture was refused because a provider read failed. */
   capturesFaulted: number;
+  /** Faulted provider reads resolved during the one end-of-batch retry pass. */
+  capturesRecovered: number;
   failures: PerformanceBatchFailure[];
   /** Where the run's station list came from. `store` means the cohort ran degraded. */
   catalogSource: "kma" | "store";
@@ -48,6 +53,7 @@ interface PerformanceBatchInput {
   ) => Promise<AsosObservationRead>;
   readForecasts?: (location: ForecastLocation) => Promise<ProviderSnapshot[]>;
   concurrency?: number;
+  retryDelay?: (ms: number) => Promise<void>;
 }
 
 function koreanDate(date: Date): string {
@@ -84,6 +90,12 @@ function failureMessage(error: unknown): string {
   return error instanceof Error ? error.message : "unknown error";
 }
 
+const PARTIAL_FAILURE_RETRY_DELAY_MS = DEFAULT_FAILURE_RETRY_MS + 1_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** Run one bounded nationwide ASOS observation-and-capture cohort. */
 export async function runPerformanceBatch(
   input: PerformanceBatchInput,
@@ -118,89 +130,198 @@ export async function runPerformanceBatch(
     observationsStored: 0,
     observationsAbsent: 0,
     observationsFailed: 0,
+    observationsRecovered: 0,
     capturesInserted: 0,
     capturesExisting: 0,
     capturesSkipped: 0,
     capturesFaulted: 0,
+    capturesRecovered: 0,
     failures: [],
     catalogSource,
     catalogError,
   };
   const targetObservationDate = observationDate(input.cohort, input.now);
   const fetchObservation = input.fetchObservation ?? fetchAsosObservation;
-  let nextIndex = 0;
+  const concurrency = Math.max(1, Math.min(input.concurrency ?? 4, stations.length || 1));
+  type RetryCandidate = {
+    station: ObservationStation;
+    failure: PerformanceBatchFailure;
+    failedAt: number;
+  };
+  const observationRetries = new Map<string, RetryCandidate>();
+  const captureRetries = new Map<string, RetryCandidate>();
+  let observationSequence = 0;
+  let captureSequence = 0;
+  let latestObservationProgress = 0;
+  let latestCaptureProgress = 0;
 
-  const worker = async (): Promise<void> => {
-    while (nextIndex < stations.length) {
-      const station = stations[nextIndex++];
-      try {
-        const read = await fetchObservation(station.id, targetObservationDate, input.now);
-        if (read.status === "observed") {
-          await input.store.saveObservation(read.observation);
-          result.observationsStored += 1;
-        } else if (read.status === "failed") {
-          // Not the same as `absent`. A station ASOS has no row for is a fact about
-          // the record; a refused or dropped request is a fault, and counting it as
-          // an absence is how 87 of 97 observations once vanished from a run that
-          // reported no failures at all.
-          result.observationsFailed += 1;
-          result.failures.push({
-            stationId: station.id,
-            phase: "observation",
-            kind: "error",
-            message: read.reason,
-          });
-        } else {
-          result.observationsAbsent += 1;
-        }
-      } catch (error) {
+  const removeFailure = (failure: PerformanceBatchFailure): void => {
+    const index = result.failures.indexOf(failure);
+    if (index >= 0) result.failures.splice(index, 1);
+  };
+
+  const processObservation = async (
+    station: ObservationStation,
+    retry?: RetryCandidate,
+  ): Promise<void> => {
+    let read: AsosObservationRead;
+    try {
+      read = await fetchObservation(station.id, targetObservationDate, input.now);
+    } catch (error) {
+      const message = failureMessage(error);
+      if (retry) {
+        retry.failure.message = message;
+      } else {
         result.observationsFailed += 1;
-        result.failures.push({
-          stationId: station.id,
-          phase: "observation",
-          kind: "error",
-          message: failureMessage(error),
-        });
+        result.failures.push({ stationId: station.id, phase: "observation", kind: "error", message });
       }
-
+      return;
+    }
+    const completedAt = ++observationSequence;
+    if (read.status === "observed" || read.status === "absent") {
+      latestObservationProgress = completedAt;
+    }
+    if (read.status === "observed") {
       try {
-        const capture = await captureStationForecast({
-          station,
-          cohort: input.cohort,
-          now: input.now,
-          store: input.store,
-          readForecasts: input.readForecasts,
-        });
-        if (capture.status === "inserted") result.capturesInserted += 1;
-        if (capture.status === "existing") result.capturesExisting += 1;
-        if (capture.status === "skipped") result.capturesSkipped += 1;
-        if (capture.status === "faulted") {
-          // The capture was refused, not merely empty. Reporting it as a failure is
-          // what keeps a run that reached no provider from finishing green.
-          result.capturesFaulted += 1;
-          result.failures.push({
+        await input.store.saveObservation(read.observation);
+      } catch (error) {
+        const message = failureMessage(error);
+        if (retry) retry.failure.message = message;
+        else {
+          result.observationsFailed += 1;
+          result.failures.push({ stationId: station.id, phase: "observation", kind: "error", message });
+        }
+        return;
+      }
+      if (retry) {
+        result.observationsFailed -= 1;
+        result.observationsRecovered += 1;
+        removeFailure(retry.failure);
+      }
+      result.observationsStored += 1;
+      return;
+    }
+    if (read.status === "absent") {
+      if (retry) {
+        result.observationsFailed -= 1;
+        result.observationsRecovered += 1;
+        removeFailure(retry.failure);
+      }
+      result.observationsAbsent += 1;
+      return;
+    }
+    if (retry) {
+      retry.failure.message = read.reason;
+      return;
+    }
+    // Not the same as `absent`. Only transport exhaustion is eligible for the
+    // later recovery pass; configuration and API responses are terminal.
+    const failure: PerformanceBatchFailure = {
+      stationId: station.id,
+      phase: "observation",
+      kind: "error",
+      message: read.reason,
+    };
+    result.observationsFailed += 1;
+    result.failures.push(failure);
+    if (read.retryable === true) {
+      observationRetries.set(station.id, { station, failure, failedAt: completedAt });
+    }
+  };
+
+  const processCapture = async (
+    station: ObservationStation,
+    retry?: RetryCandidate,
+  ): Promise<void> => {
+    try {
+      const capture = await captureStationForecast({
+        station,
+        cohort: input.cohort,
+        now: input.now,
+        store: input.store,
+        readForecasts: input.readForecasts,
+      });
+      const completedAt = ++captureSequence;
+      if (capture.status !== "faulted") latestCaptureProgress = completedAt;
+      if (capture.status === "faulted") {
+        const message = `could not read ${capture.faultedProviders
+          .map((fault) => `${fault.provider} (${fault.message})`)
+          .join(", ")}`;
+        if (retry) {
+          retry.failure.message = message;
+        } else {
+          const failure: PerformanceBatchFailure = {
             stationId: station.id,
             phase: "capture",
             kind: "provider-fault",
-            // The provider's own reason travels with it: "could not read
-            // open-meteo" alone left the last outage undiagnosable.
-            message: `could not read ${capture.faultedProviders
-              .map((fault) => `${fault.provider} (${fault.message})`)
-              .join(", ")}`,
-          });
+            message,
+          };
+          result.capturesFaulted += 1;
+          result.failures.push(failure);
+          captureRetries.set(station.id, { station, failure, failedAt: completedAt });
         }
-      } catch (error) {
-        result.failures.push({
-          stationId: station.id,
-          phase: "capture",
-          kind: "error",
-          message: failureMessage(error),
-        });
+        return;
+      }
+      if (retry) {
+        result.capturesFaulted -= 1;
+        result.capturesRecovered += 1;
+        removeFailure(retry.failure);
+      }
+      if (capture.status === "inserted") result.capturesInserted += 1;
+      if (capture.status === "existing") result.capturesExisting += 1;
+      if (capture.status === "skipped") result.capturesSkipped += 1;
+    } catch (error) {
+      const message = failureMessage(error);
+      if (retry) {
+        result.capturesFaulted -= 1;
+        retry.failure.kind = "error";
+        retry.failure.message = message;
+      } else {
+        result.failures.push({ stationId: station.id, phase: "capture", kind: "error", message });
       }
     }
   };
 
-  const concurrency = Math.max(1, Math.min(input.concurrency ?? 4, stations.length || 1));
-  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  const runStations = async (
+    selected: readonly ObservationStation[],
+    process: (station: ObservationStation) => Promise<void>,
+  ): Promise<void> => {
+    let nextIndex = 0;
+    const worker = async (): Promise<void> => {
+      while (nextIndex < selected.length) await process(selected[nextIndex++]);
+    };
+    await Promise.all(Array.from({ length: Math.min(concurrency, selected.length || 1) }, () => worker()));
+  };
+
+  await runStations(stations, async (station) => {
+    await processObservation(station);
+    await processCapture(station);
+  });
+
+  const retryableObservationIds = new Set(
+    [...observationRetries.values()]
+      .filter((candidate) => candidate.failedAt < latestObservationProgress)
+      .map((candidate) => candidate.station.id),
+  );
+  const retryableCaptureIds = new Set(
+    [...captureRetries.values()]
+      .filter((candidate) => candidate.failedAt < latestCaptureProgress)
+      .map((candidate) => candidate.station.id),
+  );
+  const retryStations = stations.filter((station) =>
+    retryableObservationIds.has(station.id) || retryableCaptureIds.has(station.id));
+  if (retryStations.length > 0) {
+    await (input.retryDelay ?? sleep)(PARTIAL_FAILURE_RETRY_DELAY_MS);
+    await runStations(retryStations, async (station) => {
+      const observationRetry = observationRetries.get(station.id);
+      if (observationRetry && retryableObservationIds.has(station.id)) {
+        await processObservation(station, observationRetry);
+      }
+      const captureRetry = captureRetries.get(station.id);
+      if (captureRetry && retryableCaptureIds.has(station.id)) {
+        await processCapture(station, captureRetry);
+      }
+    });
+  }
   return result;
 }

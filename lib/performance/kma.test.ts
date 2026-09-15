@@ -218,14 +218,30 @@ test("a refused ASOS observation is reported, not silently dropped", async () =>
     const rateLimited = await read(async () => new Response(asosBody("22"), { status: 200 }), noWait);
     assert.equal(rateLimited.status, "failed");
     assert.match(rateLimited.reason ?? "", /rate-limited/);
+    assert.equal(rateLimited.retryable, false, "an API response is not a runner transport failure");
 
     const forbidden = await read(async () => new Response(asosBody("30"), { status: 200 }));
     assert.equal(forbidden.status, "failed");
     assert.match(forbidden.reason ?? "", /forbidden/);
+    assert.equal(forbidden.retryable, false);
 
     const dropped = await read(async () => { throw new TypeError("fetch failed"); }, noWait);
     assert.equal(dropped.status, "failed");
     assert.match(dropped.reason ?? "", /network request failed/);
+    assert.equal(dropped.retryable, true, "transport exhaustion may recover after the batch progresses");
+  });
+});
+
+test("a terminal HTTP response clears earlier transport retry eligibility", async () => {
+  await withObservationKey(async () => {
+    let attempts = 0;
+    const result = await read(async () => {
+      attempts += 1;
+      if (attempts === 1) throw new TypeError("fetch failed");
+      return new Response(asosBody("22"), { status: 200 });
+    }, async () => {});
+    assert.equal(result.status, "failed");
+    assert.equal(result.retryable, false);
   });
 });
 
@@ -282,6 +298,7 @@ test("a missing observation key is a reported fault, not a silent absence", asyn
     const result = await read(async () => new Response(asosBody("00", "1.0"), { status: 200 }));
     assert.equal(result.status, "failed");
     assert.match(result.reason ?? "", /KMA_OBSERVATION_API_KEY/);
+    assert.equal(result.retryable, false);
   } finally {
     if (previousObservation !== undefined) process.env.KMA_OBSERVATION_API_KEY = previousObservation;
     if (previousShortTerm !== undefined) process.env.KMA_SHORT_TERM_API_KEY = previousShortTerm;

@@ -14,7 +14,7 @@ const store = new Map<string, CacheEntry<unknown>>();
 const pending = new Map<string, Promise<CachedResult<unknown>>>();
 const failures = new Map<string, { error: unknown; retryAt: number }>();
 const MAX_CACHE_ENTRIES = 128;
-const DEFAULT_FAILURE_RETRY_MS = 30_000;
+export const DEFAULT_FAILURE_RETRY_MS = 30_000;
 
 export interface CachedFetchOptions {
   /** Cooldown after an upstream failure, preventing request-driven retry storms. */
