@@ -125,11 +125,174 @@ function isoTimestamp(value: string): string {
   return new Date(value).toISOString();
 }
 
+const RETRYABLE_PRECONNECT_CODES = new Set([
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+]);
+const DEFAULT_CONNECTION_RETRY_DELAY_MS = 1_000;
+const MAX_ERROR_TREE_DEPTH = 8;
+const MAX_ERROR_TREE_NODES = 32;
+const MAX_ERROR_MESSAGE_LENGTH = 300;
+
+type RecoverablePostgresOperation =
+  | "saveObservation"
+  | "saveCapture"
+  | "loadCompletedComparisons";
+
+export interface PostgresStatementRecoveryOptions {
+  enabled: boolean;
+  delayMs?: number;
+  sleep?: (delayMs: number) => Promise<void>;
+}
+
+export interface PostgresPerformanceStoreOptions {
+  readOnly?: boolean;
+  retryConnectionFailures?: boolean;
+}
+
+function aggregateCauses(error: AggregateError): unknown[] {
+  return Array.from(error.errors as Iterable<unknown>);
+}
+
+/**
+ * Only a socket failure proven to happen while connecting is safe to replay.
+ * An AggregateError qualifies only when every non-empty leaf carries that proof.
+ */
+export function isRetryablePreconnectFailure(error: unknown): boolean {
+  return isRetryablePreconnectFailureNode(
+    error,
+    new Set<AggregateError>(),
+    { remaining: MAX_ERROR_TREE_NODES },
+    0,
+  );
+}
+
+function isRetryablePreconnectFailureNode(
+  error: unknown,
+  ancestors: Set<AggregateError>,
+  budget: { remaining: number },
+  depth: number,
+): boolean {
+  if (depth > MAX_ERROR_TREE_DEPTH || budget.remaining <= 0) return false;
+  budget.remaining -= 1;
+  if (error instanceof AggregateError) {
+    if (ancestors.has(error)) return false;
+    const causes = aggregateCauses(error);
+    if (causes.length === 0) return false;
+    const nextAncestors = new Set(ancestors).add(error);
+    return causes.every((cause) => isRetryablePreconnectFailureNode(
+      cause,
+      nextAncestors,
+      budget,
+      depth + 1,
+    ));
+  }
+  if (!(error instanceof Error)) return false;
+  const candidate = error as NodeJS.ErrnoException;
+  return candidate.syscall === "connect"
+    && typeof candidate.code === "string"
+    && RETRYABLE_PRECONNECT_CODES.has(candidate.code);
+}
+
+function redactConnectionSecrets(message: string): string {
+  const redacted = message
+    .replace(/([a-z][a-z0-9+.-]*:\/\/)[^@\s/]+@/giu, "$1<REDACTED>@")
+    .replace(/([?&](?:password|pass|pwd)=)[^&\s]+/giu, "$1<REDACTED>");
+  return redacted.length <= MAX_ERROR_MESSAGE_LENGTH
+    ? redacted
+    : `${redacted.slice(0, MAX_ERROR_MESSAGE_LENGTH)}…`;
+}
+
+function describeErrorLeaf(error: unknown): string {
+  if (!(error instanceof Error)) return "unknown error";
+  const candidate = error as NodeJS.ErrnoException;
+  const facts = [candidate.syscall, candidate.code]
+    .filter((value): value is string => typeof value === "string" && value.length > 0)
+    .join(" ");
+  if (candidate.syscall && typeof candidate.code === "string" && /^E[A-Z]+$/u.test(candidate.code)) {
+    const safeMessage = redactConnectionSecrets(error.message.trim());
+    if (safeMessage) return safeMessage;
+  }
+  if (facts) return facts;
+  return error.name || "Error";
+}
+
+/** Return a non-empty, credential-redacted diagnostic for driver errors. */
+export function describePostgresError(error: unknown): string {
+  return describePostgresErrorNode(
+    error,
+    new Set<AggregateError>(),
+    { remaining: MAX_ERROR_TREE_NODES },
+    0,
+  );
+}
+
+function describePostgresErrorNode(
+  error: unknown,
+  ancestors: Set<AggregateError>,
+  budget: { remaining: number },
+  depth: number,
+): string {
+  if (depth > MAX_ERROR_TREE_DEPTH || budget.remaining <= 0) return "error details truncated";
+  budget.remaining -= 1;
+  if (error instanceof AggregateError) {
+    if (ancestors.has(error)) return "cyclic AggregateError";
+    const causes = aggregateCauses(error);
+    if (causes.length === 0) return "AggregateError without causes";
+    const nextAncestors = new Set(ancestors).add(error);
+    const includedCauses = causes.slice(0, budget.remaining);
+    const details = includedCauses.map((cause) =>
+      describePostgresErrorNode(cause, nextAncestors, budget, depth + 1)).join("; ");
+    const omitted = causes.length - includedCauses.length;
+    return `AggregateError (${causes.length} causes: ${details}${omitted > 0 ? `; ${omitted} omitted` : ""})`;
+  }
+  return describeErrorLeaf(error);
+}
+
+function sleep(delayMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+/** Retry one exact statement once, and only for a proven pre-connect socket failure. */
+export async function runPostgresStatementWithRecovery<T>(
+  operation: RecoverablePostgresOperation,
+  statement: () => Promise<T>,
+  options: PostgresStatementRecoveryOptions,
+): Promise<T> {
+  try {
+    return await statement();
+  } catch (error) {
+    if (!options.enabled) throw error;
+    if (!isRetryablePreconnectFailure(error)) {
+      throw new Error(`PostgreSQL ${operation} failed: ${describePostgresError(error)}`, {
+        cause: error,
+      });
+    }
+  }
+
+  await (options.sleep ?? sleep)(options.delayMs ?? DEFAULT_CONNECTION_RETRY_DELAY_MS);
+  try {
+    return await statement();
+  } catch (error) {
+    throw new Error(
+      `PostgreSQL ${operation} failed after connection retry: ${describePostgresError(error)}`,
+      { cause: error },
+    );
+  }
+}
+
 export class PostgresPerformanceStore implements PerformanceStore {
   readonly #sql: ReturnType<typeof postgres>;
+  readonly #statementRecovery: PostgresStatementRecoveryOptions;
 
-  constructor(connectionUrl: string, options: { readOnly?: boolean } = {}) {
+  constructor(connectionUrl: string, options: PostgresPerformanceStoreOptions = {}) {
     if (!connectionUrl.trim()) throw new Error("PERFORMANCE_DATABASE_URL is required");
+    this.#statementRecovery = {
+      enabled: options.retryConnectionFailures ?? false,
+      delayMs: DEFAULT_CONNECTION_RETRY_DELAY_MS,
+    };
     this.#sql = postgres(connectionUrl, {
       max: 4,
       idle_timeout: 20,
@@ -267,33 +430,47 @@ export class PostgresPerformanceStore implements PerformanceStore {
   }
 
   async saveCapture(capture: ForecastCapture): Promise<CaptureWriteResult> {
-    const rows = await this.#sql`
-      insert into performance_captures (
-        station_id, target_date, cohort, captured_at, providers, frozen_blend
-      ) values (
-        ${capture.stationId}, ${capture.targetDate}, ${capture.cohort}, ${capture.capturedAt},
-        ${this.#sql.json(capture.providers as unknown as postgres.JSONValue)},
-        ${this.#sql.json(capture.frozenBlend as unknown as postgres.JSONValue)}
-      )
-      on conflict (station_id, target_date, cohort) do nothing
-      returning station_id
-    `;
-    return rows.length === 0 ? "existing" : "inserted";
+    const stationId = capture.stationId;
+    const targetDate = capture.targetDate;
+    const cohort = capture.cohort;
+    const capturedAt = capture.capturedAt;
+    const providers = structuredClone(capture.providers);
+    const frozenBlend = structuredClone(capture.frozenBlend);
+    return runPostgresStatementWithRecovery("saveCapture", async () => {
+      const rows = await this.#sql`
+        insert into performance_captures (
+          station_id, target_date, cohort, captured_at, providers, frozen_blend
+        ) values (
+          ${stationId}, ${targetDate}, ${cohort}, ${capturedAt},
+          ${this.#sql.json(providers as unknown as postgres.JSONValue)},
+          ${this.#sql.json(frozenBlend as unknown as postgres.JSONValue)}
+        )
+        on conflict (station_id, target_date, cohort) do nothing
+        returning station_id
+      `;
+      return rows.length === 0 ? "existing" : "inserted";
+    }, this.#statementRecovery);
   }
 
   async saveObservation(observation: PrecipObservation): Promise<void> {
-    await this.#sql`
-      insert into performance_observations (
-        station_id, date, observed_mm, observed_at, source
-      ) values (
-        ${observation.stationId}, ${observation.date}, ${observation.observedMm},
-        ${observation.observedAt}, ${observation.source}
-      )
-      on conflict (station_id, date) do update set
-        observed_mm = excluded.observed_mm,
-        observed_at = excluded.observed_at,
-        source = excluded.source
-    `;
+    const stationId = observation.stationId;
+    const date = observation.date;
+    const observedMm = observation.observedMm;
+    const observedAt = observation.observedAt;
+    const source = observation.source;
+    await runPostgresStatementWithRecovery("saveObservation", async () => {
+      await this.#sql`
+        insert into performance_observations (
+          station_id, date, observed_mm, observed_at, source
+        ) values (
+          ${stationId}, ${date}, ${observedMm}, ${observedAt}, ${source}
+        )
+        on conflict (station_id, date) do update set
+          observed_mm = excluded.observed_mm,
+          observed_at = excluded.observed_at,
+          source = excluded.source
+      `;
+    }, this.#statementRecovery);
   }
 
   async loadCompletedComparisons(
@@ -303,9 +480,10 @@ export class PostgresPerformanceStore implements PerformanceStore {
   ): Promise<CompletedComparison[]> {
     if (!Number.isSafeInteger(limit) || limit <= 0) throw new RangeError("invalid comparison limit");
     const query = buildCompletedComparisonsQuery(stationId, cohort, limit);
-    const rows = await this.#sql.unsafe<CompletedComparisonRow[]>(
-      query.text,
-      query.parameters,
+    const rows = await runPostgresStatementWithRecovery(
+      "loadCompletedComparisons",
+      () => this.#sql.unsafe<CompletedComparisonRow[]>(query.text, query.parameters),
+      this.#statementRecovery,
     );
     return rows.map((row) => ({
       capture: {
