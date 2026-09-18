@@ -106,6 +106,20 @@ reached ASOS with both Node 24 and IPv4 curl on three runners. These samples do 
 identify the earlier network failure or justify forcing a different IP family.
 Recovery tests use fixtures; never dispatch an extra production cohort to test them.
 
+September 18 incident: [collection run 35351001382](https://github.com/mhju0/raintoday/actions/runs/35351001382)
+stored 93 observations and 93 captures, but ended with seven blank database errors
+and one Open-Meteo provider fault after earlier runners failed the KMA preflight.
+The PostgreSQL driver can produce that blank top-level `AggregateError` when every
+candidate socket fails before connecting; this mechanism was reproduced separately,
+but the historical run does not contain enough detail to prove it caused all seven
+errors. Collector database diagnostics now retain credential-redacted child causes.
+The collector also retries the exact observation write, capture write or completed-
+comparison read once after one second only when every error leaf proves a pre-connect
+socket refusal, timeout or unreachable host/network. SQL and authentication errors,
+unknown or mixed aggregates, and failures after a connection was established remain
+terminal. Initialization, catalog synchronization, seed writes and other callers do
+not opt in. There are no schema changes and no historical records are rewritten.
+
 ## Credentials and request limits
 
 Vercel production and preview use `raintoday_web`, a SELECT-only PostgreSQL role with

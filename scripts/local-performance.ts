@@ -18,7 +18,9 @@ async function main(): Promise<void> {
   if (argv.includes("--require-all-providers")) assertCaptureProvidersConfigured();
   const connectionUrl = process.env.PERFORMANCE_DATABASE_URL?.trim();
   if (!connectionUrl) throw new Error("PERFORMANCE_DATABASE_URL is required");
-  const store = new PostgresPerformanceStore(connectionUrl);
+  const store = new PostgresPerformanceStore(connectionUrl, {
+    retryConnectionFailures: true,
+  });
   try {
     const result = await runPerformanceBatch({ cohort, now, store });
     console.log(JSON.stringify({ cohort, ...result }, null, 2));
