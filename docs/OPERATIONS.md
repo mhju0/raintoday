@@ -107,9 +107,10 @@ identify the earlier network failure or justify forcing a different IP family.
 Recovery tests use fixtures; never dispatch an extra production cohort to test them.
 
 September 18 incident: [collection run 35351001382](https://github.com/mhju0/raintoday/actions/runs/35351001382)
-stored 93 observations and 93 captures, but ended with seven blank database errors
-and one Open-Meteo provider fault after earlier runners failed the KMA preflight.
-The PostgreSQL driver can produce that blank top-level `AggregateError` when every
+stored 93 observations and 93 captures, but ended with seven errors whose messages
+were blank and one Open-Meteo provider fault. The first runner collected those
+records; the subsequent two runners failed the KMA preflight. The PostgreSQL driver
+can produce a blank top-level `AggregateError` when every
 candidate socket fails before connecting; this mechanism was reproduced separately,
 but the historical run does not contain enough detail to prove it caused all seven
 errors. Collector database diagnostics now retain credential-redacted child causes.
