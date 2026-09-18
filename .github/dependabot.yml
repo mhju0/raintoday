@@ -8,7 +8,8 @@ updates:
       day: monday
       time: "09:00"
       timezone: Asia/Seoul
-    open-pull-requests-limit: 5
+    # Disable routine version PRs; security updates remain enabled separately.
+    open-pull-requests-limit: 0
     rebase-strategy: auto
     # Two majors are held back by the lint stack, not by this repository's code.
     # Both were re-verified against the installed tree on 2026-08-24.
@@ -49,7 +50,8 @@ updates:
       day: monday
       time: "09:15"
       timezone: Asia/Seoul
-    open-pull-requests-limit: 3
+    # Disable routine version PRs; security updates remain enabled separately.
+    open-pull-requests-limit: 0
     rebase-strategy: auto
     groups:
       actions-minor-and-patch:

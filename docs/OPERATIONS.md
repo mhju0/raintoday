@@ -177,6 +177,13 @@ Its suite truncates tables. Never use the production or recovery database for th
 
 ## Deployment and rollback
 
+Dependabot opens security-fix PRs only. Routine npm and GitHub Actions version
+updates are disabled with `open-pull-requests-limit: 0`; the required schedule
+entries do not enable routine PRs while that limit is zero. Keep vulnerability
+alerts and Dependabot security updates enabled in repository settings. Review
+ordinary upgrades quarterly or when a compatibility fix or support deadline
+requires one.
+
 PRs require `verify`, `store-contract` and `Dependency review`. Patch/minor Dependabot
 updates with one verified Dependabot commit can enable auto-merge after those checks;
 majors and additional commits require manual review. The privileged automation never
