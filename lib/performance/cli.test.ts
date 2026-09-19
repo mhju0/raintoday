@@ -101,13 +101,17 @@ test("every scheduled cron in the capture workflow resolves to a cohort", () => 
 });
 
 /**
- * A blackout is a property of the runner's egress address, not of the hour: three
- * probe rounds lost every Korean host at 22:28, 08:15 and 06:29 KST while three
- * non-Korean controls answered from the same VM. Retrying inside the run cannot
- * help — the address is fixed for its lifetime — so recovery uses fresh jobs,
- * each with its own machine. All three attempts must stay identically
- * credentialled, because a retry missing one secret would fail in a way that
- * looks like the outage it exists to survive.
+ * A blackout is not a property of the hour: three probe rounds lost every Korean
+ * host at 22:28, 08:15 and 06:29 KST while three non-Korean controls answered
+ * from the same VM. It is not purely a property of the egress address either,
+ * which is what #103 concluded and what later runs falsified — run 34910557704
+ * lost one runner at 23:49:49 and reached ASOS from a second twelve seconds
+ * later, run 35351001382 was reachable at 13:34:33 and gone by 13:37:56, and run
+ * 35444845449 lost three distinct addresses inside 83 seconds. The route flaps on
+ * a scale of tens of seconds, so recovery needs fresh jobs *and* distance in time
+ * between them; neither alone survives what has actually been observed. All three
+ * attempts must stay identically credentialled, because a retry missing one
+ * secret would fail in a way that looks like the outage it exists to survive.
  */
 /**
  * A credential the capture path reads but the workflow never passes is invisible
@@ -193,14 +197,23 @@ test("the capture workflow makes at most three fresh-runner attempts, identicall
       `${name}'s credentials have drifted from the first attempt's`,
     );
   }
+  // A retry waits before it probes, so its job budget must clear that wait on top
+  // of the bounded steps. A budget that does not is worse than none: GitHub keeps
+  // a job killed by its own timeout marked cancelled even if a later attempt
+  // captures. The offsets these cover are asserted below.
+  const JOB_BUDGET_MINUTES: Readonly<Record<string, number>> = {
+    capture_1: 35,
+    capture_2: 47,
+    capture_3: 62,
+  };
   for (const name of ["capture_1", "capture_2", "capture_3"]) {
     const body = bodyOf(name);
     assert.match(
       body,
-      /timeout-minutes: 35\n\s*continue-on-error: true/,
+      new RegExp(`timeout-minutes: ${JOB_BUDGET_MINUTES[name]}\\n\\s*continue-on-error: true`),
       `${name} needs headroom above its bounded steps`,
     );
-    for (const [step, minutes] of [["checkout", 1], ["setup", 2], ["preflight", 1], ["egress", 1], ["install", 3], ["capture", 20]] as const) {
+    for (const [step, minutes] of [["checkout", 1], ["setup", 2], ["preflight", 3], ["egress", 1], ["install", 3], ["capture", 20]] as const) {
       assert.match(
         body,
         new RegExp(`id: ${step}[\\s\\S]*?timeout-minutes: ${minutes}`),
@@ -219,6 +232,49 @@ test("the capture workflow makes at most three fresh-runner attempts, identicall
     );
     assert.match(body, /succeeded: \$\{\{ steps\.capture\.outcome == 'success' \}\}/);
   }
+
+  // The attempts must be separated in time, not only by runner. Run 35444845449
+  // discarded three distinct egress addresses between 13:07:50 and 13:09:13 and
+  // called an 83-second outage permanent; without these waits three fresh runners
+  // sample one moment of the route. Each offset is measured from attempt 1, so a
+  // slow first failure cannot collapse the spacing.
+  assert.match(
+    bodyOf("capture_1"),
+    /started_at: \$\{\{ steps\.began\.outputs\.at \}\}/,
+    "attempt 1 must publish when collection began, or the retries cannot space themselves",
+  );
+  const ATTEMPT_OFFSET_SECONDS: Readonly<Record<string, number>> = {
+    capture_2: 600,
+    capture_3: 1500,
+  };
+  for (const name of ["capture_2", "capture_3"]) {
+    const body = bodyOf(name);
+    const offset = ATTEMPT_OFFSET_SECONDS[name];
+    assert.match(
+      body,
+      new RegExp(`id: spacing[\\s\\S]*?ATTEMPT_OFFSET_SECONDS: "${offset}"`),
+      `${name} must aim at a distinct offset before probing`,
+    );
+    assert.match(
+      body,
+      /COLLECTION_BEGAN_AT: \$\{\{ needs\.capture_1\.outputs\.started_at \}\}/,
+      `${name} must measure its wait from attempt 1, not from its predecessor's death`,
+    );
+    assert.ok(
+      body.indexOf("id: spacing") < body.indexOf("performance-transport-preflight.ts"),
+      `${name} probes the route before waiting out the flap`,
+    );
+    const waitBudget = Number(/id: spacing[\s\S]*?timeout-minutes: (\d+)/.exec(body)?.[1]);
+    assert.ok(
+      waitBudget * 60 > offset,
+      `${name}'s wait step times out after ${waitBudget}min, before its own ${offset}s offset elapses`,
+    );
+    assert.ok(
+      JOB_BUDGET_MINUTES[name] >= offset / 60 + JOB_BUDGET_MINUTES.capture_1,
+      `${name} cannot wait ${offset}s and still afford a full capture inside its job budget`,
+    );
+  }
+
   const verdict = bodyOf("verdict");
   assert.match(verdict, /needs:\s*\[capture_1, capture_2, capture_3\]/);
   assert.match(verdict, /always\(\) && !cancelled\(\)/);

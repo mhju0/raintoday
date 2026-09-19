@@ -21,9 +21,10 @@ test("any HTTP response proves the ASOS transport is reachable", async () => {
   }
 });
 
-test("two transport failures fail without exposing unsafe error text", async () => {
+test("every transport failure fails without exposing unsafe error text", async () => {
   let calls = 0;
   const result = await probeKmaTransport({
+    sleepImpl: async () => {},
     fetchImpl: async () => {
       calls += 1;
       throw new TypeError("fetch failed https://example.invalid/?key=private", {
@@ -31,11 +32,11 @@ test("two transport failures fail without exposing unsafe error text", async () 
       });
     },
   });
-  assert.equal(calls, 2);
+  assert.equal(calls, 4);
   assert.deepEqual(result, {
     reachable: false,
-    attempts: 2,
-    failures: ["connection timed out", "connection timed out"],
+    attempts: 4,
+    failures: Array.from({ length: 4 }, () => "connection timed out"),
   });
   assert.doesNotMatch(JSON.stringify(result), /private|example\.invalid/);
 });
@@ -43,6 +44,7 @@ test("two transport failures fail without exposing unsafe error text", async () 
 test("a second probe can recover after the first transport failure", async () => {
   let calls = 0;
   const result = await probeKmaTransport({
+    sleepImpl: async () => {},
     fetchImpl: async () => {
       calls += 1;
       if (calls === 1) throw new Error("first route failed");
@@ -52,11 +54,45 @@ test("a second probe can recover after the first transport failure", async () =>
   assert.deepEqual(result, { reachable: true, attempt: 2, status: 401 });
 });
 
+test("a route that only recovers late is still proven within the probe budget", async () => {
+  // Run 35444845449 discarded three runners inside 83 seconds. A flap that
+  // clears after a minute must be caught by one runner, not chased with three.
+  let calls = 0;
+  const waits: number[] = [];
+  const result = await probeKmaTransport({
+    sleepImpl: async (ms) => {
+      waits.push(ms);
+    },
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls < 4) throw new Error("route still down");
+      return new Response(null, { status: 401 });
+    },
+  });
+  assert.deepEqual(result, { reachable: true, attempt: 4, status: 401 });
+  assert.deepEqual(waits, [20_000, 20_000, 20_000], "probes were not spaced across the flap");
+  const span = waits.reduce((total, ms) => total + ms, 0) + calls * 10_000;
+  assert.ok(span >= 90_000, `probe budget spans only ${span}ms`);
+});
+
+test("a reachable route pays nothing for the spacing", async () => {
+  let slept = false;
+  const result = await probeKmaTransport({
+    sleepImpl: async () => {
+      slept = true;
+    },
+    fetchImpl: async () => new Response(null, { status: 401 }),
+  });
+  assert.deepEqual(result, { reachable: true, attempt: 1, status: 401 });
+  assert.equal(slept, false, "a healthy runner waited before its first probe");
+});
+
 test("each probe is bounded by its own timeout signal", async () => {
   let calls = 0;
   const started = Date.now();
   const result = await probeKmaTransport({
     timeoutMs: 10,
+    sleepImpl: async () => {},
     fetchImpl: async (_url, init) => {
       calls += 1;
       const signal = init?.signal;
@@ -66,10 +102,10 @@ test("each probe is bounded by its own timeout signal", async () => {
       });
     },
   });
-  assert.equal(calls, 2);
+  assert.equal(calls, 4);
   assert.equal(result.reachable, false);
   assert.ok(Date.now() - started < 1_000, "test probes did not stop at their timeout");
   if (!result.reachable) {
-    assert.deepEqual(result.failures, ["request timed out", "request timed out"]);
+    assert.deepEqual(result.failures, Array.from({ length: 4 }, () => "request timed out"));
   }
 });
