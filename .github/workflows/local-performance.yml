@@ -28,6 +28,15 @@ permissions:
 # `verdict` fails a non-cancelled run when no capture actually succeeded. GitHub
 # keeps a hard job/runner timeout cancelled even if a later attempt succeeds, so
 # ordinary hangs are bounded at the step level below a larger job budget.
+#
+# The attempts are separated in time, not only by runner. Three fresh runners in
+# immediate succession sample one moment of the route: run 35444845449 spent its
+# whole budget between 13:07:50 and 13:09:13 and called an 83-second outage
+# permanent. Attempts 2 and 3 now aim at 10 and 25 minutes after collection began,
+# measured from attempt 1 rather than from whenever its predecessor died, so a
+# slow failure does not collapse the spacing. A capture that lands late is still
+# real evidence — a scheduled cohort is never refused on the hour (`lib/performance/cli.ts`),
+# and nothing here reruns a missed cohort, relabels one or drops a required provider.
 jobs:
   capture_1:
     runs-on: ubuntu-latest
@@ -35,7 +44,16 @@ jobs:
     continue-on-error: true
     outputs:
       succeeded: ${{ steps.capture.outcome == 'success' }}
+      started_at: ${{ steps.began.outputs.at }}
     steps:
+      # Bookkeeping for the retries' spacing. It must never be the reason a
+      # collection stops: losing it only makes the retries probe immediately.
+      - name: Record when collection began
+        id: began
+        continue-on-error: true
+        timeout-minutes: 1
+        run: echo "at=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout code
         id: checkout
         continue-on-error: true
@@ -58,7 +76,7 @@ jobs:
         id: preflight
         if: steps.setup.outcome == 'success'
         continue-on-error: true
-        timeout-minutes: 1
+        timeout-minutes: 3
         run: node scripts/performance-transport-preflight.ts
 
       - name: Record this runner's egress address
@@ -104,7 +122,7 @@ jobs:
     needs: capture_1
     if: ${{ always() && !cancelled() && needs.capture_1.outputs.succeeded != 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 47
     continue-on-error: true
     outputs:
       succeeded: ${{ steps.capture.outcome == 'success' }}
@@ -127,11 +145,31 @@ jobs:
           node-version: "24"
           cache: npm
 
+      - name: Wait for a distinct sample of the KMA route
+        id: spacing
+        if: steps.setup.outcome == 'success'
+        timeout-minutes: 12
+        env:
+          COLLECTION_BEGAN_AT: ${{ needs.capture_1.outputs.started_at }}
+          ATTEMPT_OFFSET_SECONDS: "600"
+        run: |
+          if [[ -z "$COLLECTION_BEGAN_AT" ]]; then
+            echo "Attempt 1 recorded no start time; probing now."
+            exit 0
+          fi
+          remaining=$(( COLLECTION_BEGAN_AT + ATTEMPT_OFFSET_SECONDS - $(date +%s) ))
+          if (( remaining <= 0 )); then
+            echo "Collection already spans ${ATTEMPT_OFFSET_SECONDS}s; probing now."
+            exit 0
+          fi
+          echo "Waiting ${remaining}s so this attempt probes a different moment of the route."
+          sleep "$remaining"
+
       - name: Check KMA ASOS transport
         id: preflight
         if: steps.setup.outcome == 'success'
         continue-on-error: true
-        timeout-minutes: 1
+        timeout-minutes: 3
         run: node scripts/performance-transport-preflight.ts
 
       - name: Record this runner's egress address
@@ -177,7 +215,7 @@ jobs:
     needs: [capture_1, capture_2]
     if: ${{ always() && !cancelled() && needs.capture_1.outputs.succeeded != 'true' && needs.capture_2.outputs.succeeded != 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 62
     continue-on-error: true
     outputs:
       succeeded: ${{ steps.capture.outcome == 'success' }}
@@ -200,11 +238,31 @@ jobs:
           node-version: "24"
           cache: npm
 
+      - name: Wait for a distinct sample of the KMA route
+        id: spacing
+        if: steps.setup.outcome == 'success'
+        timeout-minutes: 27
+        env:
+          COLLECTION_BEGAN_AT: ${{ needs.capture_1.outputs.started_at }}
+          ATTEMPT_OFFSET_SECONDS: "1500"
+        run: |
+          if [[ -z "$COLLECTION_BEGAN_AT" ]]; then
+            echo "Attempt 1 recorded no start time; probing now."
+            exit 0
+          fi
+          remaining=$(( COLLECTION_BEGAN_AT + ATTEMPT_OFFSET_SECONDS - $(date +%s) ))
+          if (( remaining <= 0 )); then
+            echo "Collection already spans ${ATTEMPT_OFFSET_SECONDS}s; probing now."
+            exit 0
+          fi
+          echo "Waiting ${remaining}s so this attempt probes a different moment of the route."
+          sleep "$remaining"
+
       - name: Check KMA ASOS transport
         id: preflight
         if: steps.setup.outcome == 'success'
         continue-on-error: true
-        timeout-minutes: 1
+        timeout-minutes: 3
         run: node scripts/performance-transport-preflight.ts
 
       - name: Record this runner's egress address

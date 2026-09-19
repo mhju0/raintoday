@@ -44,10 +44,16 @@ check `maintenance` itself and re-enable schedules when necessary. See
    code failures. A timeout before connection is not proof that an API key expired.
    Observation logs retain safe transport causes without request URLs or keys.
 2. For an upstream outage, retain the incident and inspect the next scheduled cohort.
-   The collector makes at most three sequential fresh-runner attempts. Checkout,
-   setup, preflight, install and capture have individual timeouts so an ordinary
-   step hang can hand off to the next runner. Before installing dependencies, each
-   runner makes two credential-free 10-second requests to the exact ASOS endpoint.
+   The collector makes at most three fresh-runner attempts, separated in time as
+   well as by machine: attempts 2 and 3 wait until 10 and 25 minutes after
+   collection began before they probe. The offsets are measured from attempt 1, so
+   a slow first failure does not collapse the spacing, and an attempt whose offset
+   has already passed probes immediately. Checkout, setup, spacing, preflight,
+   install and capture have individual timeouts so an ordinary step hang can hand
+   off to the next runner, and each retry's job budget covers its own wait.
+   Before installing dependencies, each runner makes up to four credential-free
+   10-second requests to the exact ASOS endpoint, spaced 20 seconds apart; a
+   reachable route answers the first and waits for nothing.
    Any HTTP response proves that transport path is reachable; it does not prove that
    credentials, the database, other providers or the eventual capture will work.
    If later reads show that a failed phase has recovered, the batch waits past the
@@ -120,6 +126,28 @@ socket refusal, timeout or unreachable host/network. SQL and authentication erro
 unknown or mixed aggregates, and failures after a connection was established remain
 terminal. Initialization, catalog synchronization, seed writes and other callers do
 not opt in. There are no schema changes and no historical records are rewritten.
+
+September 19 incident: [collection run 35444845449](https://github.com/mhju0/raintoday/actions/runs/35444845449)
+captured nothing. All three runners failed the credential-free ASOS preflight with
+`request timed out` from three distinct egress addresses — `20.120.164.100`,
+`4.246.135.198` and `40.75.131.21` — so no key, database or provider was involved.
+The same endpoint answered a local probe with HTTP 401 in about 50ms.
+
+The run's entire retry budget ran from 13:07:50 to 13:09:13, so three fresh runners
+sampled one 83-second moment of the route and treated it as permanent. Earlier runs
+show that route flapping on a much shorter scale than the collector allowed for:
+run 34910557704 lost a runner at 23:49:49 and reached ASOS from a second twelve
+seconds later, and run 35351001382 was reachable at 13:34:33 and gone by 13:37:56.
+This also qualifies #103's conclusion that a blackout follows the egress address;
+that holds for a sustained outage, but the flap observed here is partly time-bound,
+and three addresses inside 83 seconds is close to one sample either way.
+
+Attempts are now separated in time as well as by machine, and the preflight spreads
+up to four probes across about 90 seconds instead of two inside 20. Neither change
+reruns a missed cohort, relabels one, or relaxes a required provider or the
+observation failure rules: a scheduled cohort is never refused on the hour, so a
+capture that lands later is still evidence for the slot it was issued in. A run
+whose route is down for the full spread still fails, which is the intended outcome.
 
 ## Credentials and request limits
 
