@@ -8,6 +8,11 @@
 - Full check: `npm run verify` (lint, typecheck, tests, build). `npm run typecheck` generates Next route types first, including in fresh worktrees. Targeted tests and browser/DB verification: `docs/VERIFYING.md`.
 - Library tests execute TypeScript directly in Node; relative runtime imports in test-reachable `lib/` modules need explicit `.ts` extensions.
 
+<!-- BEGIN:nextjs-agent-rules -->
+- For Next.js API or configuration changes, read the relevant installed guide in
+  `node_modules/next/dist/docs/`. These guides match the installed framework version.
+<!-- END:nextjs-agent-rules -->
+
 - Construct forecast locations through `createForecastLocation` in `lib/location.ts`: service-area validation precedes grid conversion and provider requests. Weather dates use `Asia/Seoul`. Keep user coordinates out of the performance database.
 - Serving and capture share `forecastProviders` and `WeatherProvider.read()` snapshots. Provider order selects the primary source and hourly ribbon; preserve it. The ribbon is one provider's series; performance weighting applies only to tomorrow's blend.
 - Forecast captures are immutable. Retrospective seed comparisons stay separate from prospective captures and benchmarks. Observation read failures must remain faults, never dry days or absent observations.
@@ -22,3 +27,10 @@ Use `docs/adr/0009-chart-recorder-redesign.md` and `docs/adr/0010-open-at-the-an
 Before starting, ask whether antislop applies during implementation or as an after-work audit, unless the user has already selected a mode in the session. In after mode, report numbered findings and implement only the findings the user approves.
 Store durable audit findings and follow-ups in `docs/audits/antislop/`; put temporary dumps and drafts in ignored `.scratch/`. This repository location supersedes a skill's default `anti-slop/` output path.
 <!-- antislop:end -->
+
+## Agent handoff
+
+- At session start, read `docs/PROJECT_HANDOFF.md`.
+- Before ending a session where you made decisions, changed architecture, or left work unfinished, append a dated entry: what changed, decisions and why, open issues, next step. Keep it brief and append-only.
+- When the file exceeds ~200 lines, condense the oldest entries into a short dated summary. Never delete unresolved open issues.
+- Durable rules belong in AGENTS.md, not in the handoff file.
