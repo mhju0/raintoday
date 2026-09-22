@@ -87,3 +87,45 @@ audit counting live workflows should not be misled by them.
 
 Next step: watch the 2026-09-19 21:10Z and 2026-09-20 09:10Z cohorts. The spacing
 only proves itself on a run that actually meets a flap.
+
+### 2026-09-22 — the collector's failures are three modes, not one (#170, PRs #171, #172)
+
+Changed: `initialize`, `listStations` and `syncStations` now run inside the #167
+connection-retry wrapper, and a fatal capture line is never blank. The
+local-performance incident issue now records the stage each capture attempt died
+at, written while the incident is open.
+
+Why: run 35621896930 lost all three attempts in ~1.3 s each, printing one blank
+line. Attempts 1 and 3 had cleared the KMA preflight — they died on `initialize()`,
+the cohort's first database statement and the only one outside the #167 wrapper.
+`Error.message` is `""` on an `AggregateError`, which is what Node raises when
+every address refuses, so the log held no evidence but the preflight. That is how
+#103, #168 and #169 were all aimed at the route while the database was failing.
+
+Classifying 29 failures gives three modes, and they need different answers:
+
+1. Preflight route flap — fast fail. #169's spacing is the response.
+2. **Broad runner egress blackout — the preflight PASSES, then Open-Meteo, KMA
+   and Visual Crossing all fail for ~19 min and 97/97 stations fault** (runs
+   34034376096, 34724129443, 33517589359). Not a KMA problem. UNADDRESSED.
+3. Silent cold-start database failure — fixed in #171.
+
+Two traps for whoever reads a run next. Job conclusions are meaningless here:
+`continue-on-error` makes a capture job report `success` when its capture failed,
+and it masks the *step* conclusion too. Only `skipped` marks where a job stopped.
+
+Open issues: mode 2 has no owner and no decision. The user asked for measurement
+before any code: how often it hits, how long it lasts, whether it tracks the
+runner's Azure region or egress address. Runs 34910557704 (332 s, 28/97 faulted)
+and 35351001382 (a 93/97 cohort) suggest partial blackouts exist, so it is a
+spectrum rather than a binary.
+
+Also unfixed and now proven, not latent: `failureMessage` (lib/performance/batch.ts:89)
+carries the same empty-AggregateError-message defect as the CLI did. Run
+35351001382 failed a 93/97 cohort reporting `4 x observation: ` with no reason at
+all. Fixing it properly means sharing `describePostgresError`'s guarded tree
+walker — it redacts credentials, and observation URLs carry a KMA authKey — which
+is a three-module change and was left for an explicit decision.
+
+Next step: measure mode 2 before changing anything. The incident issue now
+carries its own classification, so the next failure should not need re-derivation.
