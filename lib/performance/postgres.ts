@@ -137,6 +137,12 @@ const MAX_ERROR_TREE_NODES = 32;
 const MAX_ERROR_MESSAGE_LENGTH = 300;
 
 type RecoverablePostgresOperation =
+  // The cold-start window: every statement a cohort runs before it captures
+  // anything. These are the first contact with the database, so they are the
+  // ones a pre-connect flap actually meets. See #170.
+  | "initialize"
+  | "listStations"
+  | "syncStations"
   | "saveObservation"
   | "saveCapture"
   | "loadCompletedComparisons";
@@ -306,68 +312,72 @@ export class PostgresPerformanceStore implements PerformanceStore {
   }
 
   async initialize(): Promise<void> {
-    await this.#sql`
-      create table if not exists performance_stations (
-        id text primary key,
-        name text not null,
-        network text not null check (network = 'ASOS'),
-        latitude double precision not null,
-        longitude double precision not null,
-        elevation_m double precision,
-        active_from date not null,
-        active_to date
-      )
-    `;
-    await this.#sql`
-      create table if not exists performance_captures (
-        station_id text not null references performance_stations(id),
-        target_date date not null,
-        cohort text not null check (cohort in ('06', '18')),
-        captured_at timestamptz not null,
-        providers jsonb not null,
-        frozen_blend jsonb not null,
-        primary key (station_id, target_date, cohort)
-      )
-    `;
-    await this.#sql`
-      create table if not exists performance_observations (
-        station_id text not null references performance_stations(id),
-        date date not null,
-        observed_mm double precision not null check (observed_mm >= 0),
-        observed_at timestamptz not null,
-        source text not null check (source = 'kma-asos'),
-        primary key (station_id, date)
-      )
-    `;
-    await this.#sql`
-      create index if not exists performance_captures_station_cohort_date
-      on performance_captures (station_id, cohort, target_date)
-    `;
-    await this.#sql`
-      create index if not exists performance_captures_providers
-      on performance_captures using gin (providers jsonb_path_ops)
-    `;
-    await this.#sql`
-      create index if not exists performance_observations_station_date
-      on performance_observations (station_id, date)
-    `;
-    // Retrospective seed evidence. Deliberately a separate table from
-    // performance_captures: it has no cohort and no frozen blend, so it cannot be
-    // read back as a prospective Capture even by a mistaken join.
-    await this.#sql`
-      create table if not exists performance_seed_comparisons (
-        station_id text not null references performance_stations(id),
-        target_date date not null,
-        providers jsonb not null,
-        observed_mm double precision not null check (observed_mm >= 0),
-        built_at timestamptz not null,
-        primary key (station_id, target_date)
-      )
-    `;
-    await this.#sql`
-      create index if not exists performance_seed_station_date
-      on performance_seed_comparisons (station_id, target_date desc)
-    `;
+    // Every statement here is `if not exists`, and a refused connection is proof
+    // none of them ran, so replaying the whole schema pass is idempotent twice over.
+    await runPostgresStatementWithRecovery("initialize", async () => {
+      await this.#sql`
+        create table if not exists performance_stations (
+          id text primary key,
+          name text not null,
+          network text not null check (network = 'ASOS'),
+          latitude double precision not null,
+          longitude double precision not null,
+          elevation_m double precision,
+          active_from date not null,
+          active_to date
+        )
+      `;
+      await this.#sql`
+        create table if not exists performance_captures (
+          station_id text not null references performance_stations(id),
+          target_date date not null,
+          cohort text not null check (cohort in ('06', '18')),
+          captured_at timestamptz not null,
+          providers jsonb not null,
+          frozen_blend jsonb not null,
+          primary key (station_id, target_date, cohort)
+        )
+      `;
+      await this.#sql`
+        create table if not exists performance_observations (
+          station_id text not null references performance_stations(id),
+          date date not null,
+          observed_mm double precision not null check (observed_mm >= 0),
+          observed_at timestamptz not null,
+          source text not null check (source = 'kma-asos'),
+          primary key (station_id, date)
+        )
+      `;
+      await this.#sql`
+        create index if not exists performance_captures_station_cohort_date
+        on performance_captures (station_id, cohort, target_date)
+      `;
+      await this.#sql`
+        create index if not exists performance_captures_providers
+        on performance_captures using gin (providers jsonb_path_ops)
+      `;
+      await this.#sql`
+        create index if not exists performance_observations_station_date
+        on performance_observations (station_id, date)
+      `;
+      // Retrospective seed evidence. Deliberately a separate table from
+      // performance_captures: it has no cohort and no frozen blend, so it cannot be
+      // read back as a prospective Capture even by a mistaken join.
+      await this.#sql`
+        create table if not exists performance_seed_comparisons (
+          station_id text not null references performance_stations(id),
+          target_date date not null,
+          providers jsonb not null,
+          observed_mm double precision not null check (observed_mm >= 0),
+          built_at timestamptz not null,
+          primary key (station_id, target_date)
+        )
+      `;
+      await this.#sql`
+        create index if not exists performance_seed_station_date
+        on performance_seed_comparisons (station_id, target_date desc)
+      `;
+    }, this.#statementRecovery);
   }
 
   async syncStations(
@@ -375,7 +385,9 @@ export class PostgresPerformanceStore implements PerformanceStore {
     catalogDate: string,
   ): Promise<void> {
     if (stations.length === 0) return;
-    await this.#sql.begin(async (sql) => {
+    // Replaying a transaction is safe only because the retry demands proof the
+    // connection was never established, so the first attempt applied nothing.
+    await runPostgresStatementWithRecovery("syncStations", () => this.#sql.begin(async (sql) => {
       const currentRows = await sql<StationIdRow[]>`
         select id
         from performance_stations
@@ -408,15 +420,15 @@ export class PostgresPerformanceStore implements PerformanceStore {
             active_to = null
         `;
       }
-    });
+    }), this.#statementRecovery);
   }
 
   async listStations(): Promise<ObservationStation[]> {
-    const rows = await this.#sql<StationRow[]>`
+    const rows = await runPostgresStatementWithRecovery("listStations", () => this.#sql<StationRow[]>`
       select id, name, network, latitude, longitude, elevation_m, active_from::text, active_to::text
       from performance_stations
       order by id::integer
-    `;
+    `, this.#statementRecovery);
     return rows.map((row) => ({
       id: row.id,
       name: row.name,

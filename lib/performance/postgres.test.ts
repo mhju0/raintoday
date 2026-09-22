@@ -4,6 +4,7 @@ import {
   buildCompletedComparisonsQuery,
   describePostgresError,
   isRetryablePreconnectFailure,
+  PostgresPerformanceStore,
   runPostgresStatementWithRecovery,
 } from "./postgres.ts";
 import { COMPARED_PROVIDER_IDS } from "../providers/selection.ts";
@@ -183,4 +184,30 @@ test("terminal database diagnostics do not repeat arbitrary error text", async (
       return true;
     },
   );
+});
+
+/**
+ * The cohort's first database statement is `initialize()`, and until #170 it was
+ * the one statement with no recovery and no diagnostic. Run 35621896930 lost all
+ * three attempts here in about 1.3 s each: two of them had already cleared the
+ * KMA preflight, so the only evidence left was a blank line and exit 1, which
+ * read as the #103/#168 route flap and sent three fixes at the wrong target.
+ * A refused connection is proof nothing ran, so replaying it is safe.
+ */
+test("the first statement of a cohort is retried and described, never blank", async () => {
+  // Port 1 is refused locally and immediately: no external network, no timeout.
+  const store = new PostgresPerformanceStore("postgresql://collector@127.0.0.1:1/raintoday", {
+    retryConnectionFailures: true,
+  });
+
+  const error = await store.initialize().then(
+    () => null,
+    (reason: unknown) => reason,
+  );
+  await store.close().catch(() => {});
+
+  assert.ok(error instanceof Error, "initialize() must reject with an Error");
+  assert.notEqual(error.message.trim(), "", "a blank diagnostic is the #170 defect itself");
+  assert.match(error.message, /PostgreSQL initialize failed after connection retry/);
+  assert.match(error.message, /ECONNREFUSED/);
 });
