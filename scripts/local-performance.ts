@@ -2,6 +2,7 @@ import { runPerformanceBatch } from "../lib/performance/batch.ts";
 import {
   assertCaptureProvidersConfigured,
   cohortRunFailed,
+  fatalCaptureMessage,
   manualCohortHourMismatch,
   resolveCaptureCohort,
 } from "../lib/performance/cli.ts";
@@ -65,6 +66,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : "local performance batch failed");
+  console.error(fatalCaptureMessage(error));
   process.exitCode = 1;
 });

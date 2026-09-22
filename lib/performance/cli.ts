@@ -1,4 +1,5 @@
 import { forecastProviders } from "../providers/registry.ts";
+import { describePostgresError } from "./postgres.ts";
 import type { PerformanceBatchResult } from "./batch.ts";
 import type { CaptureCohort } from "./types.ts";
 
@@ -120,4 +121,25 @@ export function resolveCaptureCohort(argv: readonly string[]): CaptureCohort {
   const scheduledCohort = SCHEDULE_COHORTS[schedule];
   if (!scheduledCohort) throw new Error("--schedule is not a supported capture cohort");
   return scheduledCohort;
+}
+
+/**
+ * The single line a failed capture run exits with.
+ *
+ * `Error.message` is empty on an `AggregateError` — precisely what Node raises
+ * when every address of a host refuses the connection — so the run that mattered
+ * most printed one blank line and exited 1. Run 35621896930 lost all three
+ * attempts that way, two of them *after* clearing the KMA preflight, which left
+ * the #103/#168 route flap as the only visible suspect and sent the fix at the
+ * wrong target three times.
+ *
+ * Keep the thrower's own message whenever there is one: `describePostgresError`
+ * deliberately refuses to echo arbitrary error text, so routing every failure
+ * through it would trade one unreadable report for another. See #170.
+ */
+export function fatalCaptureMessage(error: unknown): string {
+  if (!(error instanceof Error)) return "local performance batch failed";
+  const message = error.message.trim();
+  if (message) return message;
+  return describePostgresError(error).trim() || "local performance batch failed";
 }

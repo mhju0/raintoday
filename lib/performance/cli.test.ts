@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   CAPTURE_FAULT_TOLERANCE,
   cohortRunFailed,
+  fatalCaptureMessage,
   manualCohortHourMismatch,
   resolveCaptureCohort,
   SCHEDULE_COHORTS,
@@ -408,4 +409,38 @@ test("a delayed scheduled run is never refused, however far it drifted", () => {
 test("a forced manual dispatch is allowed, so the guard is never a dead end", () => {
   const at = new Date("2026-08-31T13:20:00+09:00");
   assert.equal(manualCohortHourMismatch(["--cohort=06", "--force"], at), null);
+});
+
+/**
+ * The #170 defect: an AggregateError carries its evidence in `.errors`, never in
+ * `.message`, so the collector's fatal line went out blank and three fixes were
+ * aimed at the KMA route instead of the database. See `fatalCaptureMessage`.
+ */
+test("a fatal capture line is never blank, and never invents one", () => {
+  const refused = Object.assign(new Error("connect ECONNREFUSED 10.0.0.1:5432"), {
+    code: "ECONNREFUSED",
+    syscall: "connect",
+  });
+
+  assert.notEqual(fatalCaptureMessage(new AggregateError([refused])).trim(), "");
+  assert.match(fatalCaptureMessage(new AggregateError([refused])), /ECONNREFUSED/);
+  // A causeless AggregateError still names its own shape, which beats the generic line.
+  assert.match(fatalCaptureMessage(new AggregateError([])), /AggregateError without causes/);
+  // A blank-message plain Error falls back to its name: thin, but never empty.
+  assert.notEqual(fatalCaptureMessage(new Error("   ")).trim(), "");
+  assert.equal(fatalCaptureMessage("not an error"), "local performance batch failed");
+
+  // An ordinary thrown message must survive verbatim: the describer refuses to
+  // echo arbitrary error text, so sending everything through it would hide this.
+  assert.equal(
+    fatalCaptureMessage(new Error("PERFORMANCE_DATABASE_URL is required")),
+    "PERFORMANCE_DATABASE_URL is required",
+  );
+
+  // Credentials must not ride out on the fallback path.
+  const leaky = Object.assign(
+    new Error("connect ECONNREFUSED postgres://collector:hunter2@db.example:5432/raintoday"),
+    { code: "ECONNREFUSED", syscall: "connect" },
+  );
+  assert.doesNotMatch(fatalCaptureMessage(new AggregateError([leaky])), /hunter2/);
 });
