@@ -1,5 +1,6 @@
 import { COMPARED_PROVIDER_IDS } from "../providers/selection.ts";
 import postgres from "postgres";
+import { aggregateCauses, describeErrorTree } from "./errorDetail.ts";
 import type {
   CaptureCohort,
   CompletedComparison,
@@ -132,9 +133,10 @@ const RETRYABLE_PRECONNECT_CODES = new Set([
   "ENETUNREACH",
 ]);
 const DEFAULT_CONNECTION_RETRY_DELAY_MS = 1_000;
+// Bounds for walking a cause tree while classifying it. The describer in
+// errorDetail.ts keeps its own copies; neither owns the other's limit.
 const MAX_ERROR_TREE_DEPTH = 8;
 const MAX_ERROR_TREE_NODES = 32;
-const MAX_ERROR_MESSAGE_LENGTH = 300;
 
 type RecoverablePostgresOperation =
   // The cold-start window: every statement a cohort runs before it captures
@@ -156,10 +158,6 @@ export interface PostgresStatementRecoveryOptions {
 export interface PostgresPerformanceStoreOptions {
   readOnly?: boolean;
   retryConnectionFailures?: boolean;
-}
-
-function aggregateCauses(error: AggregateError): unknown[] {
-  return Array.from(error.errors as Iterable<unknown>);
 }
 
 /**
@@ -202,61 +200,6 @@ function isRetryablePreconnectFailureNode(
     && RETRYABLE_PRECONNECT_CODES.has(candidate.code);
 }
 
-function redactConnectionSecrets(message: string): string {
-  const redacted = message
-    .replace(/([a-z][a-z0-9+.-]*:\/\/)[^@\s/]+@/giu, "$1<REDACTED>@")
-    .replace(/([?&](?:password|pass|pwd)=)[^&\s]+/giu, "$1<REDACTED>");
-  return redacted.length <= MAX_ERROR_MESSAGE_LENGTH
-    ? redacted
-    : `${redacted.slice(0, MAX_ERROR_MESSAGE_LENGTH)}…`;
-}
-
-function describeErrorLeaf(error: unknown): string {
-  if (!(error instanceof Error)) return "unknown error";
-  const candidate = error as NodeJS.ErrnoException;
-  const facts = [candidate.syscall, candidate.code]
-    .filter((value): value is string => typeof value === "string" && value.length > 0)
-    .join(" ");
-  if (candidate.syscall && typeof candidate.code === "string" && /^E[A-Z]+$/u.test(candidate.code)) {
-    const safeMessage = redactConnectionSecrets(error.message.trim());
-    if (safeMessage) return safeMessage;
-  }
-  if (facts) return facts;
-  return error.name || "Error";
-}
-
-/** Return a non-empty, credential-redacted diagnostic for driver errors. */
-export function describePostgresError(error: unknown): string {
-  return describePostgresErrorNode(
-    error,
-    new Set<AggregateError>(),
-    { remaining: MAX_ERROR_TREE_NODES },
-    0,
-  );
-}
-
-function describePostgresErrorNode(
-  error: unknown,
-  ancestors: Set<AggregateError>,
-  budget: { remaining: number },
-  depth: number,
-): string {
-  if (depth > MAX_ERROR_TREE_DEPTH || budget.remaining <= 0) return "error details truncated";
-  budget.remaining -= 1;
-  if (error instanceof AggregateError) {
-    if (ancestors.has(error)) return "cyclic AggregateError";
-    const causes = aggregateCauses(error);
-    if (causes.length === 0) return "AggregateError without causes";
-    const nextAncestors = new Set(ancestors).add(error);
-    const includedCauses = causes.slice(0, budget.remaining);
-    const details = includedCauses.map((cause) =>
-      describePostgresErrorNode(cause, nextAncestors, budget, depth + 1)).join("; ");
-    const omitted = causes.length - includedCauses.length;
-    return `AggregateError (${causes.length} causes: ${details}${omitted > 0 ? `; ${omitted} omitted` : ""})`;
-  }
-  return describeErrorLeaf(error);
-}
-
 function sleep(delayMs: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
@@ -272,7 +215,7 @@ export async function runPostgresStatementWithRecovery<T>(
   } catch (error) {
     if (!options.enabled) throw error;
     if (!isRetryablePreconnectFailure(error)) {
-      throw new Error(`PostgreSQL ${operation} failed: ${describePostgresError(error)}`, {
+      throw new Error(`PostgreSQL ${operation} failed: ${describeErrorTree(error)}`, {
         cause: error,
       });
     }
@@ -283,7 +226,7 @@ export async function runPostgresStatementWithRecovery<T>(
     return await statement();
   } catch (error) {
     throw new Error(
-      `PostgreSQL ${operation} failed after connection retry: ${describePostgresError(error)}`,
+      `PostgreSQL ${operation} failed after connection retry: ${describeErrorTree(error)}`,
       { cause: error },
     );
   }

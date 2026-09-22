@@ -2,10 +2,10 @@ import { runPerformanceBatch } from "../lib/performance/batch.ts";
 import {
   assertCaptureProvidersConfigured,
   cohortRunFailed,
-  fatalCaptureMessage,
   manualCohortHourMismatch,
   resolveCaptureCohort,
 } from "../lib/performance/cli.ts";
+import { failureDetail } from "../lib/performance/errorDetail.ts";
 import { PostgresPerformanceStore } from "../lib/performance/postgres.ts";
 
 async function main(): Promise<void> {
@@ -66,6 +66,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error(fatalCaptureMessage(error));
+  console.error(failureDetail(error));
   process.exitCode = 1;
 });
