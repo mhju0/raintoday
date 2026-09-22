@@ -129,3 +129,35 @@ is a three-module change and was left for an explicit decision.
 
 Next step: measure mode 2 before changing anything. The incident issue now
 carries its own classification, so the next failure should not need re-derivation.
+
+### 2026-09-22 — the batch's blank reasons, and the blackout measured (#174, #175)
+
+Changed: the guarded error-tree walker moved to `lib/performance/errorDetail.ts`,
+driver-free so the capture batch can share it. `failureMessage` in the batch was
+still `error.message` and so still blank on an `AggregateError`: run 35351001382
+stored 93 of 97 observations, inserted 93 captures, then failed the cohort on
+`4 x observation: ` with no reason. Observations have zero fault tolerance.
+Redaction now also covers query-parameter credentials, because KMA passes its key
+in the query string and the walker is no longer reachable only from the adapter.
+
+Measured the egress blackout across all 80 scheduled runs; recorded in #175.
+The cause table there supersedes any earlier count. Two corrections worth keeping:
+
+- The August cluster of ~1s failures was a missing `PERFORMANCE_DATABASE_URL`
+  secret, **not** the #171 cold-start defect, despite an identical shape. Date
+  proximity is not a cause.
+- A capture taking ~1140 s is not by itself a blackout: successful cohorts also
+  run that long when many provider reads retry. The blackout signature is
+  97/97 faulted with every provider failing at once.
+
+Blackout duration is bimodal. It either clears inside one capture budget — the
+next attempt then succeeds in ~110 s, 4 for 4 — or it is still running at 37–38
+minutes and the next attempt burns its budget too, 3 for 3. #169's spacing tops
+out at +25 min, so it would not have rescued any of the three sustained cases.
+No blackout since 09-13, so the spacing is untested against this mode, not proven.
+
+Open issues: #175 needs a decision between accepting the blackout and combining
+a fast abandon with a fourth attempt past 40 minutes. #146 and #140 stay blocked.
+
+Next step: #175 is a decision, not an implementation task. Do not add retries to
+`local-performance` before it is answered.
