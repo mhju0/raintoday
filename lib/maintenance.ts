@@ -1,8 +1,22 @@
 export type MaintenanceRun = {
+  id: number;
   status: string;
   conclusion: string | null;
   created_at: string;
   html_url: string;
+};
+
+export type MaintenanceStep = {
+  name: string;
+  conclusion: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+};
+
+export type MaintenanceJob = {
+  name: string;
+  conclusion: string | null;
+  steps?: MaintenanceStep[];
 };
 
 export function assessRuns(runs: MaintenanceRun[], now: number, maxAgeHours: number) {
@@ -10,10 +24,10 @@ export function assessRuns(runs: MaintenanceRun[], now: number, maxAgeHours: num
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
   if (!completed || !Number.isFinite(Date.parse(completed.created_at)) ||
       now - Date.parse(completed.created_at) > maxAgeHours * 3_600_000) {
-    return { kind: "stale", detail: `No completed monitored run within ${maxAgeHours} hours.`, url: completed?.html_url };
+    return { kind: "stale", detail: `No completed monitored run within ${maxAgeHours} hours.`, url: completed?.html_url, runId: completed?.id };
   }
   if (completed.conclusion !== "success") {
-    return { kind: "failed", detail: `Latest completed monitored run: ${completed.conclusion ?? "unknown"}.`, url: completed.html_url };
+    return { kind: "failed", detail: `Latest completed monitored run: ${completed.conclusion ?? "unknown"}.`, url: completed.html_url, runId: completed.id };
   }
   return null;
 }
@@ -109,4 +123,63 @@ export function assessExpiries(expiries: CredentialExpiry[], now: number) {
         : `- **${entry.variable}** — ${entry.service} — expires in **${entry.days} day(s)** (${entry.expiresOn}). [Portal](${entry.portal})`)
       .join("\n"),
   };
+}
+
+function stepSeconds(step: MaintenanceStep): number | null {
+  const from = Date.parse(step.started_at ?? "");
+  const to = Date.parse(step.completed_at ?? "");
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to < from) return null;
+  return Math.round((to - from) / 1000);
+}
+
+/**
+ * Steps that run regardless of what failed, so they never mark the failure point.
+ * `Record this runner's egress address` is the trap: it is `if: always()`, so it
+ * sits *between* a failed preflight and the steps that skipped because of it.
+ */
+const BOOKKEEPING_STEPS = new Set(["Set up job", "Complete job"]);
+
+/**
+ * Match by prefix, not by exact name: the reporting steps have already been
+ * renamed once ("Report a first attempt that failed" → "Report an unsuccessful
+ * attempt"), and an exact list would silently start blaming the wrong step.
+ */
+function isPipelineStep(step: MaintenanceStep): boolean {
+  return !BOOKKEEPING_STEPS.has(step.name)
+    && !/^(Post |Report |Record |Wait for )/u.test(step.name);
+}
+
+/**
+ * Where each capture attempt actually died.
+ *
+ * Three things conspire to erase this. `continue-on-error: true` makes every
+ * capture job report `success` even when its capture failed, and it does the
+ * same to the *steps*: the jobs API returns `success` for the step that failed,
+ * so a conclusion cannot be searched for. What survives is `skipped` — each
+ * stage is gated on the previous one's outcome, so the first skipped pipeline
+ * step names the stage that failed. And the incident issue closes itself on the
+ * next green run, so unless this is written down while the failure is open, the
+ * next recurrence starts from zero.
+ *
+ * That is how three consecutive fixes (#103, #168, #169) went to the KMA route
+ * while run 35621896930 was failing on its first database statement: two of its
+ * three attempts cleared the preflight and died in the capture seconds later.
+ * The duration separates those: a capture that fails in seconds never reached a
+ * provider, while an egress blackout spends minutes before faulting. See #170.
+ */
+export function summarizeCaptureAttempts(jobs: MaintenanceJob[]): string | null {
+  const attempts = jobs.filter((job) => /^capture(_\d+)?$/u.test(job.name));
+  if (attempts.length === 0) return null;
+  const rows = attempts.map((job) => {
+    const steps = (job.steps ?? []).filter(isPipelineStep);
+    if (steps.length === 0) return `- \`${job.name}\` — no steps recorded.`;
+    const skipped = steps.findIndex((step) => step.conclusion === "skipped");
+    // Nothing skipped means the last stage ran, so it is the one that failed.
+    const failed = skipped > 0 ? steps[skipped - 1] : skipped === 0 ? null : steps.at(-1);
+    if (!failed) return `- \`${job.name}\` — never started its first stage.`;
+    const seconds = stepSeconds(failed);
+    return `- \`${job.name}\` — failed at **${failed.name}**` +
+      `${seconds === null ? "" : ` after ${seconds}s`}.`;
+  });
+  return rows.join("\n");
 }

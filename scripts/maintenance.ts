@@ -1,4 +1,11 @@
-import { assessExpiries, assessRuns, CREDENTIAL_EXPIRIES, type MaintenanceRun } from "../lib/maintenance.ts";
+import {
+  assessExpiries,
+  assessRuns,
+  CREDENTIAL_EXPIRIES,
+  type MaintenanceJob,
+  type MaintenanceRun,
+  summarizeCaptureAttempts,
+} from "../lib/maintenance.ts";
 
 const repository = process.env.GITHUB_REPOSITORY;
 const token = process.env.GITHUB_TOKEN;
@@ -48,9 +55,26 @@ for (const [workflow, hours] of [["local-performance", 18], ["service-health", 1
   const event = workflow === "local-performance" ? "&event=schedule" : "";
   const { workflow_runs: runs } = await api<{ workflow_runs: MaintenanceRun[] }>(`/actions/workflows/${workflow}.yml/runs?branch=main${event}&per_page=20`);
   const finding = assessRuns(runs, now, hours);
+  // Record where the attempts died while the incident is open. This issue closes
+  // itself on the next green run, so a classification written only in the run log
+  // is gone by the time anyone looks — which is why the same collector failure was
+  // investigated from zero more than once. Never let this fail the review: a
+  // missing summary is a thinner issue, not a missed incident. See #170.
+  let attempts: string | null = null;
+  if (workflow === "local-performance" && finding?.kind === "failed" && finding.runId) {
+    try {
+      const { jobs } = await api<{ jobs: MaintenanceJob[] }>(`/actions/runs/${finding.runId}/jobs?per_page=100`);
+      attempts = summarizeCaptureAttempts(jobs);
+    } catch (error) {
+      console.log(`could not summarise run ${finding.runId}: ${error instanceof Error ? error.message : "unknown"}`);
+    }
+  }
   const detail = config.state !== "active" ? `Workflow is ${config.state}. Re-enable it after reviewing the cause.` : finding?.detail;
+  const evidence = attempts
+    ? `\n\n**Where each attempt died** (job conclusions are meaningless here: \`continue-on-error\` reports \`success\` even for a failed capture)\n\n${attempts}\n\nA failure at *Check KMA ASOS transport* is the route. A failure at *Capture observations and next-day forecasts* is not — read that run's log before assuming otherwise.`
+    : "";
   await syncIssue(workflow, `Operations: ${workflow} needs attention`, detail ?
-    `${detail}\n\n${finding?.url ? `[Latest completed run](${finding.url})` : `[Workflow](https://github.com/${repository}/actions/workflows/${workflow}.yml)`}\n\nFollow [the incident procedure](https://github.com/${repository}/blob/main/docs/OPERATIONS.md#incident-response). Do not rerun missed forecast cohorts or weaken required-provider checks. This issue updates in place while the problem persists and closes after a fresh successful monitored run.` : null);
+    `${detail}\n\n${finding?.url ? `[Latest completed run](${finding.url})` : `[Workflow](https://github.com/${repository}/actions/workflows/${workflow}.yml)`}${evidence}\n\nFollow [the incident procedure](https://github.com/${repository}/blob/main/docs/OPERATIONS.md#incident-response). Do not rerun missed forecast cohorts or weaken required-provider checks. This issue updates in place while the problem persists and closes after a fresh successful monitored run.` : null);
 }
 
 // Renewal needs a person signed in to the portal, so the reminder has to exist
