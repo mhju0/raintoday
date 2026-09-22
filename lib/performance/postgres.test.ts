@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildCompletedComparisonsQuery,
-  describePostgresError,
   isRetryablePreconnectFailure,
   PostgresPerformanceStore,
   runPostgresStatementWithRecovery,
@@ -71,25 +70,8 @@ test("pre-connect classifier requires positive evidence from every AggregateErro
 
   const cyclic = new AggregateError([]);
   (cyclic.errors as unknown[]).push(cyclic);
+  // The describer's own cycle handling lives in errorDetail.test.ts.
   assert.equal(isRetryablePreconnectFailure(cyclic), false);
-  assert.match(describePostgresError(cyclic), /cyclic AggregateError/);
-});
-
-test("empty AggregateError diagnostics expose safe child connection evidence", () => {
-  const error = new AggregateError([
-    connectionError(
-      "ECONNREFUSED",
-      "connect",
-      "connect ECONNREFUSED postgres://collector:super-secret@db.example:5432/raintoday",
-    ),
-  ]);
-
-  const diagnostic = describePostgresError(error);
-
-  assert.match(diagnostic, /AggregateError/);
-  assert.match(diagnostic, /connect ECONNREFUSED/);
-  assert.doesNotMatch(diagnostic, /super-secret/);
-  assert.match(diagnostic, /postgres:\/\/<REDACTED>@db\.example/);
 });
 
 test("statement recovery retries one proven pre-connect failure with the same payload", async () => {
@@ -168,24 +150,6 @@ test("statement recovery preserves original errors when the caller did not opt i
   );
 });
 
-test("terminal database diagnostics do not repeat arbitrary error text", async () => {
-  await assert.rejects(
-    () => runPostgresStatementWithRecovery(
-      "loadCompletedComparisons",
-      async () => {
-        throw Object.assign(new Error("password super-secret failed"), { code: "28P01" });
-      },
-      { enabled: true },
-    ),
-    (error) => {
-      assert.ok(error instanceof Error);
-      assert.match(error.message, /PostgreSQL loadCompletedComparisons failed: 28P01/);
-      assert.doesNotMatch(error.message, /super-secret/);
-      return true;
-    },
-  );
-});
-
 /**
  * The cohort's first database statement is `initialize()`, and until #170 it was
  * the one statement with no recovery and no diagnostic. Run 35621896930 lost all
@@ -210,4 +174,22 @@ test("the first statement of a cohort is retried and described, never blank", as
   assert.notEqual(error.message.trim(), "", "a blank diagnostic is the #170 defect itself");
   assert.match(error.message, /PostgreSQL initialize failed after connection retry/);
   assert.match(error.message, /ECONNREFUSED/);
+});
+
+test("terminal database diagnostics do not repeat arbitrary error text", async () => {
+  await assert.rejects(
+    () => runPostgresStatementWithRecovery(
+      "loadCompletedComparisons",
+      async () => {
+        throw Object.assign(new Error("password super-secret failed"), { code: "28P01" });
+      },
+      { enabled: true },
+    ),
+    (error) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /PostgreSQL loadCompletedComparisons failed: 28P01/);
+      assert.doesNotMatch(error.message, /super-secret/);
+      return true;
+    },
+  );
 });

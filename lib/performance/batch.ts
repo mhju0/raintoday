@@ -1,6 +1,10 @@
 import type { ForecastLocation } from "../location.ts";
 import type { ProviderSnapshot } from "../types.ts";
 import { DEFAULT_FAILURE_RETRY_MS } from "../cache.ts";
+// `failureMessage` used to be `error.message`, which is empty on an AggregateError:
+// run 35351001382 reported `4 x observation: ` and failed a 93-of-97 cohort on a
+// reason nobody could read. Observations have zero fault tolerance. See #170.
+import { failureDetail as failureMessage } from "./errorDetail.ts";
 import { captureStationForecast } from "./capture.ts";
 import { fetchAsosObservation, fetchKmaAsosStations, type AsosObservationRead } from "./kma.ts";
 import type { PerformanceStore } from "./store.ts";
@@ -84,10 +88,6 @@ function addCalendarDays(date: string, days: number): string {
  */
 function observationDate(cohort: CaptureCohort, now: Date): string {
   return addCalendarDays(koreanDate(now), cohort === "06" ? -2 : -1);
-}
-
-function failureMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "unknown error";
 }
 
 const PARTIAL_FAILURE_RETRY_DELAY_MS = DEFAULT_FAILURE_RETRY_MS + 1_000;
