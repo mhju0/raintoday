@@ -161,3 +161,54 @@ a fast abandon with a fourth attempt past 40 minutes. #146 and #140 stay blocked
 
 Next step: #175 is a decision, not an implementation task. Do not add retries to
 `local-performance` before it is answered.
+
+## 2026-09-23 — the collector's own cost was the recurring failure
+
+Changed: `lib/performance/batch.ts` gains an outage breaker
+(`OUTAGE_EVIDENCE_THRESHOLD = 12`). Once a source has failed that many
+consecutive stations on transport with nothing having succeeded anywhere in the
+pass, it stops being called; the remaining stations are counted as
+`observationsAbandoned` / `capturesAbandoned` and `abandonedReason` is set.
+`cohortRunFailed` fails on `abandonedReason` directly, because unattempted
+stations are deliberately in neither the fault counts nor `failures` and a
+stopped pass would otherwise read as a small green one.
+`local-performance.yml` goes from three attempts to five, at 0/10/25/40/55
+minutes.
+
+Why: #175's measurement was read wrongly and the four options in it were all
+built on that misreading. Five separate failed runs spent 1139, 1141, 1141,
+1139 and 1141 seconds in their capture step. An outage does not land within two
+seconds of itself five times — that number is ours. During a KMA outage a
+station costs about 47s (three 15s ASOS attempts with backoff, then a 10s
+provider timeout), and the batch walks all 97 at concurrency 4, so a failing
+attempt costs ~1140s whatever the route is doing.
+
+Three things follow, and each contradicts something recorded earlier:
+
+- The "37–38 minute blackout" was two full walks, not a 38-minute outage.
+  Nothing measured says the route was down past the first walk.
+- #169's spacing never ran. It aims attempts at +0/+10/+25 min, but attempt 1
+  does not *return* until +19, so the samples actually landed at 0/19/38.
+- It was never an egress blackout. `pirate-weather` and `weather-api` never
+  appear in those runs' failure lines — they succeeded for all 97 stations.
+  Only `kma` (97/97) and `open-meteo` (~50%) failed.
+
+Safety: the threshold is held above the cohort's fault tolerance
+(`OUTAGE_SAFE_COHORT_LIMIT`, bound to `FALLBACK_STATION_CATALOG` in
+`cli.test.ts`), so tripping is only possible in a run already destined to fail,
+and one success anywhere clears the counter. The next attempt re-walks every
+station, so a false trip costs one cheap attempt, never evidence. Measured at
+the real 97-station shape and concurrency 4: 165s against 1334s.
+
+Note the ordering trap: the breaker *alone* would have narrowed the sampling
+window from the accidental 0/19/38 to 0/10/25. The extra attempts are not a
+separate improvement, they are what keeps the reach.
+
+Open: five attempts and the breaker are untested against a live outage — the
+last one was 2026-09-13. #175 needs its analysis corrected; its four options are
+superseded. Scorecard alert #28 (`LicenseID`) is still open on purpose and still
+emails; it can be dismissed as "won't fix" whenever you want.
+
+Next: watch the first red `local-performance` run for the new `OUTAGE:` line. If
+it appears, the breaker worked and the question becomes whether 55 minutes is
+far enough. If a run goes red *without* it, the cause is not the KMA route.

@@ -38,6 +38,18 @@ async function main(): Promise<void> {
         console.warn(`  ${String(count).padStart(4)} x ${label}`);
       }
     }
+    // An abandoned pass is the loudest thing in the log, because the counts above
+    // are deliberately short: unattempted stations are neither failures nor
+    // absences, so without this line a cohort that stopped after 12 stations
+    // reads as a small one. #170 is what silence here costs.
+    if (result.abandonedReason) {
+      console.warn(
+        `OUTAGE: the pass stopped early — ${result.abandonedReason} ` +
+          "Establishing this once is deliberate: re-proving it station by station " +
+          "used to spend the attempt's whole 20-minute budget, which is why only " +
+          "two of the three scheduled attempts ever sampled the route. See #175.",
+      );
+    }
     // The cohort was captured, so the run is not a failure — but it ran on a
     // station list nothing re-verified today, and a green run reports nothing.
     if (result.catalogSource === "store") {

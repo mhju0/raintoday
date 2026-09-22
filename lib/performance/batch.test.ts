@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ProviderSnapshot } from "../types.ts";
-import { runPerformanceBatch } from "./batch.ts";
+import { OUTAGE_EVIDENCE_THRESHOLD, runPerformanceBatch } from "./batch.ts";
 import { InMemoryPerformanceStore } from "./store.ts";
 import type { ObservationStation } from "./types.ts";
 
@@ -366,11 +366,14 @@ test("nationwide batch stores yesterday's observation before an idempotent next-
     stationCount: 2,
     observationsStored: 2,
     observationsRecovered: 0,
+    observationsAbandoned: 0,
     capturesInserted: 2,
     capturesExisting: 0,
     capturesSkipped: 0,
     capturesFaulted: 0,
     capturesRecovered: 0,
+    capturesAbandoned: 0,
+    abandonedReason: null,
     failures: [],
     catalogSource: "kma",
     catalogError: null,
@@ -597,4 +600,92 @@ test("a cohort that could not reach a provider fails rather than storing a short
     "the failure names the provider that could not be read",
   );
   assert.deepEqual(await store.loadCaptures(stations[0].id, "18"), []);
+});
+
+/**
+ * The #175 defect. During a KMA outage every station pays three 15s ASOS attempts
+ * with backoff and a 10s provider timeout — roughly 47s — and the batch walks all
+ * 97 of them at concurrency 4. Five separate failed runs spent 1139, 1141, 1141,
+ * 1139 and 1141 seconds: an outage does not land within two seconds of itself five
+ * times, so that number is the collector's own cost, not the route's.
+ *
+ * The consequence is not just a slow run. `local-performance.yml` aims its attempts
+ * at +0/+10/+25 minutes, but attempt 1 does not *return* until +19, so the samples
+ * actually land at 0/19/38 and the spacing #169 added never runs. Making a proven
+ * outage cheap to detect is what lets the route be sampled more than twice.
+ */
+const manyStations = (count: number): ObservationStation[] =>
+  Array.from({ length: count }, (_, index) => ({
+    ...stations[0],
+    id: String(200 + index),
+    name: `관측소${index}`,
+  }));
+
+test("a source proven down stops being called instead of being re-proven station by station", async () => {
+  let observationCalls = 0;
+  let forecastCalls = 0;
+  const all = manyStations(40);
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store: new InMemoryPerformanceStore(),
+    fetchStations: async () => all,
+    fetchObservation: async () => {
+      observationCalls += 1;
+      return { status: "failed", reason: "connection timed out", retryable: true };
+    },
+    readForecasts: async () => {
+      forecastCalls += 1;
+      return [faultSnapshot()];
+    },
+    concurrency: 1,
+  });
+
+  assert.ok(
+    observationCalls <= OUTAGE_EVIDENCE_THRESHOLD,
+    `ASOS was called ${observationCalls} times to establish one outage`,
+  );
+  assert.ok(
+    forecastCalls <= OUTAGE_EVIDENCE_THRESHOLD,
+    `providers were read ${forecastCalls} times to establish one outage`,
+  );
+  // What was never attempted must be counted as such, never as a read that failed
+  // and never as an absence: `observationsAbsent` is a claim about the weather record.
+  assert.equal(result.observationsAbandoned, all.length - OUTAGE_EVIDENCE_THRESHOLD);
+  assert.equal(result.capturesAbandoned, all.length - OUTAGE_EVIDENCE_THRESHOLD);
+  assert.equal(result.observationsAbsent, 0);
+  assert.equal(result.observationsFailed, OUTAGE_EVIDENCE_THRESHOLD);
+  assert.match(result.abandonedReason ?? "", /observation/);
+  assert.match(result.abandonedReason ?? "", /capture/);
+});
+
+/**
+ * The invariant that makes abandoning safe: one success anywhere proves the source
+ * is reachable, so the pass must keep walking. Without this a thirty-second blip at
+ * the head of a run would discard the 85 stations that came after it.
+ */
+test("a single success anywhere keeps a flaking source in play", async () => {
+  let observationCalls = 0;
+  const all = manyStations(40);
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store: new InMemoryPerformanceStore(),
+    fetchStations: async () => all,
+    fetchObservation: async (stationId, date, now) => {
+      observationCalls += 1;
+      // The very first station answers; every later one fails on transport.
+      return stationId === all[0].id
+        ? observed(stationId, date, now)
+        : { status: "failed" as const, reason: "connection timed out", retryable: true };
+    },
+    readForecasts: async () => [forecastSnapshot()],
+    concurrency: 1,
+    retryDelay: async () => {},
+  });
+
+  assert.equal(observationCalls >= all.length, true, "a reachable source must not be abandoned");
+  assert.equal(result.observationsAbandoned, 0);
+  assert.equal(result.capturesAbandoned, 0);
+  assert.equal(result.abandonedReason, null);
 });

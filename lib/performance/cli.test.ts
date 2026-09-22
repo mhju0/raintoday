@@ -3,13 +3,16 @@ import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { OUTAGE_EVIDENCE_THRESHOLD } from "./batch.ts";
 import {
   CAPTURE_FAULT_TOLERANCE,
   cohortRunFailed,
   manualCohortHourMismatch,
+  OUTAGE_SAFE_COHORT_LIMIT,
   resolveCaptureCohort,
   SCHEDULE_COHORTS,
 } from "./cli.ts";
+import { FALLBACK_STATION_CATALOG } from "./stationCatalog.ts";
 
 test("strict capture rejects missing or blank provider credentials before opening the store", () => {
   const env = {
@@ -161,16 +164,19 @@ test("the capture workflow passes every credential the capture path reads", () =
   );
 });
 
-test("the capture workflow makes at most three fresh-runner attempts, identically credentialled", () => {
+test("the capture workflow makes five spaced fresh-runner attempts, identically credentialled", () => {
   const workflow = readFileSync(
     join(import.meta.dirname, "..", "..", ".github", "workflows", "local-performance.yml"),
     "utf8",
   );
+  const ATTEMPTS = ["capture_1", "capture_2", "capture_3", "capture_4", "capture_5"];
+  // Everything that waits before it probes, which is every attempt but the first.
+  const RETRIES = ATTEMPTS.slice(1);
   const jobsBody = workflow.slice(workflow.indexOf("\njobs:"));
   const jobNames = Array.from(jobsBody.matchAll(/^ {2}([a-z][\w-]*):$/gm), (m) => m[1]);
   assert.deepEqual(
     jobNames,
-    ["capture_1", "capture_2", "capture_3", "verdict"],
+    ["capture_1", "capture_2", "capture_3", "capture_4", "capture_5", "verdict"],
     "capture workflow jobs have drifted",
   );
 
@@ -182,7 +188,9 @@ test("the capture workflow makes at most three fresh-runner attempts, identicall
   };
   assert.match(bodyOf("capture_2"), /needs:\s*capture_1/);
   assert.match(bodyOf("capture_3"), /needs:\s*\[capture_1, capture_2\]/);
-  for (const name of ["capture_2", "capture_3"]) {
+  assert.match(bodyOf("capture_4"), /needs:\s*\[capture_1, capture_2, capture_3\]/);
+  assert.match(bodyOf("capture_5"), /needs:\s*\[capture_1, capture_2, capture_3, capture_4\]/);
+  for (const name of RETRIES) {
     assert.match(bodyOf(name), /always\(\) && !cancelled\(\)/, `${name} must stop on cancellation`);
   }
 
@@ -190,7 +198,7 @@ test("the capture workflow makes at most three fresh-runner attempts, identicall
     Array.from(bodyOf(name).matchAll(/^\s*([A-Z][A-Z0-9_]*):\s*\$\{\{\s*secrets\./gm), (m) => m[1])
       .sort();
   assert.ok(secretsOf("capture_1").length > 0, "the capture job reads no secrets");
-  for (const name of ["capture_2", "capture_3"]) {
+  for (const name of RETRIES) {
     assert.deepEqual(
       secretsOf(name),
       secretsOf("capture_1"),
@@ -205,8 +213,10 @@ test("the capture workflow makes at most three fresh-runner attempts, identicall
     capture_1: 35,
     capture_2: 47,
     capture_3: 62,
+    capture_4: 77,
+    capture_5: 92,
   };
-  for (const name of ["capture_1", "capture_2", "capture_3"]) {
+  for (const name of ATTEMPTS) {
     const body = bodyOf(name);
     assert.match(
       body,
@@ -246,8 +256,10 @@ test("the capture workflow makes at most three fresh-runner attempts, identicall
   const ATTEMPT_OFFSET_SECONDS: Readonly<Record<string, number>> = {
     capture_2: 600,
     capture_3: 1500,
+    capture_4: 2400,
+    capture_5: 3300,
   };
-  for (const name of ["capture_2", "capture_3"]) {
+  for (const name of RETRIES) {
     const body = bodyOf(name);
     const offset = ATTEMPT_OFFSET_SECONDS[name];
     assert.match(
@@ -276,7 +288,7 @@ test("the capture workflow makes at most three fresh-runner attempts, identicall
   }
 
   const verdict = bodyOf("verdict");
-  assert.match(verdict, /needs:\s*\[capture_1, capture_2, capture_3\]/);
+  assert.match(verdict, /needs:\s*\[capture_1, capture_2, capture_3, capture_4, capture_5\]/);
   assert.match(verdict, /always\(\) && !cancelled\(\)/);
   assert.match(verdict, /No capture attempt succeeded/);
 });
@@ -300,6 +312,9 @@ test("a cohort survives a few faulted stations and fails on an outage", () => {
     capturesSkipped: 0,
     capturesFaulted: 0,
     capturesRecovered: 0,
+    observationsAbandoned: 0,
+    capturesAbandoned: 0,
+    abandonedReason: null,
     failures: [],
     catalogSource: "kma" as const,
     catalogError: null,
@@ -323,6 +338,59 @@ test("a cohort survives a few faulted stations and fails on an outage", () => {
   );
 });
 
+/**
+ * The invariant that makes the #175 outage breaker safe to abandon on. Tripping
+ * it needs `OUTAGE_EVIDENCE_THRESHOLD` consecutive transport failures, and a
+ * cohort is already red once faults pass `CAPTURE_FAULT_TOLERANCE` of its
+ * stations. While the threshold is the larger, abandoning can only ever discard
+ * a run that was failing anyway — and the workflow's next attempt re-walks every
+ * station, so nothing is lost but the nineteen minutes it took to re-prove.
+ *
+ * Bind it to the real catalog rather than to a literal: if the nationwide list
+ * ever grows past the safe limit, this fails instead of quietly letting the
+ * breaker start eating green cohorts.
+ */
+test("declaring an outage is impossible before the cohort would already have failed", () => {
+  assert.ok(
+    OUTAGE_EVIDENCE_THRESHOLD > FALLBACK_STATION_CATALOG.length * CAPTURE_FAULT_TOLERANCE,
+    `${FALLBACK_STATION_CATALOG.length} stations tolerate ` +
+      `${FALLBACK_STATION_CATALOG.length * CAPTURE_FAULT_TOLERANCE} faults, which the ` +
+      `${OUTAGE_EVIDENCE_THRESHOLD}-failure outage threshold must stay above`,
+  );
+  assert.ok(
+    FALLBACK_STATION_CATALOG.length < OUTAGE_SAFE_COHORT_LIMIT,
+    `cohorts are safe to abandon up to ${OUTAGE_SAFE_COHORT_LIMIT} stations`,
+  );
+});
+
+test("an abandoned pass fails its run on its own account", () => {
+  // Unattempted stations are deliberately in neither `capturesFaulted` nor
+  // `failures`, so without this a cohort that stopped after 12 stations would
+  // report the same counts as a clean one and go green.
+  const base = {
+    stationCount: 97,
+    observationsStored: 0,
+    observationsAbsent: 0,
+    observationsFailed: 0,
+    observationsRecovered: 0,
+    observationsAbandoned: 85,
+    capturesInserted: 0,
+    capturesExisting: 0,
+    capturesSkipped: 0,
+    capturesFaulted: 0,
+    capturesRecovered: 0,
+    capturesAbandoned: 85,
+    abandonedReason: null as string | null,
+    failures: [],
+    catalogSource: "kma" as const,
+    catalogError: null,
+  };
+
+  assert.equal(cohortRunFailed({ ...base, abandonedReason: "ASOS down" }), true);
+  // And the counts alone, without the reason, would not have caught it.
+  assert.equal(cohortRunFailed(base), false);
+});
+
 test("a failed observation still fails the cohort at any count", () => {
   // Unchanged by the capture tolerance: observations kept zero tolerance before
   // it and have not been noisy. #87 is why their alarm stays loud.
@@ -337,6 +405,9 @@ test("a failed observation still fails the cohort at any count", () => {
     capturesSkipped: 0,
     capturesFaulted: 0,
     capturesRecovered: 0,
+    observationsAbandoned: 0,
+    capturesAbandoned: 0,
+    abandonedReason: null,
     failures: [{
       stationId: "108",
       phase: "observation" as const,
@@ -361,6 +432,9 @@ test("a failure that is neither an observation nor a tolerated capture fault fai
     capturesSkipped: 0,
     capturesFaulted: 0,
     capturesRecovered: 0,
+    observationsAbandoned: 0,
+    capturesAbandoned: 0,
+    abandonedReason: null,
     failures: [{
       stationId: "108",
       phase: "capture" as const,
