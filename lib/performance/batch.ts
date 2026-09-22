@@ -31,6 +31,8 @@ export interface PerformanceBatchResult {
   observationsFailed: number;
   /** Failed observation reads resolved during the one end-of-batch retry pass. */
   observationsRecovered: number;
+  /** Stations whose observation was never attempted because ASOS was proven down. */
+  observationsAbandoned: number;
   capturesInserted: number;
   capturesExisting: number;
   capturesSkipped: number;
@@ -38,6 +40,10 @@ export interface PerformanceBatchResult {
   capturesFaulted: number;
   /** Faulted provider reads resolved during the one end-of-batch retry pass. */
   capturesRecovered: number;
+  /** Stations whose capture was never attempted because a provider was proven down. */
+  capturesAbandoned: number;
+  /** How the pass stopped calling a proven-down source, or null if it never did. */
+  abandonedReason: string | null;
   failures: PerformanceBatchFailure[];
   /** Where the run's station list came from. `store` means the cohort ran degraded. */
   catalogSource: "kma" | "store";
@@ -92,6 +98,35 @@ function observationDate(cohort: CaptureCohort, now: Date): string {
 
 const PARTIAL_FAILURE_RETRY_DELAY_MS = DEFAULT_FAILURE_RETRY_MS + 1_000;
 
+/**
+ * Consecutive transport failures — with nothing having succeeded anywhere in the
+ * pass — that prove a source is down rather than flaking.
+ *
+ * A station costs about 47 seconds once KMA stops answering: three 15s ASOS
+ * attempts with backoff, then a 10s provider timeout. Walking all 97 of them at
+ * concurrency 4 therefore takes ~1140s whatever the route is doing, which is
+ * exactly what five failed runs spent (1139, 1141, 1141, 1139, 1141 seconds).
+ * That cost is what actually breaks the retry schedule: the workflow aims its
+ * attempts at +0/+10/+25 minutes, but attempt 1 does not return until +19, so
+ * only two samples of the route ever happen. Establishing an outage once, and
+ * cheaply, is what buys the later attempts. See #175.
+ *
+ * It must stay *above* the cohort's fault tolerance, so that tripping is only
+ * ever possible in a run already destined to fail and abandoning can never
+ * discard a cohort that would have passed; `cli.test.ts` binds the two. The
+ * workflow's next attempt re-walks every station from scratch, so the cost of a
+ * false trip is one cheap extra attempt, never lost evidence.
+ */
+export const OUTAGE_EVIDENCE_THRESHOLD = 12;
+
+type SourceName = "observation" | "capture";
+
+interface SourceHealth {
+  consecutive: number;
+  succeeded: boolean;
+  down: boolean;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -131,11 +166,14 @@ export async function runPerformanceBatch(
     observationsAbsent: 0,
     observationsFailed: 0,
     observationsRecovered: 0,
+    observationsAbandoned: 0,
     capturesInserted: 0,
     capturesExisting: 0,
     capturesSkipped: 0,
     capturesFaulted: 0,
     capturesRecovered: 0,
+    capturesAbandoned: 0,
+    abandonedReason: null,
     failures: [],
     catalogSource,
     catalogError,
@@ -154,6 +192,27 @@ export async function runPerformanceBatch(
   let captureSequence = 0;
   let latestObservationProgress = 0;
   let latestCaptureProgress = 0;
+  const health: Record<SourceName, SourceHealth> = {
+    observation: { consecutive: 0, succeeded: false, down: false },
+    capture: { consecutive: 0, succeeded: false, down: false },
+  };
+  /** One success proves the source is reachable, and reachable sources are never abandoned. */
+  const noteReached = (source: SourceName): void => {
+    health[source].succeeded = true;
+    health[source].consecutive = 0;
+  };
+  /**
+   * Only transport exhaustion counts towards an outage. A refusal or a NODATA is
+   * the service answering, which proves the route works and must not trip this.
+   */
+  const noteTransportFailure = (source: SourceName): void => {
+    const state = health[source];
+    state.consecutive += 1;
+    if (!state.succeeded && state.consecutive >= OUTAGE_EVIDENCE_THRESHOLD) state.down = true;
+  };
+  const noteAnswered = (source: SourceName): void => {
+    health[source].consecutive = 0;
+  };
 
   const removeFailure = (failure: PerformanceBatchFailure): void => {
     const index = result.failures.indexOf(failure);
@@ -168,6 +227,7 @@ export async function runPerformanceBatch(
     try {
       read = await fetchObservation(station.id, targetObservationDate, input.now);
     } catch (error) {
+      if (!retry) noteTransportFailure("observation");
       const message = failureMessage(error);
       if (retry) {
         retry.failure.message = message;
@@ -180,6 +240,7 @@ export async function runPerformanceBatch(
     const completedAt = ++observationSequence;
     if (read.status === "observed" || read.status === "absent") {
       latestObservationProgress = completedAt;
+      if (!retry) noteReached("observation");
     }
     if (read.status === "observed") {
       try {
@@ -214,6 +275,10 @@ export async function runPerformanceBatch(
       retry.failure.message = read.reason;
       return;
     }
+    if (!retry) {
+      if (read.retryable === true) noteTransportFailure("observation");
+      else noteAnswered("observation");
+    }
     // Not the same as `absent`. Only transport exhaustion is eligible for the
     // later recovery pass; configuration and API responses are terminal.
     const failure: PerformanceBatchFailure = {
@@ -243,6 +308,10 @@ export async function runPerformanceBatch(
       });
       const completedAt = ++captureSequence;
       if (capture.status !== "faulted") latestCaptureProgress = completedAt;
+      if (!retry) {
+        if (capture.status === "faulted") noteTransportFailure("capture");
+        else noteReached("capture");
+      }
       if (capture.status === "faulted") {
         const message = `could not read ${capture.faultedProviders
           .map((fault) => `${fault.provider} (${fault.message})`)
@@ -294,9 +363,27 @@ export async function runPerformanceBatch(
   };
 
   await runStations(stations, async (station) => {
-    await processObservation(station);
-    await processCapture(station);
+    // A proven-down source is not called again. Everything it would have read is
+    // counted as unattempted, which is neither a failed read nor an absence — an
+    // absence is a claim about the weather record and this makes no such claim.
+    if (health.observation.down) result.observationsAbandoned += 1;
+    else await processObservation(station);
+    if (health.capture.down) result.capturesAbandoned += 1;
+    else await processCapture(station);
   });
+  const abandoned = [
+    result.observationsAbandoned > 0
+      ? `observation (${result.observationsAbandoned} stations not attempted)`
+      : null,
+    result.capturesAbandoned > 0
+      ? `capture (${result.capturesAbandoned} stations not attempted)`
+      : null,
+  ].filter((entry): entry is string => entry !== null);
+  if (abandoned.length > 0) {
+    result.abandonedReason =
+      `${OUTAGE_EVIDENCE_THRESHOLD} consecutive transport failures with no success — ` +
+      `${abandoned.join("; ")}. The next attempt re-reads every station.`;
+  }
 
   const retryableObservationIds = new Set(
     [...observationRetries.values()]

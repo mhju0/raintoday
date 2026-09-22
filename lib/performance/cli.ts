@@ -1,5 +1,6 @@
 import { forecastProviders } from "../providers/registry.ts";
 import type { PerformanceBatchResult } from "./batch.ts";
+import { OUTAGE_EVIDENCE_THRESHOLD } from "./batch.ts";
 import type { CaptureCohort } from "./types.ts";
 
 /** Production cohorts must not freeze a smaller provider set because a key is missing. */
@@ -26,17 +27,32 @@ export function assertCaptureProvidersConfigured(): void {
 export const CAPTURE_FAULT_TOLERANCE = 0.1;
 
 /**
+ * The largest cohort for which abandoning a proven-down source is guaranteed not
+ * to discard a run that would otherwise have passed.
+ *
+ * Tripping the outage breaker needs `OUTAGE_EVIDENCE_THRESHOLD` consecutive
+ * transport failures; a cohort fails once faults exceed `CAPTURE_FAULT_TOLERANCE`
+ * of its stations. While the threshold is the larger of the two, every abandoned
+ * run was already red, so the breaker can only ever save time.
+ */
+export const OUTAGE_SAFE_COHORT_LIMIT = OUTAGE_EVIDENCE_THRESHOLD / CAPTURE_FAULT_TOLERANCE;
+
+/**
  * Whether a finished cohort should fail its run.
  *
  * Everything is still reported either way; this decides only whether anyone is
  * woken up. Observations keep zero tolerance — they had it before the capture
  * guard existed, they have not been noisy, and #87 is why their alarm is loud.
+ *
+ * An abandoned pass fails on its own account rather than on the counts it left
+ * behind: unattempted stations are deliberately absent from both, so a cohort
+ * that stopped early must never be able to read as a quiet success.
  */
 export function cohortRunFailed(result: PerformanceBatchResult): boolean {
   const tolerated = result.stationCount * CAPTURE_FAULT_TOLERANCE;
   const faultsWithinTolerance = result.capturesFaulted <= tolerated;
   const unexpected = result.failures.filter((failure) => failure.kind !== "provider-fault");
-  return unexpected.length > 0 || !faultsWithinTolerance;
+  return result.abandonedReason !== null || unexpected.length > 0 || !faultsWithinTolerance;
 }
 
 /**

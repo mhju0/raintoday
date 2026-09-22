@@ -32,11 +32,26 @@ permissions:
 # The attempts are separated in time, not only by runner. Three fresh runners in
 # immediate succession sample one moment of the route: run 35444845449 spent its
 # whole budget between 13:07:50 and 13:09:13 and called an 83-second outage
-# permanent. Attempts 2 and 3 now aim at 10 and 25 minutes after collection began,
-# measured from attempt 1 rather than from whenever its predecessor died, so a
-# slow failure does not collapse the spacing. A capture that lands late is still
-# real evidence — a scheduled cohort is never refused on the hour (`lib/performance/cli.ts`),
-# and nothing here reruns a missed cohort, relabels one or drops a required provider.
+# permanent. Each attempt aims at a fixed offset from when collection began —
+# 0, 10, 25, 40 and 55 minutes — measured from attempt 1 rather than from whenever
+# its predecessor died, so a slow failure does not collapse the spacing.
+#
+# Five attempts are affordable only because the collector now establishes an
+# outage once instead of re-proving it per station. It used to walk all 97
+# stations regardless, paying three 15s ASOS attempts and a 10s provider timeout
+# each, so a failing attempt cost ~1140s whatever the route was doing: five
+# separate failed runs spent 1139, 1141, 1141, 1139 and 1141 seconds. That meant
+# the offsets above never happened — attempt 1 did not *return* until +19 minutes,
+# so the real samples landed at 0/19/38 and the last of the three was the only one
+# past the twenty-minute mark. With a proven outage now costing under 3 minutes
+# (165s simulated at the real 97-station shape and concurrency 4, against 1334s),
+# the declared offsets are the actual ones, and they reach further than the accidental
+# schedule they replace. See #175 and `OUTAGE_EVIDENCE_THRESHOLD` in lib/performance/batch.ts.
+#
+# A capture that lands late is still real evidence — a scheduled cohort is never
+# refused on the hour (`lib/performance/cli.ts`), 55 minutes is well inside both
+# cohorts' spans (#118), and nothing here reruns a missed cohort, relabels one or
+# drops a required provider.
 jobs:
   capture_1:
     runs-on: ubuntu-latest
@@ -302,20 +317,210 @@ jobs:
 
       - name: Report an unsuccessful attempt
         if: always() && steps.capture.outcome != 'success'
-        run: echo "::warning::Capture attempt 3 did not succeed."
+        run: echo "::warning::Capture attempt 3 did not succeed; trying a fresh runner."
+
+  capture_4:
+    needs: [capture_1, capture_2, capture_3]
+    if: ${{ always() && !cancelled() && needs.capture_1.outputs.succeeded != 'true' && needs.capture_2.outputs.succeeded != 'true' && needs.capture_3.outputs.succeeded != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 77
+    continue-on-error: true
+    outputs:
+      succeeded: ${{ steps.capture.outcome == 'success' }}
+    steps:
+      - name: Checkout code
+        id: checkout
+        continue-on-error: true
+        timeout-minutes: 1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        id: setup
+        if: steps.checkout.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Wait for a distinct sample of the KMA route
+        id: spacing
+        if: steps.setup.outcome == 'success'
+        timeout-minutes: 42
+        env:
+          COLLECTION_BEGAN_AT: ${{ needs.capture_1.outputs.started_at }}
+          ATTEMPT_OFFSET_SECONDS: "2400"
+        run: |
+          if [[ -z "$COLLECTION_BEGAN_AT" ]]; then
+            echo "Attempt 1 recorded no start time; probing now."
+            exit 0
+          fi
+          remaining=$(( COLLECTION_BEGAN_AT + ATTEMPT_OFFSET_SECONDS - $(date +%s) ))
+          if (( remaining <= 0 )); then
+            echo "Collection already spans ${ATTEMPT_OFFSET_SECONDS}s; probing now."
+            exit 0
+          fi
+          echo "Waiting ${remaining}s so this attempt probes a different moment of the route."
+          sleep "$remaining"
+
+      - name: Check KMA ASOS transport
+        id: preflight
+        if: steps.setup.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: node scripts/performance-transport-preflight.ts
+
+      - name: Record this runner's egress address
+        id: egress
+        if: always() && steps.setup.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 1
+        run: |
+          address="$(curl -sS --max-time 10 https://api.ipify.org || true)"
+          echo "egress_ip=${address:-unknown}"
+
+      - name: Install dependencies
+        id: install
+        if: steps.preflight.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: npm ci
+
+      - name: Capture observations and next-day forecasts
+        id: capture
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          PERFORMANCE_DATABASE_URL: ${{ secrets.PERFORMANCE_DATABASE_URL }}
+          KMA_APIHUB_KEY: ${{ secrets.KMA_APIHUB_KEY }}
+          KMA_OBSERVATION_API_KEY: ${{ secrets.KMA_OBSERVATION_API_KEY }}
+          KMA_SHORT_TERM_API_KEY: ${{ secrets.KMA_SHORT_TERM_API_KEY }}
+          PIRATE_WEATHER_API_KEY: ${{ secrets.PIRATE_WEATHER_API_KEY }}
+          WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
+          VISUAL_CROSSING_API_KEY: ${{ secrets.VISUAL_CROSSING_API_KEY }}
+        run: |
+          npm run performance:capture -- \
+            --require-all-providers \
+            --cohort="${{ inputs.cohort }}" \
+            --schedule="${{ github.event.schedule }}"
+
+      - name: Report an unsuccessful attempt
+        if: always() && steps.capture.outcome != 'success'
+        run: echo "::warning::Capture attempt 4 did not succeed; trying a fresh runner."
+
+  capture_5:
+    needs: [capture_1, capture_2, capture_3, capture_4]
+    if: ${{ always() && !cancelled() && needs.capture_1.outputs.succeeded != 'true' && needs.capture_2.outputs.succeeded != 'true' && needs.capture_3.outputs.succeeded != 'true' && needs.capture_4.outputs.succeeded != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 92
+    continue-on-error: true
+    outputs:
+      succeeded: ${{ steps.capture.outcome == 'success' }}
+    steps:
+      - name: Checkout code
+        id: checkout
+        continue-on-error: true
+        timeout-minutes: 1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        id: setup
+        if: steps.checkout.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Wait for a distinct sample of the KMA route
+        id: spacing
+        if: steps.setup.outcome == 'success'
+        timeout-minutes: 57
+        env:
+          COLLECTION_BEGAN_AT: ${{ needs.capture_1.outputs.started_at }}
+          ATTEMPT_OFFSET_SECONDS: "3300"
+        run: |
+          if [[ -z "$COLLECTION_BEGAN_AT" ]]; then
+            echo "Attempt 1 recorded no start time; probing now."
+            exit 0
+          fi
+          remaining=$(( COLLECTION_BEGAN_AT + ATTEMPT_OFFSET_SECONDS - $(date +%s) ))
+          if (( remaining <= 0 )); then
+            echo "Collection already spans ${ATTEMPT_OFFSET_SECONDS}s; probing now."
+            exit 0
+          fi
+          echo "Waiting ${remaining}s so this attempt probes a different moment of the route."
+          sleep "$remaining"
+
+      - name: Check KMA ASOS transport
+        id: preflight
+        if: steps.setup.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: node scripts/performance-transport-preflight.ts
+
+      - name: Record this runner's egress address
+        id: egress
+        if: always() && steps.setup.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 1
+        run: |
+          address="$(curl -sS --max-time 10 https://api.ipify.org || true)"
+          echo "egress_ip=${address:-unknown}"
+
+      - name: Install dependencies
+        id: install
+        if: steps.preflight.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: npm ci
+
+      - name: Capture observations and next-day forecasts
+        id: capture
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          PERFORMANCE_DATABASE_URL: ${{ secrets.PERFORMANCE_DATABASE_URL }}
+          KMA_APIHUB_KEY: ${{ secrets.KMA_APIHUB_KEY }}
+          KMA_OBSERVATION_API_KEY: ${{ secrets.KMA_OBSERVATION_API_KEY }}
+          KMA_SHORT_TERM_API_KEY: ${{ secrets.KMA_SHORT_TERM_API_KEY }}
+          PIRATE_WEATHER_API_KEY: ${{ secrets.PIRATE_WEATHER_API_KEY }}
+          WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
+          VISUAL_CROSSING_API_KEY: ${{ secrets.VISUAL_CROSSING_API_KEY }}
+        run: |
+          npm run performance:capture -- \
+            --require-all-providers \
+            --cohort="${{ inputs.cohort }}" \
+            --schedule="${{ github.event.schedule }}"
+
+      - name: Report an unsuccessful attempt
+        if: always() && steps.capture.outcome != 'success'
+        run: echo "::warning::Capture attempt 5 did not succeed."
 
   verdict:
-    needs: [capture_1, capture_2, capture_3]
+    needs: [capture_1, capture_2, capture_3, capture_4, capture_5]
     if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     env:
       CAPTURE_1_SUCCEEDED: ${{ needs.capture_1.outputs.succeeded }}
       CAPTURE_2_SUCCEEDED: ${{ needs.capture_2.outputs.succeeded }}
       CAPTURE_3_SUCCEEDED: ${{ needs.capture_3.outputs.succeeded }}
+      CAPTURE_4_SUCCEEDED: ${{ needs.capture_4.outputs.succeeded }}
+      CAPTURE_5_SUCCEEDED: ${{ needs.capture_5.outputs.succeeded }}
     steps:
       - name: Report final collection result
         run: |
-          if [[ "$CAPTURE_1_SUCCEEDED" == "true" || "$CAPTURE_2_SUCCEEDED" == "true" || "$CAPTURE_3_SUCCEEDED" == "true" ]]; then
+          if [[ "$CAPTURE_1_SUCCEEDED" == "true" || "$CAPTURE_2_SUCCEEDED" == "true" \
+             || "$CAPTURE_3_SUCCEEDED" == "true" || "$CAPTURE_4_SUCCEEDED" == "true" \
+             || "$CAPTURE_5_SUCCEEDED" == "true" ]]; then
             echo "At least one capture attempt succeeded."
             exit 0
           fi
