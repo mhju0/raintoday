@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CONDITION_LABELS_KO } from "@/lib/conditions";
 import { EXAMPLE_FORECAST_LOCATIONS } from "@/lib/exampleLocations";
 import { periodNameForHour } from "@/lib/forecast/blocks";
@@ -383,39 +383,6 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
           오늘·내일 비 예보를 여러 날씨 서비스와 비교합니다. 내일 예보는
           관측소의 비교 기록이 충분할 때 서비스별 비중을 조정합니다.
         </p>
-
-        {/* The same three facts the dashboard's evidence cards end on, said
-            before the visitor commits a coordinate rather than only after. */}
-        <dl className="local-chooser-facts">
-          <div>
-            <dt>비교하는 서비스</dt>
-            <dd>{COMPARED_PROVIDER_NAMES.length}곳</dd>
-            <small>{COMPARED_PROVIDER_NAMES.join(" · ")}</small>
-          </div>
-          <div>
-            <dt>검증 관측소</dt>
-            <dd>{VERIFICATION_STATION_COUNT}개</dd>
-            <small>기상청 ASOS · 익일 예보만 채점합니다</small>
-          </div>
-          <div>
-            <dt>시간축</dt>
-            <dd>24시간</dd>
-            <small>3시간 블록 8개로 보는 비 예상 시간대</small>
-          </div>
-        </dl>
-
-        {/* The instrument the visitor is about to fill: the dashboard's
-            timeline frame, empty. A preview of the product that claims no
-            data — gridlines and a sentence, nothing else. */}
-        <div className="local-instrument-empty" aria-hidden>
-          <div className="local-instrument-empty-lab">
-            <span>시간대 강수확률 · 강수량</span>
-            <span>0–100% · MM</span>
-          </div>
-          <div className="local-instrument-empty-grid">
-            <span>위치를 고르면 여기 그려집니다</span>
-          </div>
-        </div>
       </div>
 
       <div className="local-location-actions">
@@ -597,6 +564,43 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             수 있습니다. 지역 검색어는 Kakao에 전달되며, 검색 응답은 저장하지 않습니다.
           </p>
           <p>검색 결과는 행정구역 또는 법정구역 대표 위치 · 지역 검색 Kakao Map</p>
+        </div>
+      </div>
+
+      {/* The details sit after the actions in source order, so a phone reaches
+          the location controls on the first screen instead of after them. */}
+      <div className="local-chooser-details">
+        {/* The same three facts the dashboard's evidence cards end on, said
+            before the visitor commits a coordinate rather than only after. */}
+        <dl className="local-chooser-facts">
+          <div>
+            <dt>비교하는 서비스</dt>
+            <dd>{COMPARED_PROVIDER_NAMES.length}곳</dd>
+            <small>{COMPARED_PROVIDER_NAMES.join(" · ")}</small>
+          </div>
+          <div>
+            <dt>검증 관측소</dt>
+            <dd>{VERIFICATION_STATION_COUNT}개</dd>
+            <small>기상청 ASOS · 익일 예보만 채점합니다</small>
+          </div>
+          <div>
+            <dt>시간축</dt>
+            <dd>24시간</dd>
+            <small>3시간 블록 8개로 보는 비 예상 시간대</small>
+          </div>
+        </dl>
+
+        {/* The instrument the visitor is about to fill: the dashboard's
+            timeline frame, empty. A preview of the product that claims no
+            data — gridlines and a sentence, nothing else. */}
+        <div className="local-instrument-empty" aria-hidden>
+          <div className="local-instrument-empty-lab">
+            <span>시간대 강수확률 · 강수량</span>
+            <span>0–100% · MM</span>
+          </div>
+          <div className="local-instrument-empty-grid">
+            <span>위치를 고르면 여기 그려집니다</span>
+          </div>
         </div>
       </div>
     </section>
@@ -1572,6 +1576,15 @@ export default function LocalForecastExperience() {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+
+  // Every view the page swaps to opens at its top. The chooser's controls sit
+  // below its intro, so a phone had scrolled down to reach them and the forecast
+  // then arrived mid-page. Layout effect, so the old offset never paints. The
+  // loading overlay is fixed, so it is left where it is.
+  const viewKey = state.kind === "ready" ? state.forecast : state.kind;
+  useLayoutEffect(() => {
+    if (viewKey !== "loading") window.scrollTo(0, 0);
+  }, [viewKey]);
 
   // Lifted out of the JSX so the narrowing survives into the click handler.
   const errorRetry = state.kind === "error" ? state.retry : null;

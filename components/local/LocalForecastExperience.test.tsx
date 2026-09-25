@@ -2004,3 +2004,38 @@ test("an entirely unpublished hourly series cannot announce a dry forecast", asy
   assert.doesNotMatch(view.container.textContent ?? "", /비 소식 없음|모두 40% 미만/);
   await view.cleanup();
 });
+
+test("a forecast opens at the top of the page, not where the chooser was scrolled", async () => {
+  stubGeolocation(37.5006, 127.0364);
+  const scrolls: unknown[] = [];
+  const original = window.scrollTo;
+  window.scrollTo = ((...args: unknown[]) => scrolls.push(args)) as typeof window.scrollTo;
+  try {
+    const view = await mountExperience(async () => Response.json(forecastPayload()));
+    scrolls.length = 0;
+    const locationButton = [...view.container.querySelectorAll("button")]
+      .find((button) => button.textContent?.includes("내 위치로 보기"));
+    await act(async () => {
+      locationButton?.click();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    assert.ok(view.container.querySelector("#forecast-heading"), "the forecast is showing");
+    assert.deepEqual(scrolls.at(-1), [0, 0], "the forecast view starts at its top");
+    await view.cleanup();
+  } finally {
+    window.scrollTo = original;
+  }
+});
+
+test("the location controls come before the service facts, so a phone reaches them first", async () => {
+  const view = await mountChooser(async () => Response.json([]));
+  const actions = view.container.querySelector(".local-location-actions");
+  const facts = view.container.querySelector(".local-chooser-facts");
+  const heading = view.container.querySelector("#location-heading");
+
+  assert.ok(actions && facts && heading);
+  assert.ok(heading.compareDocumentPosition(actions) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
+  assert.ok(actions.compareDocumentPosition(facts) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
+  await view.cleanup();
+});

@@ -213,10 +213,25 @@ html {
   padding: clamp(2.5rem, 6vh, 4.5rem) 0 4rem;
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(20rem, 0.85fr);
-  gap: clamp(2rem, 5vw, 4rem);
+  /* Source order is intro, actions, details so a phone meets the location
+     controls on its first screen; wide screens put the actions back beside
+     both. */
+  grid-template-areas:
+    "copy actions"
+    "details actions";
+  grid-template-rows: auto 1fr;
+  column-gap: clamp(2rem, 5vw, 4rem);
   /* Top-aligned, not centred: two columns of different heights each floating at
      their own centre read as two unrelated blocks. */
   align-items: start;
+}
+
+.local-chooser-copy {
+  grid-area: copy;
+}
+
+.local-chooser-details {
+  grid-area: details;
 }
 
 .local-eyebrow {
@@ -309,6 +324,7 @@ html {
 }
 
 .local-location-actions {
+  grid-area: actions;
   display: grid;
   gap: 0.75rem;
   align-content: start;
@@ -403,7 +419,9 @@ html {
   height: 3.25rem;
   outline: none;
   color: var(--local-ink);
-  font-size: 0.9rem;
+  /* 16px is the floor below which iOS Safari zooms the page on focus, and the
+     zoom outlives the focus: the forecast then opened cropped at the edges. */
+  font-size: 1rem;
 }
 
 .local-search-form input::placeholder {
@@ -668,7 +686,7 @@ html {
   padding: 0.9rem 1.1rem;
 }
 
-.local-chooser-copy .local-instrument-empty {
+.local-chooser-details .local-instrument-empty {
   margin-top: 1.6rem;
 }
 
@@ -1977,6 +1995,12 @@ html {
 
   .local-chooser {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "copy"
+      "actions"
+      "details";
+    grid-template-rows: none;
+    row-gap: 2.5rem;
     align-content: start;
   }
 
@@ -2017,8 +2041,8 @@ html {
 
   .local-chooser {
     min-height: calc(100svh - 4.5rem);
-    padding: 3.2rem 0 4rem;
-    gap: 3rem;
+    padding: 2rem 0 4rem;
+    row-gap: 1.75rem;
     align-content: start;
   }
 
@@ -2624,7 +2648,8 @@ html {
   background: var(--local-bg);
   color: var(--local-ink);
   font: inherit;
-  font-size: var(--t-body);
+  /* 16px: below it iOS Safari zooms the page on focus and leaves it zoomed. */
+  font-size: 1rem;
 }
 
 .btd-picker-message {
