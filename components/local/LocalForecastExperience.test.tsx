@@ -1164,7 +1164,7 @@ test("the answer sentence names both ends of the rain window", async () => {
   // knows when it starts and when it stops.
   assert.equal(
     view.container.querySelector("#forecast-heading")?.textContent,
-    "비 예상: 오후 12시부터, 밤 9시까지",
+    "비 예상: 오후 12시부터 밤 9시까지",
   );
   assert.equal(view.container.querySelectorAll(".local-ribbon-col").length, 3);
   await view.cleanup();
@@ -1508,9 +1508,16 @@ test("the verdict sentence carries the window's own total, and the mm lane rides
   // as the window itself, never the blended day amount.
   assert.equal(
     view.container.querySelector("#forecast-heading")?.textContent,
-    "비 예상: 오후 12시부터, 밤 9시까지, 모두 2.1mm",
+    "비 예상: 오후 12시부터 밤 9시까지 모두 2.1mm",
   );
   assert.equal(view.container.querySelectorAll(".local-ribbon-mm").length, 3);
+  // Each clause is its own unit, so a phone breaks the headline between them
+  // and the line break does the separating a comma used to.
+  assert.deepEqual(
+    [...view.container.querySelectorAll("#forecast-heading .local-answer-clause")]
+      .map((clause) => clause.textContent),
+    ["비 예상: 오후 12시부터", "밤 9시까지", "모두 2.1mm"],
+  );
   const label = view.container.querySelector(".local-ribbon-mmlab")?.textContent ?? "";
   assert.match(label, /같은 출처/, "the lane must say it shares the ribbon's source");
   assert.match(label, /0–2mm/, "the lane wears its own scale, never the probability's");
@@ -2002,5 +2009,40 @@ test("an entirely unpublished hourly series cannot announce a dry forecast", asy
   })));
   assert.match(view.container.querySelector("#forecast-heading")?.textContent ?? "", /강수확률을 확인할 수 없습니다/);
   assert.doesNotMatch(view.container.textContent ?? "", /비 소식 없음|모두 40% 미만/);
+  await view.cleanup();
+});
+
+test("a forecast opens at the top of the page, not where the chooser was scrolled", async () => {
+  stubGeolocation(37.5006, 127.0364);
+  const scrolls: unknown[] = [];
+  const original = window.scrollTo;
+  window.scrollTo = ((...args: unknown[]) => scrolls.push(args)) as typeof window.scrollTo;
+  try {
+    const view = await mountExperience(async () => Response.json(forecastPayload()));
+    scrolls.length = 0;
+    const locationButton = [...view.container.querySelectorAll("button")]
+      .find((button) => button.textContent?.includes("내 위치로 보기"));
+    await act(async () => {
+      locationButton?.click();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    assert.ok(view.container.querySelector("#forecast-heading"), "the forecast is showing");
+    assert.deepEqual(scrolls.at(-1), [0, 0], "the forecast view starts at its top");
+    await view.cleanup();
+  } finally {
+    window.scrollTo = original;
+  }
+});
+
+test("the location controls come before the service facts, so a phone reaches them first", async () => {
+  const view = await mountChooser(async () => Response.json([]));
+  const actions = view.container.querySelector(".local-location-actions");
+  const facts = view.container.querySelector(".local-chooser-facts");
+  const heading = view.container.querySelector("#location-heading");
+
+  assert.ok(actions && facts && heading);
+  assert.ok(heading.compareDocumentPosition(actions) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
+  assert.ok(actions.compareDocumentPosition(facts) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
   await view.cleanup();
 });

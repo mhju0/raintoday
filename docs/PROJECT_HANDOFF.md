@@ -212,3 +212,23 @@ emails; it can be dismissed as "won't fix" whenever you want.
 Next: watch the first red `local-performance` run for the new `OUTAGE:` line. If
 it appears, the breaker worked and the question becomes whether 55 minutes is
 far enough. If a run goes red *without* it, the cause is not the KMA route.
+
+## 2026-09-25 — iPhone layout pass and Korean line breaks (#178, #179)
+
+Changed:
+- The 오늘비 wordmark is `nowrap` (#178, merged).
+- The chooser now reads intro → location panel → details, so the location controls land on a phone's first screen.
+- Every view swap scrolls to the top.
+- Both search inputs are 16px, to stop iOS focus zoom.
+- Audit 003's five findings are fixed:
+  - the headline is set as clauses with no commas
+  - the `/behind-the-data` rule headings have no periods
+  - `.local-keep` binds quoted terms, brackets and 오늘·내일
+
+Rule from the owner: Korean headings carry no line-end punctuation, and no word, quote or bracket is left alone at a line end, from the SE 1st gen (320px) through Pro Max (440px), in Safari and Chrome.
+
+Open:
+- The zoom fix is unconfirmed on a device (reported on a 13 mini).
+- A rain window can read "모두 0mm".
+
+Next: after #179 merges, the owner checks the 13 mini for the zoom.
