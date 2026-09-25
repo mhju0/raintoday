@@ -251,3 +251,19 @@ Open:
 - "모두 0mm" is unaddressed.
 
 Next: the owner reviews the PR.
+
+## 2026-09-26 — Device check on the iOS Simulator
+
+Changed: the header subtitle "전국 로컬 예보" no longer wraps. iPad Safari had squeezed it onto two lines (audit 004, finding 6).
+
+Checked in real Safari (iOS 26.5): 13 mini, SE 3, 16e, 17 Pro Max and iPad mini.
+- 0 findings on all of them.
+- No focus zoom: page scale stays 1 and inputs are 16px.
+- The rule has 18px above it.
+
+Open issues reviewed, none closed:
+- #175: no KMA outage since #177, so the breaker has not been exercised. The 09-23 retry was a DB preflight timeout, which the spaced attempts recovered.
+- #140: production Seoul is still `blendMode: seed`, with the benchmark at 26 of 30 samples.
+- #146 and #154: still need the private backup and dashboard access.
+
+Open: "모두 0mm".

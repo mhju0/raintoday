@@ -194,6 +194,11 @@ html {
   letter-spacing: 0.13em;
 }
 
+/* iPad Safari squeezed the subtitle under the wordmark onto two lines. */
+.local-site-header small {
+  white-space: nowrap;
+}
+
 .local-live-mark {
   display: flex;
   /* Baseline, so this cluster reports its TEXT baseline to the header row. */
