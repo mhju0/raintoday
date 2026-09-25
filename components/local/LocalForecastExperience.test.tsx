@@ -1164,7 +1164,7 @@ test("the answer sentence names both ends of the rain window", async () => {
   // knows when it starts and when it stops.
   assert.equal(
     view.container.querySelector("#forecast-heading")?.textContent,
-    "비 예상: 오후 12시부터, 밤 9시까지",
+    "비 예상: 오후 12시부터 밤 9시까지",
   );
   assert.equal(view.container.querySelectorAll(".local-ribbon-col").length, 3);
   await view.cleanup();
@@ -1508,9 +1508,16 @@ test("the verdict sentence carries the window's own total, and the mm lane rides
   // as the window itself, never the blended day amount.
   assert.equal(
     view.container.querySelector("#forecast-heading")?.textContent,
-    "비 예상: 오후 12시부터, 밤 9시까지, 모두 2.1mm",
+    "비 예상: 오후 12시부터 밤 9시까지 모두 2.1mm",
   );
   assert.equal(view.container.querySelectorAll(".local-ribbon-mm").length, 3);
+  // Each clause is its own unit, so a phone breaks the headline between them
+  // and the line break does the separating a comma used to.
+  assert.deepEqual(
+    [...view.container.querySelectorAll("#forecast-heading .local-answer-clause")]
+      .map((clause) => clause.textContent),
+    ["비 예상: 오후 12시부터", "밤 9시까지", "모두 2.1mm"],
+  );
   const label = view.container.querySelector(".local-ribbon-mmlab")?.textContent ?? "";
   assert.match(label, /같은 출처/, "the lane must say it shares the ribbon's source");
   assert.match(label, /0–2mm/, "the lane wears its own scale, never the probability's");

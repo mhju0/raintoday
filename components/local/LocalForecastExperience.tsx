@@ -295,7 +295,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
     "too-short": "지역 이름을 두 글자 이상 입력해 주세요.",
     invalid: "검색어를 인식하지 못했어요. 시·구·동 이름으로 더 짧게 입력해 주세요.",
     "rate-limited": "검색 요청이 많아요. 잠시 후 다시 시도해 주세요.",
-    "not-configured": "이곳에서는 지역 검색을 쓸 수 없어요. 아래 예시나 위의 ‘내 위치로 보기’를 사용해 주세요.",
+    "not-configured": "이곳에서는 지역 검색을 쓸 수 없어요. 아래 예시나 위의 ‘\u2060내\u00a0위치로\u00a0보기’를 사용해 주세요.",
     unavailable: "지역 검색이 잠시 원활하지 않아요. 다시 시도해 주세요.",
     empty: "대한민국 안에서 일치하는 행정구역을 찾지 못했어요. 시·구·동을 함께 입력해 보세요.",
   };
@@ -380,7 +380,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             again the moment the other is on screen. */}
         <h1 id="location-heading">비, <b>여기서는</b><br />어떨까요?</h1>
         <p>
-          오늘·내일 비 예보를 여러 날씨 서비스와 비교합니다. 내일 예보는
+          <span className="local-keep">오늘·내일</span> 비 예보를 여러 날씨 서비스와 비교합니다. 내일 예보는
           관측소의 비교 기록이 충분할 때 서비스별 비중을 조정합니다.
         </p>
       </div>
@@ -733,8 +733,8 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
             ))}
           </div>
           <p className="local-method-note">
-            과거 모델 예보의 강수량을 실제 관측과 비교했습니다. ‘비를 놓친 날’은 비가
-            왔지만 모델이 비를 예보하지 않은 날이며, ‘헛예보’는 비를 예보했지만 오지 않은
+            과거 모델 예보의 강수량을 실제 관측과 비교했습니다. <span className="local-keep">‘비를 놓친 날’은</span> 비가
+            왔지만 모델이 비를 예보하지 않은 날이며, <span className="local-keep">‘헛예보’는</span> 비를 예보했지만 오지 않은
             날입니다. 최근 예보와 관측의 비교 기록이 충분해지면 이 추정을 대체합니다.
           </p>
         </>
@@ -782,7 +782,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
             </div>
             <p className="local-method-note">
               Brier 점수는 예보 확률이 실제와 얼마나 어긋났는지를 0에 가까울수록 좋게
-              나타냅니다. ‘누락’은 비가 왔는데 낮게 본 날, ‘오보’는 비가 오지 않았는데
+              나타냅니다. <span className="local-keep">‘누락’은</span> 비가 왔는데 낮게 본 날, <span className="local-keep">‘오보’는</span> 비가 오지 않았는데
               높게 본 날입니다. 오전·오후 발표를 섞지 않고, 비가 오지 않은 날도 모두
               포함합니다. 최근 성능은 확률 예보의 영향만 조정하며 정확성을 보장하지
               않습니다.
@@ -800,7 +800,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
         <p className="local-benchmark-line">
           <b>{verdict}</b>
           <span>
-            별도 사전 저장 예보 비교 · {benchmark?.sampleCount}건 · Brier (낮을수록 좋음) · 성능 반영{" "}
+            별도 사전 저장 예보 비교 · {benchmark?.sampleCount}건 · Brier <span className="local-keep">(낮을수록 좋음)</span> · 성능 반영{" "}
             {benchmark?.adaptiveBrier?.toFixed(3) ?? "기록 없음"} · 단순 평균{" "}
             {benchmark?.equalBrier?.toFixed(3) ?? "기록 없음"}
           </span>
@@ -881,20 +881,28 @@ function RainSentence({ run, endsTomorrow, peak, threshold }: {
   const onset = run.startIndex === 0
     ? "지금부터"
     : `${run.startsTomorrow ? "내일 " : ""}${clockLabel(run.startHour)}부터`;
+  // One span per clause and no commas between them: a phone sets each clause
+  // on its own line, where a comma at every line end read as stray punctuation.
   if (!run.endsWithinWindow) {
-    return <>비 예상: <b>{onset}</b><span className="local-answer-dim">, </span>예보 끝까지</>;
+    return (
+      <>
+        <span className="local-answer-clause">비 예상: <b>{onset}</b></span>{" "}
+        <span className="local-answer-clause local-answer-dim">예보 끝까지</span>
+      </>
+    );
   }
   return (
     <>
-      비 예상: <b>{onset}</b>
-      <span className="local-answer-dim">, </span>
-      <b>{endsTomorrow && !run.startsTomorrow ? "내일 " : ""}{clockLabel(run.endHour)}까지</b>
+      <span className="local-answer-clause">비 예상: <b>{onset}</b></span>{" "}
+      <span className="local-answer-clause">
+        <b>{endsTomorrow && !run.startsTomorrow ? "내일 " : ""}{clockLabel(run.endHour)}까지</b>
+      </span>
       {/* The total is the run's own sum from the ribbon's provider — the same
           claim as the window itself. It appears only when the series saw the
           rain stop AND every block in the run published an amount: an open run
           or a partial sum would claim a total the data never stated. */}
       {run.sumMm != null && (
-        <span className="local-answer-mm">{", 모두 "}<b>{formatMm(run.sumMm)}mm</b></span>
+        <>{" "}<span className="local-answer-clause local-answer-mm">모두 <b>{formatMm(run.sumMm)}mm</b></span></>
       )}
     </>
   );
@@ -1442,7 +1450,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
         <p>관측 검증: 기상청 ASOS · 사용자 좌표는 성능 기록 DB에 저장하지 않습니다.</p>
         {timeline && (
           <p>
-            시간대 확률은 {timeline.sourceName} 한 곳의 값이고, 오늘·내일 확률은 여러 곳을 섞은
+            시간대 확률은 {timeline.sourceName} 한 곳의 값이고, <span className="local-keep">오늘·내일</span> 확률은 여러 곳을 섞은
             값입니다.
           </p>
         )}

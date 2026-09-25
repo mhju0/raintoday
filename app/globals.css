@@ -1114,6 +1114,19 @@ html {
   color: var(--local-dim);
 }
 
+/* Clauses break as whole units. A phone gives each its own line (below), so
+   the headline never needs a comma at a line end to separate them. */
+.local-answer-clause {
+  display: inline-block;
+}
+
+/* A quoted or bracketed term, or a 오늘·내일 pair, that must stay on one line.
+   Safari otherwise breaks right after an opening quote or bracket, and at the
+   middle dot, leaving the mark alone at the end of a line. */
+.local-keep {
+  white-space: nowrap;
+}
+
 .local-answer-sub {
   margin: 0.9rem 0 0;
   display: flex;
@@ -2048,6 +2061,10 @@ html {
 
   .local-chooser-copy h1 {
     font-size: clamp(2rem, 8.6vw, 2.6rem);
+  }
+
+  .local-answer-clause {
+    display: block;
   }
 
   .local-chooser-copy > p {
