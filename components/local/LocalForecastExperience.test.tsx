@@ -1393,7 +1393,7 @@ test("seed evidence shows the wet-day miss rate rather than claiming measured pe
 
   const evidence = view.container.textContent ?? "";
   assert.match(evidence, /비 온 34일 중 13일/, "the wet-day miss rate must be on screen");
-  assert.match(evidence, /과거 비교 기록 · 서비스별 최소92일/);
+  assert.match(evidence, /과거 비교 기록\s· 서비스별 최소92일/);
   assert.match(evidence, /전체 92일 비교/);
   assert.doesNotMatch(evidence, /14일/);
   // The whole point of a separate seed mode: this is a retrospective estimate,

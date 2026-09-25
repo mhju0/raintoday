@@ -232,3 +232,22 @@ Open:
 - A rain window can read "모두 0mm".
 
 Next: after #179 merges, the owner checks the 13 mini for the zoom.
+
+## 2026-09-26 — Tablet, laptop and split-screen audit (audit 004)
+
+Changed:
+- The header rule now keeps ~16px each side (3.45rem header, 0.65rem chooser top), matching the facts list.
+- Every page root balances its text (`text-wrap-style`, the longhand, so `nowrap` survives).
+- Percent particles and 비 온 날·안 온 날 are bound.
+- The stub rows stack below 24rem instead of stranding a colon.
+- Separator dots are tied to the preceding word.
+
+Audit 004 covers 43 named sizes plus a 1920→320 live resize in WebKit and Chromium, and the final pass is 0.
+
+Rule from the owner: a multi-line block's last line fills at least half the widest line.
+
+Open:
+- The 13 mini zoom check is still pending.
+- "모두 0mm" is unaddressed.
+
+Next: the owner reviews the PR.

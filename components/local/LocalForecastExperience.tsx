@@ -276,6 +276,10 @@ function SearchMark() {
   );
 }
 
+// The no-break space ties each dot to the name before it, so a wrapped list
+// never opens its next line with a separator.
+const providerList = COMPARED_PROVIDER_NAMES.join("\u00a0· ");
+
 export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   onChoose(input: ChosenForecastLocation): void;
   autoFocus?: boolean;
@@ -576,7 +580,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
           <div>
             <dt>비교하는 서비스</dt>
             <dd>{COMPARED_PROVIDER_NAMES.length}곳</dd>
-            <small>{COMPARED_PROVIDER_NAMES.join(" · ")}</small>
+            <small>{providerList}</small>
           </div>
           <div>
             <dt>검증 관측소</dt>
@@ -700,7 +704,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
           </strong>
         </div>
         <div>
-          <span>{seedRanked.length > 0 ? "과거 비교 기록 · 서비스별 최소" : "비교한 예보"}</span>
+          <span>{seedRanked.length > 0 ? "과거 비교 기록\u00a0· 서비스별 최소" : "비교한 예보"}</span>
           <strong>
             {seedRanked.length > 0
               ? `${Math.min(...seedRanked.map((row) => row.sampleCount))}일`
@@ -800,8 +804,8 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
         <p className="local-benchmark-line">
           <b>{verdict}</b>
           <span>
-            별도 사전 저장 예보 비교 · {benchmark?.sampleCount}건 · Brier <span className="local-keep">(낮을수록 좋음)</span> · 성능 반영{" "}
-            {benchmark?.adaptiveBrier?.toFixed(3) ?? "기록 없음"} · 단순 평균{" "}
+            별도 사전 저장 예보 비교&nbsp;· {benchmark?.sampleCount}건&nbsp;· Brier <span className="local-keep">(낮을수록 좋음)</span>&nbsp;· 성능 반영{" "}
+            {benchmark?.adaptiveBrier?.toFixed(3) ?? "기록 없음"}&nbsp;· 단순 평균{" "}
             {benchmark?.equalBrier?.toFixed(3) ?? "기록 없음"}
           </span>
         </p>
@@ -1359,17 +1363,17 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
       {folded ? (
         <div className="local-stubs">
           <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("influence-heading")}>
-            <span><b>서비스 {forecast.comparedProviderCount}곳 비교</b>{spreadStub && <>: {spreadStub}</>}</span>
+            <span><b>서비스 {forecast.comparedProviderCount}곳 비교</b>{spreadStub && <><span className="local-stub-sep">: </span><span className="local-stub-value">{spreadStub}</span></>}</span>
             <span className="local-stub-go">펼치기</span>
           </button>
           {forecast.outlook.length > 1 && (
             <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("outlook-heading")}>
-              <span><b>{forecast.outlook.length}일 전망</b>: 모레부터는 동일 비중 평균</span>
+              <span><b>{forecast.outlook.length}일 전망</b><span className="local-stub-sep">: </span><span className="local-stub-value">모레부터는 동일 비중 평균</span></span>
               <span className="local-stub-go">펼치기</span>
             </button>
           )}
           <button type="button" className="local-stub" aria-expanded={false} onClick={() => unfold("evidence-heading")}>
-            <span><b>과거 기록</b>: {forecast.evidence.statusLabel}</span>
+            <span><b>과거 기록</b><span className="local-stub-sep">: </span><span className="local-stub-value">{forecast.evidence.statusLabel}</span></span>
             <span className="local-stub-go">펼치기</span>
           </button>
         </div>
@@ -1446,8 +1450,8 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
       </div>
 
       <footer className="local-footer">
-        <p>출처 Open-Meteo · 기상청 · Pirate Weather · WeatherAPI · Visual Crossing 중 응답한 서비스 · 모든 시각 KST</p>
-        <p>관측 검증: 기상청 ASOS · 사용자 좌표는 성능 기록 DB에 저장하지 않습니다.</p>
+        <p>출처 Open-Meteo&nbsp;· 기상청&nbsp;· Pirate Weather&nbsp;· WeatherAPI&nbsp;· Visual Crossing 중 응답한 서비스&nbsp;· 모든 시각 KST</p>
+        <p>관측 검증: 기상청 ASOS&nbsp;· 사용자 좌표는 성능 기록 DB에 저장하지 않습니다.</p>
         {timeline && (
           <p>
             시간대 확률은 {timeline.sourceName} 한 곳의 값이고, <span className="local-keep">오늘·내일</span> 확률은 여러 곳을 섞은
@@ -1648,7 +1652,7 @@ export default function LocalForecastExperience() {
               a neutral spinner hides the one honest thing happening. No
               per-provider state — the API answers once, so a row that claimed
               to know which of them had replied would be inventing it. */}
-          <p className="local-loading-names">{COMPARED_PROVIDER_NAMES.join(" · ")}</p>
+          <p className="local-loading-names">{providerList}</p>
           {/* The empty instrument, pulsing as one whole: the response arrives
               once, so the only honest animation is the frame waiting — never a
               per-provider progress row. */}
