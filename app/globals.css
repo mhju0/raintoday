@@ -175,6 +175,10 @@ html {
   font-size: 0.95rem;
   font-weight: 650;
   letter-spacing: -0.01em;
+  /* Never "오늘 / 비": iPhone Safari squeezed the header button below the
+     word's width and broke it. The page's `overflow-wrap: break-word` is the
+     escape hatch that allowed the mid-word break. */
+  white-space: nowrap;
 }
 
 .local-site-header small,
