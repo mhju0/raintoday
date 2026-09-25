@@ -105,6 +105,10 @@ html {
      unbroken token (a long provider name) that cannot fit its column. */
   word-break: keep-all;
   overflow-wrap: break-word;
+  /* Every block balances its lines, so a paragraph never ends on a stub of
+     one or two words. The longhand, not `text-wrap`: the shorthand also resets
+     the wrap mode and would undo every `nowrap` it inherits into. */
+  text-wrap-style: balance;
   background: var(--local-bg);
   color: var(--local-ink);
   isolation: isolate;
@@ -113,7 +117,9 @@ html {
 .local-site-header {
   width: min(100% - 2.5rem, 1180px);
   margin: 0 auto;
-  min-height: 5.5rem;
+  /* The 44px button plus ~16px each side of the wordmark's text — the same
+     gap the facts list and the forecast strip keep from their rules. */
+  min-height: 3.45rem;
   /* A row that reads as one line aligns on one baseline. `align-items: center`
      centred each cluster's BOX instead, so clusters of different heights landed
      on different baselines — the wordmark sat ~10px above the status text.
@@ -188,6 +194,11 @@ html {
   letter-spacing: 0.13em;
 }
 
+/* iPad Safari squeezed the subtitle under the wordmark onto two lines. */
+.local-site-header small {
+  white-space: nowrap;
+}
+
 .local-live-mark {
   display: flex;
   /* Baseline, so this cluster reports its TEXT baseline to the header row. */
@@ -210,7 +221,9 @@ html {
 .local-chooser {
   width: min(100% - 2.5rem, 1180px);
   margin: 0 auto;
-  padding: clamp(2.5rem, 6vh, 4.5rem) 0 4rem;
+  /* The eyebrow's text lands ~16px under the header rule, the gap every other
+     rule on the page keeps from its text. */
+  padding: 0.65rem 0 4rem;
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(20rem, 0.85fr);
   /* Source order is intro, actions, details so a phone meets the location
@@ -270,13 +283,18 @@ html {
   font-weight: 650;
 }
 
+/* The eyebrow is a `> p` too; it takes the text styles below but not the
+   paragraph's top margin, which doubled the gap under the header rule. */
+.local-chooser-copy > .local-eyebrow {
+  margin-top: 0;
+}
+
 .local-chooser-copy > p {
   max-width: 26em;
   margin-top: 1.15rem;
   color: var(--local-ink-2);
   font-size: var(--t-value);
   line-height: 1.75;
-  text-wrap: pretty;
 }
 
 /* The three facts the dashboard's evidence cards end on, said up front. */
@@ -762,7 +780,7 @@ html {
 }
 
 .local-loading {
-  min-height: calc(100svh - 5.5rem);
+  min-height: calc(100svh - 3.45rem);
   display: grid;
   gap: 0.85rem;
   align-content: center;
@@ -1693,6 +1711,26 @@ html {
   font-weight: 600;
 }
 
+/* A row too narrow for "title: value" on one line stacks the two instead of
+   wrapping, which left the colon alone at the end of the first line. */
+.local-stub {
+  container-type: inline-size;
+}
+
+.local-stub-value {
+  display: inline-block;
+}
+
+@container (max-width: 24rem) {
+  .local-stub-sep {
+    display: none;
+  }
+
+  .local-stub-value {
+    display: block;
+  }
+}
+
 .local-stub:hover:not(:focus-visible) {
   color: var(--local-ink);
   outline: 1px solid var(--local-line-2);
@@ -2043,18 +2081,14 @@ html {
     width: min(100% - 2rem, 1180px);
   }
 
-  .local-site-header {
-    min-height: 4.5rem;
-  }
-
   .local-site-header small,
   .local-live-mark {
     display: none;
   }
 
   .local-chooser {
-    min-height: calc(100svh - 4.5rem);
-    padding: 2rem 0 4rem;
+    min-height: calc(100svh - 3.45rem);
+    padding: 0.65rem 0 4rem;
     row-gap: 1.75rem;
     align-content: start;
   }
@@ -2289,6 +2323,8 @@ html {
   color: var(--local-ink-2);
   word-break: keep-all;
   overflow-wrap: break-word;
+  /* Same as the forecast page: balanced lines, no one-word last line. */
+  text-wrap-style: balance;
 }
 
 /* The reading column inside it. */

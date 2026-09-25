@@ -95,7 +95,7 @@ export default async function BehindTheDataPage({
           {view.station ? (
             <div>
               <dt>관측소</dt>
-              <dd>{view.station.name}{stationId === undefined ? ` · ${view.station.distanceKm.toFixed(1)}km · ${evidenceProximity(view.station.distanceKm) === "local" ? "지역 기록" : "광역 기록"}` : ""}</dd>
+              <dd>{view.station.name}{stationId === undefined ? `\u00a0· ${view.station.distanceKm.toFixed(1)}km\u00a0· ${evidenceProximity(view.station.distanceKm) === "local" ? "지역 기록" : "광역 기록"}` : ""}</dd>
             </div>
           ) : null}
           <div>
@@ -119,7 +119,7 @@ export default async function BehindTheDataPage({
             <h3>발표되지 않은 값은 <span className="local-keep">‘미발표’로</span> 표시합니다</h3>
             <p>
               그래프에 쓰는 서비스가 확률을 발표하지 않은 시간대는 빗금으로 표시합니다.
-              발표된 0%는 숫자와 얇은 막대로 표시해 누락된 값과 구분합니다.
+              발표된 <span className="local-keep">0%는</span> 숫자와 얇은 막대로 표시해 누락된 값과 구분합니다.
             </p>
           </li>
           <li>
@@ -184,7 +184,13 @@ export default async function BehindTheDataPage({
         )}
         <p className="btd-note">
           Brier는 예보 확률과 실제 결과의 차이를 나타내며 낮을수록 좋습니다. 적격 여부는
-          표본 수와 비 온 날·안 온 날 기록으로 정합니다. 학습 가중치는 {policy.weightFloorPercent}%에서{" "}
+          표본 수와 <span className="local-keep">비 온 날·안 온 날</span> 기록으로 정합니다.
+        </p>
+        {/* Two paragraphs, not one: past six lines Chrome stops balancing, and
+            the single block ended on a one-word line at phone widths. */}
+        <p className="btd-note">
+          학습 가중치는{" "}
+          <span className="local-keep">{policy.weightFloorPercent}%에서</span>{" "}
           {policy.weightCapPercent}% 사이로 제한합니다. 실제 예보에서는 응답한 서비스끼리 비중을 다시 나눕니다.
           과거 기록을 적용 중일 때는 표의 최근 Brier 점수가 현재 비중의 근거가 아닙니다.
         </p>
@@ -224,7 +230,7 @@ export default async function BehindTheDataPage({
 
       {/* ── Layer 3: the mechanism ── */}
       <section className="btd-section" aria-labelledby="btd-cycle-heading">
-        <p className="local-kicker">채점 사이클 <span>: 하루 두 번, 06:10 · 18:10 KST 예약</span></p>
+        <p className="local-kicker">채점 사이클 <span>: 하루 두 번 <span className="local-keep">06:10 · 18:10 KST</span> 예약</span></p>
         <h2 id="btd-cycle-heading">내일 예보를 미리 저장합니다</h2>
         <p>
           활성 ASOS 관측소마다 각 서비스의 내일 강수확률과 강수량을 수집합니다.
@@ -296,7 +302,7 @@ export default async function BehindTheDataPage({
           </li>
           <li>
             <strong>가중치 변환</strong> <code>exp(-{policy.scoreSharpness} × Brier)</code>, 이후{" "}
-            {policy.weightFloorPercent}–{policy.weightCapPercent}%로 제한합니다. Brier가 낮은
+            <span className="local-keep">{policy.weightFloorPercent}–{policy.weightCapPercent}%로</span> 제한합니다. Brier가 낮은
             서비스에 더 큰 비중을 줍니다.
           </li>
         </ul>
@@ -383,7 +389,7 @@ export default async function BehindTheDataPage({
       <footer className="btd-foot">
         <p className="local-kicker">출처</p>
         <p>
-          예보: Open-Meteo · 기상청 단기예보 · Pirate Weather · WeatherAPI · Visual Crossing. 관측:
+          예보: Open-Meteo&nbsp;· 기상청 단기예보&nbsp;· Pirate Weather&nbsp;· WeatherAPI&nbsp;· Visual Crossing. 관측:
           기상청 ASOS 일자료. 행정구역 검색: Kakao Map. 서비스 영역: SGIS 시도 경계.
         </p>
         <p className="btd-foot-meta">
