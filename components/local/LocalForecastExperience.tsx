@@ -873,46 +873,74 @@ function formatMm(mm: number): string {
   return String(Math.round(mm * 10) / 10);
 }
 
-/** The rain window as the sentence the page leads with. */
-function RainSentence({ run, endsTomorrow, peak }: {
+/**
+ * Hours the series covers, or null when any block is unpublished or the blocks
+ * are not back to back. Only an unbroken, fully published series may name its
+ * length: "앞으로 24시간 비 예상 없음" over a blank block would claim a dry
+ * stretch nobody forecast.
+ */
+function publishedHours(blocks: LocalForecastTimelineBlock[]): number | null {
+  if (blocks.length === 0 || blocks.some((block) => block.precipMax === null)) return null;
+  if (blocks.some((block, index) => index > 0 && block.startHour !== blocks[index - 1].endHour)) return null;
+  return blocks.reduce((hours, block) => hours + ((block.endHour - block.startHour + 24) % 24 || 24), 0);
+}
+
+/**
+ * The rain window as the sentence the page leads with: when, then "비 예상".
+ * One span per clause and no punctuation between them, so a phone sets each
+ * clause on its own line.
+ */
+function RainSentence({ run, endsTomorrow, peak, hours }: {
   run: TimelineReading["firstRun"];
   endsTomorrow: boolean;
   peak: TimelineReading["peak"];
+  hours: number | null;
 }) {
-  if (!peak) return <>시간대별 <b>강수확률을 확인할 수 없습니다</b></>;
-  if (!run) return <>발표된 시간대에 <b>비 예상 없음</b></>;
+  // One clause, so a phone breaks it "시간대별 / 강수확률 미발표" rather than
+  // stranding 미발표 on a line of its own.
+  if (!peak) return <>시간대별 강수확률{"\u00a0"}<b>미발표</b></>;
+  if (!run) {
+    return (
+      <>
+        <span className="local-answer-clause">{hours === null ? "발표된 시간대에" : `앞으로 ${hours}시간`}</span>{" "}
+        <span className="local-answer-clause"><b>비 예상 없음</b></span>
+      </>
+    );
+  }
+  if (!run.endsWithinWindow && run.startIndex === 0 && hours !== null) {
+    return (
+      <>
+        <span className="local-answer-clause">앞으로 <b>{hours}시간</b></span>{" "}
+        <span className="local-answer-clause"><b>내내</b> 비 예상</span>
+      </>
+    );
+  }
   const onset = run.startIndex === 0
     ? "지금부터"
     : `${run.startsTomorrow ? "내일 " : ""}${clockLabel(run.startHour)}부터`;
-  // One span per clause and no commas between them: a phone sets each clause
-  // on its own line, where a comma at every line end read as stray punctuation.
   if (!run.endsWithinWindow) {
     return (
       <>
-        <span className="local-answer-clause">비 예상: <b>{onset}</b></span>{" "}
-        <span className="local-answer-clause local-answer-dim">예보 끝까지</span>
+        <span className="local-answer-clause"><b>{onset}</b></span>{" "}
+        <span className="local-answer-clause">비 예상</span>
       </>
     );
   }
   return (
     <>
-      <span className="local-answer-clause">비 예상: <b>{onset}</b></span>{" "}
+      <span className="local-answer-clause"><b>{onset}</b></span>{" "}
       <span className="local-answer-clause">
-        <b>{endsTomorrow && !run.startsTomorrow ? "내일 " : ""}{clockLabel(run.endHour)}까지</b>
+        <b>{endsTomorrow && !run.startsTomorrow ? "내일 " : ""}{clockLabel(run.endHour)}까지</b> 비 예상
       </span>
-      {/* The total is the run's own sum from the ribbon's provider — the same
-          claim as the window itself. It appears only when the series saw the
-          rain stop AND every block in the run published an amount: an open run
-          or a partial sum would claim a total the data never stated. */}
-      {run.sumMm != null && (
-        <>{" "}<span className="local-answer-clause local-answer-mm">모두 <b>{
-          // A total that rounds to 0 would read "비 예상 … 모두 0mm", which
-          // contradicts itself; state it as the bound it is.
-          formatMm(run.sumMm) === "0" ? "0.1mm 미만" : `${formatMm(run.sumMm)}mm`
-        }</b></span></>
-      )}
     </>
   );
+}
+
+/** Without an hourly series the headline states the day's own number. */
+function HeadlineDay({ day, label }: { day: { precipitationProbability: number | null }; label: string }) {
+  return day.precipitationProbability === null
+    ? <>{label} 강수확률{"\u00a0"}<b>미발표</b></>
+    : <>{label} 강수확률{"\u00a0"}<b>{Math.round(day.precipitationProbability)}%</b></>;
 }
 
 function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
@@ -1100,16 +1128,27 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
       </div>
 
       <section className="local-answer" aria-labelledby="forecast-heading">
-        <p className="local-kicker">결론 <span>: 앞으로 24시간, 한 문장으로</span></p>
+        <p className="local-kicker">비 예보</p>
         <h1 id="forecast-heading" ref={headingRef} tabIndex={-1}>
           {timeline
-            ? <RainSentence run={run} endsTomorrow={run !== null && dayOffsets[run.endIndex] > 0} peak={peak} />
-            : <>{today ? "오늘" : "내일"} 비가 올까요?</>}
+            ? <RainSentence run={run} endsTomorrow={run !== null && dayOffsets[run.endIndex] > 0} peak={peak} hours={publishedHours(blocks)} />
+            : <HeadlineDay day={today ?? tomorrow} label={today ? "오늘" : "내일"} />}
         </h1>
         {timeline && (
           <p className="local-answer-sub">
             {peak && <span>최대 <b className="is-wet">{Math.round(peak.probability)}%</b> · {peak.rangeLabel}</span>}
             {run && <span>지속 <b>{run.durationHours}시간</b></span>}
+            {/* The total is the run's own sum from the ribbon's provider — the same
+                claim as the window itself. It appears only when the series saw the
+                rain stop AND every block in the run published an amount: an open run
+                or a partial sum would claim a total the data never stated. */}
+            {run?.endsWithinWindow && run.sumMm != null && (
+              <span className="local-answer-total">구간 합계 <b>{
+                // A total that rounds to 0 would read "비 예상 … 0mm", which
+                // contradicts itself; state it as the bound it is.
+                formatMm(run.sumMm) === "0" ? "0.1mm 미만" : `${formatMm(run.sumMm)}mm`
+              }</b></span>
+            )}
             {tomorrow.precipitationAmountMm !== null && (
               <span>내일 예상 강수량 <b>{formatMm(tomorrow.precipitationAmountMm)}mm</b></span>
             )}
@@ -1125,7 +1164,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             (today ?? tomorrow).precipitationAmountMm,
             timeline?.threshold ?? RAIN_ONSET_PROBABILITY,
           )}
-          {laterRun && ` 이후 ${laterRun.startsTomorrow ? "내일 " : ""}${laterRun.startHour}시부터 다시 비가 예상됩니다.`}
+          {laterRun && ` 이후 ${laterRun.startsTomorrow ? "내일 " : ""}${clockLabel(laterRun.startHour)}부터 다시 비가 예상됩니다.`}
         </p>
       </section>
 

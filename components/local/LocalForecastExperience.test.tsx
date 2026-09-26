@@ -844,7 +844,7 @@ test("the headline number is today's, not tomorrow's", async () => {
   );
   const view = await mountExperience(async () => Response.json(forecastPayload()));
 
-  assert.equal(view.container.querySelector("#forecast-heading")?.textContent, "오늘 비가 올까요?");
+  assert.equal(view.container.querySelector("#forecast-heading")?.textContent?.replace(/\u00a0/g, " "), "오늘 강수확률 85%");
   // 85 is today; 41 is tomorrow. Today leads because the two cards are read in
   // order, and someone opening a weather app is asking about today first.
   const values = [...view.container.querySelectorAll(".local-day-value")];
@@ -886,7 +886,7 @@ test("the hero falls back to tomorrow when today is no longer published", async 
   );
   const view = await mountExperience(async () => Response.json(forecastPayload({ today: null })));
 
-  assert.equal(view.container.querySelector("#forecast-heading")?.textContent, "내일 비가 올까요?");
+  assert.equal(view.container.querySelector("#forecast-heading")?.textContent?.replace(/\u00a0/g, " "), "내일 강수확률 41%");
   const cards = view.container.querySelectorAll(".local-day");
   assert.equal(cards.length, 1, "no empty 오늘 card when nobody still publishes today");
   assert.match(cards[0].textContent ?? "", /내일/);
@@ -1160,13 +1160,113 @@ test("the answer sentence names both ends of the rain window", async () => {
     Response.json(forecastPayload({ timeline: timeline() })),
   );
 
-  // "오늘 비가 올까요?" answers a question the number already answers; the series
-  // knows when it starts and when it stops.
+  // The series knows when rain starts and when it stops, so the sentence says
+  // exactly that and nothing else.
   assert.equal(
     view.container.querySelector("#forecast-heading")?.textContent,
-    "비 예상: 오후 12시부터 밤 9시까지",
+    "오후 12시부터 밤 9시까지 비 예상",
   );
   assert.equal(view.container.querySelectorAll(".local-ribbon-col").length, 3);
+  await view.cleanup();
+});
+
+/** Eight contiguous three-hour blocks: the full 24-hour series a provider sends. */
+function fullDay(precip: (index: number) => number | null) {
+  return Array.from({ length: 8 }, (_, index) => {
+    const startHour = (9 + index * 3) % 24;
+    const probability = precip(index);
+    return {
+      label: "블록", rangeLabel: `${startHour}–${(startHour + 3) % 24}시`, startHour, endHour: (startHour + 3) % 24,
+      precipMax: probability, condition: "cloudy", wet: (probability ?? 0) >= 40, dayTag: null,
+    };
+  });
+}
+
+test("a dry, fully published day says how long it covers, in plain words", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        blocks: fullDay(() => 10),
+        reading: { firstRun: null, laterRun: null, peak: { probability: 10, rangeLabel: "9–12시", startsTomorrow: false } },
+      }),
+    })),
+  );
+  assert.equal(view.container.querySelector("#forecast-heading")?.textContent, "앞으로 24시간 비 예상 없음");
+  await view.cleanup();
+});
+
+test("a dry day with an unpublished block never claims the full 24 hours", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        blocks: fullDay((index) => (index === 5 ? null : 10)),
+        reading: { firstRun: null, laterRun: null, peak: { probability: 10, rangeLabel: "9–12시", startsTomorrow: false } },
+      }),
+    })),
+  );
+  assert.equal(view.container.querySelector("#forecast-heading")?.textContent, "발표된 시간대에 비 예상 없음");
+  await view.cleanup();
+});
+
+test("a series with a gap between blocks never claims a length", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        blocks: fullDay(() => 10).filter((_, index) => index !== 3),
+        reading: { firstRun: null, laterRun: null, peak: { probability: 10, rangeLabel: "9–12시", startsTomorrow: false } },
+      }),
+    })),
+  );
+  assert.equal(view.container.querySelector("#forecast-heading")?.textContent, "발표된 시간대에 비 예상 없음");
+  await view.cleanup();
+});
+
+test("rain across the whole series reads as the whole series", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        blocks: fullDay(() => 80),
+        reading: {
+          firstRun: {
+            startIndex: 0, endIndex: 7, startHour: 9, endHour: 9, startLabel: "블록",
+            startsTomorrow: false, durationHours: 24, endsWithinWindow: false, peakProbability: 80,
+          },
+          laterRun: null,
+          peak: { probability: 80, rangeLabel: "9–12시", startsTomorrow: false },
+        },
+      }),
+    })),
+  );
+  assert.equal(view.container.querySelector("#forecast-heading")?.textContent, "앞으로 24시간 내내 비 예상");
+  await view.cleanup();
+});
+
+test("a second rain window reads on the same 12-hour clock as the headline", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () =>
+    Response.json(forecastPayload({
+      timeline: timeline({
+        reading: {
+          firstRun: {
+            startIndex: 1, endIndex: 1, startHour: 12, endHour: 15, startLabel: "오후",
+            startsTomorrow: false, durationHours: 3, endsWithinWindow: true, peakProbability: 75,
+          },
+          laterRun: {
+            startIndex: 2, endIndex: 2, startHour: 18, endHour: 21, startLabel: "저녁",
+            startsTomorrow: false, durationHours: 3, endsWithinWindow: true, peakProbability: 40,
+          },
+          peak: { probability: 75, rangeLabel: "12–15시", startsTomorrow: false },
+        },
+      }),
+    })),
+  );
+  const action = view.container.querySelector(".local-answer-action")?.textContent ?? "";
+  assert.match(action, /이후 저녁 6시부터 다시 비가 예상됩니다/);
+  assert.doesNotMatch(action, /18시/);
   await view.cleanup();
 });
 
@@ -1188,8 +1288,8 @@ test("a run that never stops inside the series does not claim an end time", asyn
   );
 
   const heading = view.container.querySelector("#forecast-heading")?.textContent ?? "";
-  assert.match(heading, /예보 끝까지/);
-  assert.doesNotMatch(heading, /9시까지/, "nothing published showed the rain stopping");
+  assert.equal(heading, "오후 12시부터 비 예상");
+  assert.doesNotMatch(heading, /까지/, "nothing published showed the rain stopping");
   await view.cleanup();
 });
 
@@ -1228,7 +1328,8 @@ test("the rain window is marked on the ribbon, and only once rain is actually li
   assert.equal(dry.container.querySelectorAll(".local-ribbon-col.is-wet").length, 0);
   assert.match(
     dry.container.querySelector("#forecast-heading")?.textContent ?? "",
-    /발표된 시간대에 비 예상 없음/g,
+    /^앞으로 6시간 비 예상 없음$/,
+    "a short series names its own length, never 24 hours",
   );
   await dry.cleanup();
 
@@ -1274,7 +1375,7 @@ test("the umbrella advice never contradicts the headline above it", async () => 
 
   assert.match(
     view.container.querySelector("#forecast-heading")?.textContent ?? "",
-    /발표된 시간대에 비 예상 없음/g,
+    /비 예상 없음/,
   );
   assert.match(
     view.container.querySelector(".local-answer-action")?.textContent ?? "",
@@ -1344,7 +1445,7 @@ test("no hourly series leaves the answer on the probability, with no ribbon", as
   );
 
   assert.equal(view.container.querySelector(".local-ribbon"), null);
-  assert.equal(view.container.querySelector("#forecast-heading")?.textContent, "오늘 비가 올까요?");
+  assert.equal(view.container.querySelector("#forecast-heading")?.textContent?.replace(/\u00a0/g, " "), "오늘 강수확률 85%");
   await view.cleanup();
 });
 
@@ -1552,17 +1653,19 @@ test("the verdict sentence carries the window's own total, and the mm lane rides
   );
   // The total is the run's own sum from the ribbon's provider — the same claim
   // as the window itself, never the blended day amount.
+  // The headline stays a plain window; the total moves to the line under it.
   assert.equal(
     view.container.querySelector("#forecast-heading")?.textContent,
-    "비 예상: 오후 12시부터 밤 9시까지 모두 2.1mm",
+    "오후 12시부터 밤 9시까지 비 예상",
   );
+  assert.match(view.container.querySelector(".local-answer-sub")?.textContent ?? "", /구간 합계 2\.1mm/);
   assert.equal(view.container.querySelectorAll(".local-ribbon-mm").length, 3);
   // Each clause is its own unit, so a phone breaks the headline between them
   // and the line break does the separating a comma used to.
   assert.deepEqual(
     [...view.container.querySelectorAll("#forecast-heading .local-answer-clause")]
       .map((clause) => clause.textContent),
-    ["비 예상: 오후 12시부터", "밤 9시까지", "모두 2.1mm"],
+    ["오후 12시부터", "밤 9시까지 비 예상"],
   );
   const label = view.container.querySelector(".local-ribbon-mmlab")?.textContent ?? "";
   assert.match(label, /같은 출처/, "the lane must say it shares the ribbon's source");
@@ -1591,11 +1694,11 @@ test("a rain window whose total rounds to nothing never reads 모두 0mm", async
         }),
       })),
     );
-    // "비 예상 … 모두 0mm" contradicts itself. The published amount is still a
+    // "비 예상 … 합계 0mm" contradicts itself. The published amount is still a
     // fact worth stating, so it is stated as the bound it is.
     assert.equal(
-      view.container.querySelector("#forecast-heading .local-answer-mm")?.textContent,
-      "모두 0.1mm 미만",
+      view.container.querySelector(".local-answer-total")?.textContent,
+      "구간 합계 0.1mm 미만",
       `sumMm ${sumMm}`,
     );
     await view.cleanup();
@@ -1652,8 +1755,11 @@ test("a run that outruns the series never claims a total amount", async () => {
       }),
     })),
   );
-  const heading = view.container.querySelector("#forecast-heading")?.textContent ?? "";
-  assert.doesNotMatch(heading, /모두/, "more rain may fall after the series ends — a total would over-claim");
+  assert.equal(
+    view.container.querySelector(".local-answer-total"),
+    null,
+    "more rain may fall after the series ends — a total would over-claim",
+  );
   await view.cleanup();
 });
 
@@ -1758,7 +1864,7 @@ test("each stratum opens with a kicker naming whose number it carries (D-11)", a
     Response.json(forecastPayload({ timeline: timeline() })),
   );
   const kickers = [...view.container.querySelectorAll(".local-kicker")].map((k) => k.textContent ?? "");
-  assert.ok(kickers.some((k) => k.startsWith("결론")), "the verdict names itself");
+  assert.ok(kickers.some((k) => k === "비 예보"), "the verdict names itself");
   assert.ok(
     kickers.some((k) => k.includes("여러 서비스를 섞은")),
     "the day cards say they are the blend — the ribbon attribution rule, at first contact",
@@ -2087,7 +2193,7 @@ test("an entirely unpublished hourly series cannot announce a dry forecast", asy
       reading: { firstRun: null, laterRun: null, peak: null },
     }),
   })));
-  assert.match(view.container.querySelector("#forecast-heading")?.textContent ?? "", /강수확률을 확인할 수 없습니다/);
+  assert.equal(view.container.querySelector("#forecast-heading")?.textContent?.replace(/\u00a0/g, " "), "시간대별 강수확률 미발표");
   assert.doesNotMatch(view.container.textContent ?? "", /비 소식 없음|모두 40% 미만/);
   await view.cleanup();
 });
