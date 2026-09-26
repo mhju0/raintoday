@@ -11,9 +11,9 @@
 
 The interface is in Korean. Open the app and choose **서울**, **부산**, **제주**, or **강릉** to try it without sharing your device location.
 
-![Busan rain forecast with a 91% peak rain chance and separate probability and rainfall bands](public/screenshots/forecast-rain.jpg)
+![Jeju City rain forecast with a 90% peak rain chance and separate probability and rainfall bands](public/screenshots/forecast-rain.jpg)
 
-*Busan, September 26, 2026: a live production forecast with a 91% peak rain chance and a visible rain window. The timeline is Open-Meteo’s forecast; the daily cards compare the responding providers. This is a dated screenshot, not current weather.*
+*Jeju City, the evening of September 26, 2026: real production forecast data with a 90% peak rain chance and a rain window starting at midnight. The timeline is Open-Meteo’s forecast; the daily cards compare the responding providers. This is a dated screenshot, not current weather.*
 
 ## What it does
 

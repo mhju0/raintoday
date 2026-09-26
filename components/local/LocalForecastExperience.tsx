@@ -278,8 +278,10 @@ function SearchMark() {
 
 // The no-break space ties each dot to the name before it, so a wrapped list
 // never opens its next line with a separator.
-// A provider is one name: "Pirate Weather" must not break across a line.
-const providerList = COMPARED_PROVIDER_NAMES.map((name) => name.replace(/ /g, "\u00a0")).join("\u00a0· ");
+// A provider is one name ("Pirate Weather"), and "많으면 3.8mm (Visual Crossing)"
+// is one clause: neither may break across a line.
+const keepWhole = (text: string): string => text.replace(/ /g, "\u00a0");
+const providerList = COMPARED_PROVIDER_NAMES.map(keepWhole).join("\u00a0· ");
 
 export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   onChoose(input: ChosenForecastLocation): void;
@@ -1342,7 +1344,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
                 {/* The extremes are named members, not percentiles — n≤4 cannot
                     honestly support interval language. */}
                 {amountRange &&
-                  ` · 많으면 ${formatMm(amountRange.maxMm)}mm (${amountRange.maxName}) · 적으면 ${formatMm(amountRange.minMm)}mm (${amountRange.minName})`}
+                  `\u00a0· ${keepWhole(`많으면 ${formatMm(amountRange.maxMm)}mm (${amountRange.maxName})`)}\u00a0· ${keepWhole(`적으면 ${formatMm(amountRange.minMm)}mm (${amountRange.minName})`)}`}
               </small>
             </p>
           </div>

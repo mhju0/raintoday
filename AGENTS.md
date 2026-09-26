@@ -19,6 +19,16 @@
 - `lib/locationServiceAreaData.ts` and `lib/performance/stationCatalog.ts` are generated. Use `npm run service-area:generate -- <official-SGIS-shapefile>` and `npm run performance:catalog`; recheck island coverage after geometry regeneration. Keep the geometry server-side and raw SGIS files out of Git.
 - `PERFORMANCE_STORE_CONTRACT_URL` must point only to a disposable database: its tests **TRUNCATE tables**. Capture, seed, and observation scripts write evidence; they are not ordinary validation commands.
 
+## Releases
+
+Every change merged to `main` ships as a release; read-only investigations do not. Pick the version by what a user of the site would notice:
+
+- **Patch** (`2.0.0` → `2.0.1`): fixes, copy, layout, docs, screenshots, dependency updates and operations work.
+- **Minor** (`2.0.1` → `2.1.0`): a new or clearly changed capability, such as a provider, page, forecast rule or scoring rule.
+- **Major** (`3.0.0`): only when the owner decides the product itself has changed.
+
+In the change's own PR, run `npm version <x.y.z> --no-git-tag-version` and commit `package.json` and `package-lock.json`. After the merge, confirm that production serves the merge commit and that CI on `main` passed. Then push an annotated `vX.Y.Z` tag on that commit and publish a GitHub release marked Latest, covering what changed, how it was verified, and its limits. Dependabot merges wait for the next release rather than getting their own.
+
 <!-- antislop:start -->
 ## antislop
 

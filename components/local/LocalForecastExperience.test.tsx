@@ -1666,8 +1666,10 @@ test("the tomorrow card attributes its amount range to the providers that said i
   );
   const cells = [...view.container.querySelectorAll(".local-day-mm")].map((c) => c.textContent ?? "");
   // cells[0] is today (plain count), cells[1] is tomorrow (the range).
-  assert.match(cells[1], /많으면 9mm \(Pirate Weather\)/);
-  assert.match(cells[1], /적으면 1mm \(WeatherAPI\)/);
+  // Each clause is one unbreakable unit: a line may break at "·", never inside
+  // "(Pirate Weather)" or between an amount and the provider that said it.
+  assert.match(cells[1], /많으면\u00a09mm\u00a0\(Pirate\u00a0Weather\)/);
+  assert.match(cells[1], /적으면\u00a01mm\u00a0\(WeatherAPI\)/);
   await view.cleanup();
 });
 
