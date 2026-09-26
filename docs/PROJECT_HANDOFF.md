@@ -209,3 +209,13 @@ Decisions:
 Checked: layout at 320–1440px in Chromium and WebKit against production.
 
 Next: after the PR merges and production shows the merged SHA, tag `v2.0.0` on main and publish the release.
+
+## 2026-09-26 — v2.0.0 tagged; release rule; 2.0.1
+
+- v2.0.0 was tagged on `361802f` after production served it and main CI passed. The release is published.
+- AGENTS.md now has a **Releases** rule: every merged change ships as a release (patch for fixes, docs and operations; minor for new capability; major only by owner decision). The version bump goes in the change's own PR, and the tag follows verified production.
+- 2.0.1:
+  - Tomorrow's range line keeps "많으면 3.8mm (Visual Crossing)" whole. Production had split the name across lines at desktop width.
+  - The README screenshot is now 제주시 with the current labels. It shows real production forecast data rendered by this branch.
+- Branches: the seven merged local branches were deleted. `reliability-state` stays by design.
+- Tracked-file audit: nothing tracked is gitignored, there are no stray untracked files, `.env.example` has empty values, and every ignored path has a stated reason in `.gitignore`.
