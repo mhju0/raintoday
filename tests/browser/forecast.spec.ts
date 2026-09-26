@@ -53,3 +53,17 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
     await expect(page.locator(".local-evidence-section")).toHaveCount(0);
   });
 }
+
+test("search fields mark focus with their own border, not a second ring", async ({ page }) => {
+  await page.goto("/");
+  const search = page.getByRole("combobox", { name: "대한민국 지역 검색" });
+  await search.click();
+  await expect(search).toBeFocused();
+  await expect(search).toHaveCSS("outline-style", "none");
+  await expect(page.locator(".local-search-form")).toHaveCSS("border-top-color", "rgb(46, 110, 146)");
+
+  await page.keyboard.press("Shift+Tab");
+  const locate = page.getByRole("button", { name: "내 위치로 보기" });
+  await expect(locate).toBeFocused();
+  await expect(locate).toHaveCSS("outline-style", "solid");
+});
