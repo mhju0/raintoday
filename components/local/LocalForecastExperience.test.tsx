@@ -1430,6 +1430,27 @@ test("learned weighting cites the benchmark count the scoring record shows, not 
   assert.match(text, /비교한 예보\s· 서비스별 최소15회/);
 });
 
+test("one rainfall format and one language across the header and hero", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", JSON.stringify({
+    name: "서울특별시", latitude: 37.5668, longitude: 126.9786,
+    elevationM: null, selection: { kind: "area", areaKind: "administrative-area" },
+  }));
+  const view = await mountExperience(async () => Response.json(forecastPayload({
+    timeline: timeline({
+      blocks: [
+        { label: "지금", rangeLabel: "9–12시", startHour: 9, endHour: 12, precipMax: 5, condition: "cloudy", wet: false, dayTag: null },
+      ],
+      reading: { firstRun: null, laterRun: null, peak: { probability: 5, rangeLabel: "9–12시", startsTomorrow: false } },
+    }),
+  })));
+  const text = view.container.textContent ?? "";
+  // The cards print "0.7mm"; the hero printed "0.7 mm" beside them.
+  assert.match(text, /내일 예상 강수량 0\.7mm/);
+  assert.doesNotMatch(text, /\d mm/);
+  assert.doesNotMatch(text, /LIVE SOURCES/);
+  assert.doesNotMatch(text, /구름 조금 · KST/);
+});
+
 // --- the chooser's three claims ---------------------------------------------
 
 test("a GPS scoring record links to the matched station without a device coordinate", async () => {

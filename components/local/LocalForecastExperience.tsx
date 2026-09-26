@@ -774,7 +774,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
                     <span role="cell">{provider.windowBrier.toFixed(3)}</span>
                     <span role="cell">누락 {provider.misses} · 오보 {provider.falseAlarms}</span>
                     <span role="cell">
-                      {provider.rainyAmountMae === null ? "기록 없음" : `${provider.rainyAmountMae.toFixed(1)} mm`}
+                      {provider.rainyAmountMae === null ? "기록 없음" : `${provider.rainyAmountMae.toFixed(1)}mm`}
                       {provider.rainyAmountSampleCount > 0 && ` · ${provider.rainyAmountSampleCount}일`}
                     </span>
                   </div>
@@ -1088,7 +1088,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             <>
               <span className="local-strip-temp">{Math.round(forecast.current.temperature)}°</span>
               <span className="local-strip-meta">
-                {CONDITION_LABELS_KO[forecast.current.condition]} · KST
+                {CONDITION_LABELS_KO[forecast.current.condition]}
               </span>
             </>
           )}
@@ -1108,7 +1108,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             {peak && <span>최대 <b className="is-wet">{Math.round(peak.probability)}%</b> · {peak.rangeLabel}</span>}
             {run && <span>지속 <b>{run.durationHours}시간</b></span>}
             {tomorrow.precipitationAmountMm !== null && (
-              <span>내일 예상 강수량 <b>{tomorrow.precipitationAmountMm.toFixed(1)} mm</b></span>
+              <span>내일 예상 강수량 <b>{formatMm(tomorrow.precipitationAmountMm)}mm</b></span>
             )}
             <span>{timeline.threshold}% 이상인 시간대를 비 예상 구간으로 봅니다</span>
           </p>
@@ -1627,7 +1627,7 @@ export default function LocalForecastExperience() {
           <span className="local-wordmark">오늘비</span>
           <small>전국 로컬 예보</small>
         </button>
-        <span className="local-live-mark"><i /> KST · LIVE SOURCES</span>
+        <span className="local-live-mark"><i /> 실시간 예보 · KST</span>
       </header>
 
       {(state.kind === "idle" || state.kind === "loading") && (
