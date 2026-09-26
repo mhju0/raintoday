@@ -25,7 +25,7 @@
 For UI work or visual audits, use the installed antislop core and relevant UI/copywriting skill from the current tool's skill catalog. If unavailable, apply the repository's visual direction, verify responsive and error states, and report the missing tool; a personal filesystem path is not a checkout requirement.
 Use `docs/adr/0009-chart-recorder-redesign.md` and `docs/adr/0010-open-at-the-answer-shelve-the-receipts.md` for the existing visual direction.
 Before starting, ask whether antislop applies during implementation or as an after-work audit, unless the user has already selected a mode in the session. In after mode, report numbered findings and implement only the findings the user approves.
-Store durable audit findings and follow-ups in `docs/audits/antislop/`; put temporary dumps and drafts in ignored `.scratch/`. This repository location supersedes a skill's default `anti-slop/` output path.
+Store durable audit findings and follow-ups in `docs/audits/ui/`; put temporary dumps and drafts in ignored `.scratch/`. This repository location supersedes a skill's default `anti-slop/` output path.
 <!-- antislop:end -->
 
 ## Agent handoff

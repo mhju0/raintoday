@@ -40,7 +40,7 @@ and account checks are tracked in [#140](https://github.com/mhju0/raintoday/issu
   validation, shared provider/search code, UI audit and public-copy corrections.
 - Expanded CI covers route behavior and a disposable PostgreSQL store contract.
 - September 26 audit remediation adds pinned, fixture-backed browser checks and a
-  shorter recruiting overview; detailed methodology remains in FORECAST_CONTRACT.md.
+  shorter project overview; detailed methodology remains in FORECAST_CONTRACT.md.
 - The v1.0.0 release description and GitHub public descriptions were edited without
   changing historical tags or pretending that old source represents the current app.
 
@@ -61,7 +61,7 @@ and account checks are tracked in [#140](https://github.com/mhju0/raintoday/issu
 The product remains Korean-language, precipitation-focused and limited to South Korea.
 The retired cinematic scene, radar and second scoring pipeline stay retired. The
 `reliability-state` archive and its deployment guard remain. Station eligibility and
-scoring policy are unchanged by the local/regional wording. The September 26 owner approval adopts a shorter recruiting README with a real
+scoring policy are unchanged by the local/regional wording. The September 26 owner approval adopts a shorter README with a real
 rainy-forecast screenshot and retains the detailed contract in linked documentation.
 
 Dated audits and research preserve their observation date. They are not live task lists.

@@ -39,7 +39,7 @@ interface ChosenForecastLocation {
 }
 
 /**
- * The forecast providers, in the order CLAUDE.md pins them. The chooser states
+ * The forecast providers, in the order AGENTS.md pins them. The chooser states
  * the count before a visitor commits a coordinate, so it counts this list
  * rather than carrying a number that can drift away from it.
  */

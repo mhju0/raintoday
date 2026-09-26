@@ -16,7 +16,7 @@ Resolve conflicts using source/tests, Git, DECISIONS, ROADMAP, this handoff, the
 historical Claude material. `AGENTS.md` holds shared repository instructions;
 `CLAUDE.md` imports it and adds only the installed Next.js documentation reminder.
 Keep personal instructions in ignored `CLAUDE.local.md` and scratch work in `.scratch/`.
-Reviewed Antislop reports belong in [audits/antislop](audits/antislop/).
+Reviewed Antislop reports belong in [audits/ui](audits/ui/).
 
 ## Boundaries to preserve
 
@@ -145,11 +145,10 @@ Open: "모두 0mm".
 
 A rain window whose total rounds to 0 now reads "모두 0.1mm 미만". "비 예상 … 모두 0mm" contradicted itself; the published amount is kept as a bound rather than hidden. It fits on one line from 320px up, in both engines. This closes the open item carried by the last three entries.
 
-## 2026-09-26 — Repository audit and recruiting presentation
+## 2026-09-26 — Repository, security and accessibility audit
 
-Prepared a concise self-contained HTML report, proposed README, portfolio/GitHub copy,
-and first-party comparative research under `docs/audits/2026-09-26/` and
-`docs/research/2026-09-26-weather-project-presentation.md`. Source reviewed: `be4120f`.
+Recorded the evidence in `docs/audits/2026-09-26/evidence.md` and the accessibility
+findings in audit 005. Source reviewed: `be4120f`.
 No app fixes, GitHub metadata changes, publication, deployment or evidence writes.
 
 Verified: full local check passes; current-head CI SQL contract passes. Live Seoul
@@ -163,12 +162,12 @@ README/OPERATIONS/performance README with five collector attempts and current DB
 retry coverage. Findings are reproduced or explicitly labelled recommendations;
 production data corruption or credential leakage was not observed.
 
-Next: owner reviews numbered findings and recruiting drafts. Preserve existing
+Next: owner reviews numbered findings. Preserve existing
 chart-recorder design and immutable evidence; use independent data-integrity review
 for any parser/persistence correction. Outage-breaker live-outage proof and existing
 private backup/dashboard follow-ups remain open.
 
-## 2026-09-26 — Approved audit remediation and recruiting overview
+## 2026-09-26 — Approved audit remediation and README overview
 
 The owner approved all findings and requested a rainy screenshot. Implemented
 shared ASOS row validation, ordinary-error redaction, chooser/table accessibility,
@@ -183,7 +182,7 @@ outage proof. Condensed the oldest handoff entries while retaining unresolved wo
 
 Verification: full Node 24 check passed (485 tests; disposable SQL test skipped
 locally). CI on `9aa6327` passed, including SQL contract, both pinned browser tests,
-dependency review and CodeQL. Independent Astra review approved this exact source
+dependency review and CodeQL. An independent review approved this exact source
 revision after authentic read-only KMA and adversarial parser/redaction checks.
 Preview Chromium confirmed mobile table keyboard scrolling and chooser semantics.
 PR #182 tracks final merge/deployment verification. Private backup, hosting-account
