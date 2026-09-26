@@ -1481,7 +1481,8 @@ test("the chooser counts the providers it names rather than carrying a number", 
   // leave every assertion below reading an empty string.
   window.localStorage.clear();
   const view = await mountExperience(async () => Response.json(forecastPayload()));
-  const facts = view.container.querySelector(".local-chooser-facts")?.textContent ?? "";
+  // Names are bound with no-break spaces so none splits across a line.
+  const facts = (view.container.querySelector(".local-chooser-facts")?.textContent ?? "").replace(/\u00a0/g, " ");
   assert.match(facts, new RegExp(`${COMPARED_PROVIDER_NAMES.length}곳`));
   // Every provider the count claims must actually be listed beside it.
   for (const name of COMPARED_PROVIDER_NAMES) assert.match(facts, new RegExp(name));

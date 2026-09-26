@@ -278,7 +278,8 @@ function SearchMark() {
 
 // The no-break space ties each dot to the name before it, so a wrapped list
 // never opens its next line with a separator.
-const providerList = COMPARED_PROVIDER_NAMES.join("\u00a0· ");
+// A provider is one name: "Pirate Weather" must not break across a line.
+const providerList = COMPARED_PROVIDER_NAMES.map((name) => name.replace(/ /g, "\u00a0")).join("\u00a0· ");
 
 export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   onChoose(input: ChosenForecastLocation): void;
@@ -1462,7 +1463,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             page nobody reads, and the claim it carries is the product's. */}
         <p>
           <a className="local-footer-link" href={recordHref}>
-            이 예보를 어떻게 채점하는가 →
+            이 예보를 어떻게 채점하는가{"\u00a0"}→
           </a>
         </p>
       </footer>
@@ -1672,7 +1673,7 @@ export default function LocalForecastExperience() {
       )}
 
       {state.kind === "error" && (
-        <div className="local-state-card">
+        <main className="local-state-card">
           {/* Two failures, two shapes. `retry` is null exactly when the same
               request can never succeed, so that card offers no retry and says
               why rather than leaving a button that is guaranteed to fail. */}
@@ -1710,7 +1711,7 @@ export default function LocalForecastExperience() {
               ? "저장된 위치는 지우지 않았습니다."
               : "이 좌표는 기기에 저장하지 않았습니다."}
           </p>
-        </div>
+        </main>
       )}
 
       {state.kind === "ready" && (

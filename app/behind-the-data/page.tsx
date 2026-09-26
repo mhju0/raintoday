@@ -58,7 +58,7 @@ export default async function BehindTheDataPage({
     <div className="btd-page">
     <main className="btd">
       <header className="btd-mast">
-        <p className="local-eyebrow">오늘비 · 채점 기록</p>
+        <p className="local-eyebrow btd-crumb"><Link href="/">← 오늘비 예보</Link><span>&nbsp;· 채점 기록</span></p>
         <h1>이 예보를 어떻게 채점하는가</h1>
         <p className="btd-lede">
           내일 예보에 반영하는 서비스별 비중과 그 근거를 보여드립니다. 관측소의
