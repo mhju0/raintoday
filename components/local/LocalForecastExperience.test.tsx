@@ -1343,6 +1343,86 @@ test("the rain window is marked on the ribbon, and only once rain is actually li
   await wet.cleanup();
 });
 
+/**
+ * A 24-hour series opened at `startHour`, eight three-hour blocks with the
+ * given probabilities, and its reading worked out the way the view model does:
+ * the first run of blocks at or above 40%.
+ */
+function seriesFrom(startHour: number, probabilities: number[]) {
+  const blocks = probabilities.map((precipMax, index) => {
+    const start = (startHour + index * 3) % 24;
+    return {
+      label: "블록", rangeLabel: `${start}–${(start + 3) % 24}시`, startHour: start, endHour: (start + 3) % 24,
+      precipMax, precipSumMm: 0, condition: "cloudy", wet: precipMax >= 40,
+      dayTag: index > 0 && start === 0 ? "9. 18. (화)" : null,
+    };
+  });
+  const firstDay = blocks.findIndex((block) => block.dayTag);
+  const tomorrowFrom = firstDay === -1 ? blocks.length : firstDay;
+  const start = blocks.findIndex((block) => block.wet);
+  let end = start;
+  while (end >= 0 && end + 1 < blocks.length && blocks[end + 1].wet) end += 1;
+  const peak = Math.max(...probabilities);
+  return timeline({
+    blocks,
+    reading: {
+      firstRun: start === -1 ? null : {
+        startIndex: start, endIndex: end, startHour: blocks[start].startHour, endHour: blocks[end].endHour,
+        startLabel: "블록", startsTomorrow: start >= tomorrowFrom, durationHours: (end - start + 1) * 3,
+        endsWithinWindow: end < blocks.length - 1, peakProbability: Math.max(...probabilities.slice(start, end + 1)),
+      },
+      laterRun: null,
+      peak: { probability: peak, rangeLabel: "", startsTomorrow: false },
+    },
+  });
+}
+
+const dryToday = {
+  date: "2026-08-17", precipitationProbability: 10, precipitationAmountMm: 0,
+  amountProviderCount: 4, temperatureMax: 28, temperatureMin: 23, condition: "cloudy",
+};
+
+async function adviceFor(payload: Record<string, unknown>): Promise<string> {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+  const view = await mountExperience(async () => Response.json(forecastPayload(payload)));
+  const advice = view.container.querySelector(".local-answer-action")?.textContent ?? "";
+  await view.cleanup();
+  return advice;
+}
+
+test("umbrella: a morning check with rain later today says to take one", async () => {
+  // 9시 check, rain 15–21시 today.
+  const advice = await adviceFor({ today: dryToday, timeline: seriesFrom(9, [10, 20, 80, 75, 10, 10, 10, 10]) });
+  assert.equal(advice, "오늘 우산을 꼭 챙기세요.");
+});
+
+test("umbrella: a 3 a.m. check with rain in the evening still says to take one", async () => {
+  const advice = await adviceFor({ today: dryToday, timeline: seriesFrom(3, [5, 5, 5, 10, 10, 50, 20, 10]) });
+  assert.equal(advice, "오늘 작은 우산을 챙기면 마음이 놓여요.");
+});
+
+test("umbrella: an evening check with rain only tomorrow says today is fine", async () => {
+  // 18시 check: today's 18–0시 is dry; rain opens at midnight.
+  const advice = await adviceFor({ today: dryToday, timeline: seriesFrom(18, [10, 20, 60, 80, 70, 20, 10, 10]) });
+  assert.equal(advice, "오늘은 우산 없이 괜찮아요. 내일 자정부터는 챙기세요.");
+});
+
+test("umbrella: a dry hourly series cannot hide a heavy day total in the morning", async () => {
+  const advice = await adviceFor({
+    today: { ...dryToday, precipitationProbability: 80, precipitationAmountMm: 12.4 },
+    timeline: seriesFrom(9, [10, 20, 20, 10, 10, 10, 10, 10]),
+  });
+  assert.equal(advice, "시간대별 예보에는 없지만 여러 서비스가 오늘 12.4mm를 예상해요. 우산을 챙기세요.");
+});
+
+test("umbrella: in the evening a heavy day total may already have fallen, so the hours decide", async () => {
+  const advice = await adviceFor({
+    today: { ...dryToday, precipitationProbability: 82, precipitationAmountMm: 33.1 },
+    timeline: seriesFrom(21, [31, 10, 10, 10, 10, 10, 10, 10]),
+  });
+  assert.equal(advice, "우산 없이 나서도 괜찮아 보여요.");
+});
+
 test("the umbrella advice never contradicts the headline above it", async () => {
   window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
   // The blended day probability is high while the window this section describes
@@ -1909,7 +1989,7 @@ test("the minibar miniatures the ribbon and answers at a glance", async () => {
   assert.equal(spark.querySelectorAll("i").length, 3, "one bar per ribbon block — it is that graph's miniature");
   assert.match(
     view.container.querySelector(".local-minibar-sum")?.textContent ?? "",
-    /75% · 밤 9시까지/,
+    /^오후 12시부터 밤 9시까지 비 예상 · 최대 75%$/,
     "the pinned bar keeps the answer readable while the evidence scrolls",
   );
   await view.cleanup();
