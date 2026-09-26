@@ -250,7 +250,7 @@ html {
 .local-eyebrow {
   font-family: var(--local-mono);
   color: var(--local-accent);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 400;
   letter-spacing: 0.18em;
   line-height: 1.4;
@@ -320,7 +320,7 @@ html {
 
 .local-chooser-facts dt {
   font-family: var(--local-mono);
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--local-muted);
@@ -336,7 +336,9 @@ html {
 }
 
 .local-chooser-facts small {
-  font-size: 0.68rem;
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
   line-height: 1.5;
   color: var(--local-dim);
 }
@@ -2549,6 +2551,11 @@ html {
   margin: 0 0 0.9rem;
 }
 
+.btd-table-scroll:focus-visible {
+  outline: 2px solid var(--local-accent);
+  outline-offset: 3px;
+}
+
 .btd-table {
   width: 100%;
   border-collapse: collapse;
@@ -2566,7 +2573,7 @@ html {
 
 .btd-table thead th {
   font-family: var(--local-mono);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;

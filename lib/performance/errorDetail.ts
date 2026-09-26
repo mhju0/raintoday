@@ -28,6 +28,7 @@ export function aggregateCauses(error: AggregateError): unknown[] {
  */
 function redactSecrets(message: string): string {
   const redacted = message
+    .replace(/[\x00-\x1f\x7f]+/gu, " ")
     .replace(/([a-z][a-z0-9+.-]*:\/\/)[^@\s/]+@/giu, "$1<REDACTED>@")
     .replace(
       /([?&](?:password|pass|pwd|servicekey|authkey|api_?key|access_?token|key)=)[^&\s]+/giu,
@@ -96,6 +97,9 @@ function describeErrorTreeNode(
 export function failureDetail(error: unknown): string {
   if (!(error instanceof Error)) return "unknown error";
   const message = error.message.trim();
-  if (message) return message;
-  return describeErrorTree(error).trim() || "unknown error";
+  if (message) {
+    const safe = redactSecrets(message).trim();
+    if (safe) return safe;
+  }
+  return redactSecrets(describeErrorTree(error).trim()).trim() || "unknown error";
 }

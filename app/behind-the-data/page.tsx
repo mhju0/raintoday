@@ -147,7 +147,7 @@ export default async function BehindTheDataPage({
             지금은 표로 보여줄 채점 기록을 읽을 수 없습니다. 현재 상태에서 이유를 확인해 주세요.
           </p>
         ) : (
-          <div className="btd-table-scroll">
+          <div className="btd-table-scroll" tabIndex={0} role="region" aria-label="서비스별 채점 기록 표, 좌우로 스크롤할 수 있습니다">
             <table className="btd-table">
               <thead>
                 <tr>
@@ -201,7 +201,7 @@ export default async function BehindTheDataPage({
             지금은 두 계산법의 비교 결과를 보여줄 수 없습니다. 최근 기록을 이용한 가중치는 적용하지 않습니다.
           </p>
         ) : (
-          <div className="btd-table-scroll">
+          <div className="btd-table-scroll" tabIndex={0} role="region" aria-label="같은 표본 비교 표, 좌우로 스크롤할 수 있습니다">
             <table className="btd-table">
               <thead>
                 <tr>

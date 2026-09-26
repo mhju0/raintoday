@@ -1,0 +1,64 @@
+{
+  "generatedAt": "2026-08-17T00:00:00.000Z",
+  "locationName": "서울특별시 강남구 역삼1동",
+  "targetDate": "2026-08-18",
+  "current": {
+    "temperature": 27.4,
+    "apparentTemperature": 30,
+    "condition": "partly-cloudy",
+    "observedAt": "2026-08-17T09:00:00+09:00",
+    "sourceName": "Open-Meteo"
+  },
+  "cohortLabel": "오전 6시 발표 기준",
+  "today": {
+    "date": "2026-08-17",
+    "precipitationProbability": 85,
+    "precipitationAmountMm": 2.7,
+    "amountProviderCount": 4,
+    "temperatureMax": 28,
+    "temperatureMin": 23,
+    "condition": "rain"
+  },
+  "recommendation": {
+    "date": "2026-08-18",
+    "precipitationProbability": 41,
+    "precipitationAmountMm": 0.7,
+    "amountProviderCount": 4,
+    "temperatureMax": 31,
+    "temperatureMin": 23,
+    "condition": "drizzle"
+  },
+  "outlook": [],
+  "blendMode": "equal",
+  "comparedProviderCount": 4,
+  "influence": [
+    { "id": "open-meteo", "name": "Open-Meteo", "probability": 31, "influence": 0.25 },
+    { "id": "kma", "name": "기상청", "probability": 57, "influence": 0.25 }
+  ],
+  "evidence": {
+    "status": "unavailable",
+    "statusLabel": "근거 준비 중",
+    "proximity": null,
+    "station": null,
+    "comparisonSampleCount": 0,
+    "emptyMessage": "이 지역의 최근 성능 기록이 아직 없어, 서비스를 똑같은 비중으로 평균했습니다.",
+    "emptyDetail": null,
+    "scores": [],
+    "seedScores": [],
+    "benchmark": null
+  },
+  "timeline": {
+    "sourceName": "Open-Meteo",
+    "threshold": 40,
+    "blocks": [
+      { "label": "지금", "rangeLabel": "9–12시", "startHour": 9, "endHour": 12, "precipMax": 10, "condition": "cloudy", "wet": false, "dayTag": null },
+      { "label": "오후", "rangeLabel": "12–15시", "startHour": 12, "endHour": 15, "precipMax": 75, "condition": "rain", "wet": true, "dayTag": null },
+      { "label": "저녁", "rangeLabel": "18–21시", "startHour": 18, "endHour": 21, "precipMax": 40, "condition": "rain", "wet": true, "dayTag": null }
+    ],
+    "reading": {
+      "firstRun": { "startIndex": 1, "endIndex": 2, "startHour": 12, "endHour": 21, "startLabel": "오후", "startsTomorrow": false, "durationHours": 6, "endsWithinWindow": true, "peakProbability": 75 },
+      "laterRun": null,
+      "peak": { "probability": 75, "rangeLabel": "12–15시", "startsTomorrow": false }
+    }
+  }
+}

@@ -77,3 +77,7 @@ skills-lock.json
 
 pnpm-lock.yaml
 pnpm-workspace.yaml
+
+# Playwright browser artifacts
+/playwright-report/
+/test-results/

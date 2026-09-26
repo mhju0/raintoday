@@ -95,6 +95,24 @@ test("query-parameter credentials are redacted, not just connection strings", ()
   }
 });
 
+test("ordinary error messages are redacted and bounded before reporting", () => {
+  const detail = failureDetail(new Error(
+    `connect https://apihub.kma.go.kr/x?serviceKey=live-secret-value&stn=108 ${"x".repeat(500)}`,
+  ));
+  assert.doesNotMatch(detail, /live-secret-value/);
+  assert.match(detail, /stn=108/);
+  assert.ok(detail.length <= 301);
+  assert.doesNotMatch(failureDetail(new Error("postgres://collector:hunter2@db.example/db")), /hunter2/);
+});
+
+test("a populated AggregateError and mixed-case key stay on one safe line", () => {
+  const error = new AggregateError([], "GET https://api.example/path?SeRvIcEkEy=secret-value&stn=108\nnext");
+  const detail = failureDetail(error);
+  assert.doesNotMatch(detail, /secret-value|\n/);
+  assert.match(detail, /stn=108/);
+  assert.ok(detail.length <= 301);
+});
+
 test("a cyclic cause tree terminates instead of recursing forever", () => {
   const cyclic = new AggregateError([]);
   (cyclic.errors as unknown[]).push(cyclic);

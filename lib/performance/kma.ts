@@ -1,7 +1,7 @@
 import { classifyKmaResponse } from "../providers/kma.ts";
 import { readResponseBytes } from "../httpResponse.ts";
 import { transportFailure } from "../maintenance.ts";
-import { parseAsosDailyRange } from "./seed.ts";
+import { parseAsosRows } from "./asosRows.ts";
 import type { ObservationStation, PrecipObservation } from "./types.ts";
 
 const STATION_CATALOG_URL = "https://apihub.kma.go.kr/api/typ01/url/stn_inf.php";
@@ -157,26 +157,6 @@ export async function fetchKmaAsosStations(
   return stations;
 }
 
-interface AsosDailyItem {
-  sumRn?: string;
-}
-
-export function parseAsosDailyObservation(raw: unknown): number | null {
-  if (!raw || typeof raw !== "object") return null;
-  const response = (raw as { response?: unknown }).response;
-  if (!response || typeof response !== "object") return null;
-  const body = (response as { body?: unknown }).body;
-  if (!body || typeof body !== "object") return null;
-  const items = (body as { items?: unknown }).items;
-  if (!items || typeof items !== "object") return null;
-  const item = (items as { item?: unknown }).item;
-  const row = (Array.isArray(item) ? item[0] : item) as AsosDailyItem | null | undefined;
-  if (!row || typeof row !== "object") return null;
-  const value = (row.sumRn ?? "").trim();
-  const observedMm = value === "" ? 0 : Number(value);
-  return Number.isFinite(observedMm) && observedMm >= 0 ? observedMm : null;
-}
-
 /**
  * The outcome of one station-day observation read.
  *
@@ -266,10 +246,14 @@ export async function fetchAsosObservation(
       retryable = false;
       continue;
     }
-    const observedMm = parseAsosDailyObservation(classified.json);
-    // An OK response with no readable row is the same absence as NODATA: KMA
-    // publishes a blank sumRn for a dry day, so a missing row means no record.
-    if (observedMm === null) return { status: "absent" };
+    let rows: Map<string, number>;
+    try {
+      rows = parseAsosRows(classified.json, stationId, date, date);
+    } catch (error) {
+      return { status: "failed", reason: error instanceof Error ? error.message : "ASOS response is malformed", retryable: false };
+    }
+    const observedMm = rows.get(date);
+    if (observedMm === undefined) return { status: "absent" };
     return {
       status: "observed",
       observation: {
@@ -383,11 +367,15 @@ export async function fetchAsosObservationWindow(
       continue;
     }
     const observedAt = now.toISOString();
-    // Store only what was asked for. A row the service echoes from outside the window
-    // is not evidence this run gathered, and counting it would also make the caller's
-    // absence arithmetic — days requested minus days stored — quietly wrong.
-    const observations = Array.from(parseAsosDailyRange(classified.json))
-      .filter(([date]) => date >= startDate && date <= endDate)
+    // Validate every returned row before exposing the window. An out-of-range row
+    // or a malformed total is a failed read, never partial ground truth.
+    let rows: Map<string, number>;
+    try {
+      rows = parseAsosRows(classified.json, stationId, startDate, endDate);
+    } catch (error) {
+      return { status: "failed", reason: error instanceof Error ? error.message : "ASOS response is malformed" };
+    }
+    const observations = Array.from(rows)
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([date, observedMm]) => ({
         stationId,

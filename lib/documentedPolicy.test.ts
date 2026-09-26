@@ -16,7 +16,7 @@ import { DEFAULT_PERFORMANCE_POLICY } from "./performance/performance.ts";
  * numbers are the claim, and rewriting the claim is exactly when they should be
  * re-checked against the code.
  */
-const DOCUMENTS = ["../README.md", "../docs/weather-sources.md"] as const;
+const DOCUMENTS = ["../README.md", "../docs/FORECAST_CONTRACT.md", "../docs/weather-sources.md"] as const;
 
 const policy = DEFAULT_PERFORMANCE_POLICY;
 
