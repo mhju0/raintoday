@@ -282,5 +282,5 @@ application, these are release identifiers, not a promise of a public API compat
 contract. Describe user-visible changes, validation and limitations in the GitHub release.
 Retain `v1.0.0` at its original SeoulSky commit. `v1.1.0` was the first 오늘비 maintenance
 release. `v2.0.0` marks 오늘비 as the successor to SeoulSky: a different product on the same
-repository. Future compatible fixes normally increment the patch.
+repository. The versioning rule for every later change is in `AGENTS.md` under "Releases".
 Do not archive the repository while the hosted service and scheduled collectors operate.
