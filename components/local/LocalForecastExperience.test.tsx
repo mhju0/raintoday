@@ -1406,6 +1406,30 @@ test("seed evidence shows the wet-day miss rate rather than claiming measured pe
   assert.match(evidence, /기간 전체를 같은 비중으로 반영/);
 });
 
+test("learned weighting cites the benchmark count the scoring record shows, not the weakest provider's", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", JSON.stringify({
+    name: "서울특별시", latitude: 37.5668, longitude: 126.9786,
+    elevationM: null, selection: { kind: "area", areaKind: "administrative-area" },
+  }));
+  const base = forecastPayload();
+  const view = await mountExperience(async () => Response.json(forecastPayload({
+    blendMode: "learned",
+    evidence: {
+      ...base.evidence,
+      status: "active",
+      station: { id: "108", name: "서울", distanceKm: 1.3 },
+      comparisonSampleCount: 15,
+      benchmark: { adaptiveBrier: 0.041, equalBrier: 0.041, sampleCount: 32, status: "passing" },
+    },
+  })));
+  const text = view.container.textContent ?? "";
+  // The record page this card links to says 32 comparisons; "15일" contradicted it.
+  assert.match(text, /관측소 서울의 비교 기록 32건을 반영했습니다/);
+  assert.doesNotMatch(text, /15일 기록/);
+  // The weakest provider's count stays visible, labelled as what it is.
+  assert.match(text, /비교한 예보\s· 서비스별 최소15회/);
+});
+
 // --- the chooser's three claims ---------------------------------------------
 
 test("a GPS scoring record links to the matched station without a device coordinate", async () => {

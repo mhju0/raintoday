@@ -701,7 +701,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
           </strong>
         </div>
         <div>
-          <span>{seedRanked.length > 0 ? "과거 비교 기록\u00a0· 서비스별 최소" : "비교한 예보"}</span>
+          <span>{seedRanked.length > 0 ? "과거 비교 기록\u00a0· 서비스별 최소" : "비교한 예보\u00a0· 서비스별 최소"}</span>
           <strong>
             {seedRanked.length > 0
               ? `${Math.min(...seedRanked.map((row) => row.sampleCount))}일`
@@ -1353,7 +1353,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             {seeded
               ? "최근 비교 기록이 부족해 과거 모델 예보와 관측을 비교한 결과를 일부 반영했습니다."
               : learned
-                ? <>관측소 {forecast.evidence.station?.name ?? "근처 관측소"}의 <b>{forecast.evidence.comparisonSampleCount}일 기록</b>을 반영했습니다.</>
+                ? <>관측소 {forecast.evidence.station?.name ?? "근처 관측소"}의 <b>비교 기록 {forecast.evidence.benchmark?.sampleCount ?? forecast.evidence.comparisonSampleCount}건</b>을 반영했습니다.</>
                 : "현재 가중치 적용 조건을 충족하지 않아 응답한 서비스를 같은 비중으로 평균했습니다."}
           </p>
         </section>
