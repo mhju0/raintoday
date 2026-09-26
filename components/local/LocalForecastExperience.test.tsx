@@ -1524,6 +1524,38 @@ test("the verdict sentence carries the window's own total, and the mm lane rides
   await view.cleanup();
 });
 
+test("a rain window whose total rounds to nothing never reads 모두 0mm", async () => {
+  for (const sumMm of [0, 0.04]) {
+    window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
+    const view = await mountExperience(async () =>
+      Response.json(forecastPayload({
+        timeline: timeline({
+          blocks: [
+            { label: "오후", rangeLabel: "12–15시", startHour: 12, endHour: 15, precipMax: 60, precipSumMm: sumMm, condition: "cloudy", wet: true, dayTag: null },
+          ],
+          reading: {
+            firstRun: {
+              startIndex: 0, endIndex: 0, startHour: 12, endHour: 15, startLabel: "오후",
+              startsTomorrow: false, durationHours: 3, endsWithinWindow: true, peakProbability: 60,
+              sumMm,
+            },
+            laterRun: null,
+            peak: { probability: 60, rangeLabel: "12–15시", startsTomorrow: false },
+          },
+        }),
+      })),
+    );
+    // "비 예상 … 모두 0mm" contradicts itself. The published amount is still a
+    // fact worth stating, so it is stated as the bound it is.
+    assert.equal(
+      view.container.querySelector("#forecast-heading .local-answer-mm")?.textContent,
+      "모두 0.1mm 미만",
+      `sumMm ${sumMm}`,
+    );
+    await view.cleanup();
+  }
+});
+
 test("the mm lane keeps a gap hatched and a published zero real", async () => {
   window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
   const view = await mountExperience(async () =>

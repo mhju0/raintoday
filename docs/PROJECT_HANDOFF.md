@@ -267,3 +267,7 @@ Open issues reviewed, none closed:
 - #146 and #154: still need the private backup and dashboard access.
 
 Open: "모두 0mm".
+
+## 2026-09-26 — "모두 0mm" resolved
+
+A rain window whose total rounds to 0 now reads "모두 0.1mm 미만". "비 예상 … 모두 0mm" contradicted itself; the published amount is kept as a bound rather than hidden. It fits on one line from 320px up, in both engines. This closes the open item carried by the last three entries.
