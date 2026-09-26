@@ -44,8 +44,8 @@ check `maintenance` itself and re-enable schedules when necessary. See
    code failures. A timeout before connection is not proof that an API key expired.
    Observation logs retain safe transport causes without request URLs or keys.
 2. For an upstream outage, retain the incident and inspect the next scheduled cohort.
-   The collector makes at most three fresh-runner attempts, separated in time as
-   well as by machine: attempts 2 and 3 wait until 10 and 25 minutes after
+   The collector makes at most five fresh-runner attempts, separated in time as
+   well as by machine: attempts 2–5 target 10, 25, 40 and 55 minutes after
    collection began before they probe. The offsets are measured from attempt 1, so
    a slow first failure does not collapse the spacing, and an attempt whose offset
    has already passed probes immediately. Checkout, setup, spacing, preflight,
@@ -56,6 +56,11 @@ check `maintenance` itself and re-enable schedules when necessary. See
    reachable route answers the first and waits for nothing.
    Any HTTP response proves that transport path is reachable; it does not prove that
    credentials, the database, other providers or the eventual capture will work.
+   After 12 consecutive station transport failures for a source with no successful
+   read in that pass, the outage breaker abandons further work for that source.
+   Abandoned observations/captures are reported separately and fail the cohort.
+   The threshold sits above the cohort fault tolerance; the next runner starts
+   another pass without overwriting successful immutable captures.
    If later reads show that a failed phase has recovered, the batch waits past the
    provider failure cooldown and retries eligible earlier failures once before
    changing runners.
@@ -124,8 +129,9 @@ The collector also retries the exact observation write, capture write or complet
 comparison read once after one second only when every error leaf proves a pre-connect
 socket refusal, timeout or unreachable host/network. SQL and authentication errors,
 unknown or mixed aggregates, and failures after a connection was established remain
-terminal. Initialization, catalog synchronization, seed writes and other callers do
-not opt in. There are no schema changes and no historical records are rewritten.
+terminal. At the time of this incident, initialization and catalog operations did not opt in.
+Since #171, initialization, station listing and catalog synchronization also use this
+pre-connect-only retry. Seed writes and other callers remain outside it. There are no schema changes and no historical records are rewritten.
 
 September 19 incident: [collection run 35444845449](https://github.com/mhju0/raintoday/actions/runs/35444845449)
 captured nothing. All three runners failed the credential-free ASOS preflight with
@@ -148,6 +154,21 @@ reruns a missed cohort, relabels one, or relaxes a required provider or the
 observation failure rules: a scheduled cohort is never refused on the hour, so a
 capture that lands later is still evidence for the slot it was issued in. A run
 whose route is down for the full spread still fails, which is the intended outcome.
+
+### September 23 correction to the outage interpretation
+
+The early "all-provider egress blackout" diagnosis in #175 was superseded by the
+provider-level log review. Pirate Weather and WeatherAPI succeeded; KMA and part of
+Open-Meteo failed. Repeated ~19-minute attempts measured the collector's own full
+station walk, not the duration of a network outage. They also delayed the intended
+retry offsets. PR #177 added the outage breaker and expanded the schedule to five
+attempts so abandoning a pass early would not shorten the recovery window.
+
+A later successful collection proves recovery for that run, not the breaker under
+an outage. No real outage has exercised the breaker at this review. Do not infer
+an outage's cause or duration from job wall time alone. Earlier incident entries
+above retain what was known at their dates; this correction and the current
+incident-response procedure take precedence.
 
 ## Credentials and request limits
 

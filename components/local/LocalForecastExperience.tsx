@@ -372,7 +372,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   };
 
   return (
-    <section
+    <main
       className={`local-chooser${busy ? " is-busy" : ""}`}
       aria-labelledby="location-heading"
       inert={busy || undefined}
@@ -579,18 +579,15 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
         <dl className="local-chooser-facts">
           <div>
             <dt>비교하는 서비스</dt>
-            <dd>{COMPARED_PROVIDER_NAMES.length}곳</dd>
-            <small>{providerList}</small>
+            <dd>{COMPARED_PROVIDER_NAMES.length}곳<small>{providerList}</small></dd>
           </div>
           <div>
             <dt>검증 관측소</dt>
-            <dd>{VERIFICATION_STATION_COUNT}개</dd>
-            <small>기상청 ASOS · 익일 예보만 채점합니다</small>
+            <dd>{VERIFICATION_STATION_COUNT}개<small>기상청 ASOS · 익일 예보만 채점합니다</small></dd>
           </div>
           <div>
             <dt>시간축</dt>
-            <dd>24시간</dd>
-            <small>3시간 블록 8개로 보는 비 예상 시간대</small>
+            <dd>24시간<small>3시간 블록 8개로 보는 비 예상 시간대</small></dd>
           </div>
         </dl>
 
@@ -607,7 +604,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
           </div>
         </div>
       </div>
-    </section>
+    </main>
   );
 }
 
@@ -874,14 +871,13 @@ function formatMm(mm: number): string {
 }
 
 /** The rain window as the sentence the page leads with. */
-function RainSentence({ run, endsTomorrow, peak, threshold }: {
+function RainSentence({ run, endsTomorrow, peak }: {
   run: TimelineReading["firstRun"];
   endsTomorrow: boolean;
   peak: TimelineReading["peak"];
-  threshold: number;
 }) {
   if (!peak) return <>시간대별 <b>강수확률을 확인할 수 없습니다</b></>;
-  if (!run) return <>발표된 시간대의 강수확률은 <b>모두 {threshold}% 미만입니다</b></>;
+  if (!run) return <>발표된 시간대에 <b>비 예상 없음</b></>;
   const onset = run.startIndex === 0
     ? "지금부터"
     : `${run.startsTomorrow ? "내일 " : ""}${clockLabel(run.startHour)}부터`;
@@ -1104,7 +1100,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
         <p className="local-kicker">결론 <span>: 앞으로 24시간, 한 문장으로</span></p>
         <h1 id="forecast-heading" ref={headingRef} tabIndex={-1}>
           {timeline
-            ? <RainSentence run={run} endsTomorrow={run !== null && dayOffsets[run.endIndex] > 0} peak={peak} threshold={timeline.threshold} />
+            ? <RainSentence run={run} endsTomorrow={run !== null && dayOffsets[run.endIndex] > 0} peak={peak} />
             : <>{today ? "오늘" : "내일"} 비가 올까요?</>}
         </h1>
         {timeline && (

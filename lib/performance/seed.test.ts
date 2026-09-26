@@ -6,12 +6,12 @@ import {
   joinSeedComparisons,
   MAX_SEED_RANGE_DAYS,
   parseArchivedDayAheadForecasts,
-  parseAsosDailyRange,
   SEED_PROVIDER_MODELS,
   SEED_PROVIDERS,
   seedObservation,
   sumHourlyByDate,
 } from "./seed.ts";
+import { parseAsosRows } from "./asosRows.ts";
 import type { ObservationStation, SeedProviderForecast } from "./types.ts";
 
 const STATION: ObservationStation = {
@@ -87,30 +87,24 @@ test("a malformed archive payload yields nothing rather than throwing", () => {
 });
 
 test("a blank ASOS daily total is a measured dry day", () => {
-  const observed = parseAsosDailyRange({
-    response: {
-      body: {
-        items: {
-          item: [
-            { tm: "2025-08-01", sumRn: "0.0" },
-            { tm: "2025-08-02", sumRn: "" },
-            { tm: "2025-08-03", sumRn: "1.3" },
-            { tm: "not-a-date", sumRn: "5.0" },
-          ],
-        },
-      },
-    },
-  });
-
+  const observed = parseAsosRows({ response: { body: {
+    totalCount: 3,
+    items: { item: [
+      { tm: "2025-08-01", stnId: "108", sumRn: "0.0" },
+      { tm: "2025-08-02", stnId: "108", sumRn: "" },
+      { tm: "2025-08-03", stnId: "108", sumRn: "1.3" },
+    ] },
+  } } }, "108", "2025-08-01", "2025-08-03");
   assert.equal(observed.get("2025-08-02"), 0);
   assert.equal(observed.get("2025-08-03"), 1.3);
-  assert.equal(observed.size, 3, "an unparseable row must be dropped");
+  assert.equal(observed.size, 3);
 });
 
 test("a single-row ASOS response is accepted", () => {
-  const observed = parseAsosDailyRange({
-    response: { body: { items: { item: { tm: "2025-08-01", sumRn: "2.0" } } } },
-  });
+  const observed = parseAsosRows({ response: { body: {
+    totalCount: 1,
+    items: { item: { tm: "2025-08-01", stnId: "108", sumRn: "2.0" } },
+  } } }, "108", "2025-08-01", "2025-08-01");
   assert.deepEqual([...observed], [["2025-08-01", 2]]);
 });
 

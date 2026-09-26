@@ -4,9 +4,9 @@ import {
   fetchAsosObservation,
   fetchAsosObservationWindow,
   fetchKmaAsosStations,
-  parseAsosDailyObservation,
   parseKmaStationCatalog,
 } from "./kma.ts";
+import { parseAsosRows } from "./asosRows.ts";
 
 test("KMA station catalog parser keeps active South Korean ASOS coordinates", () => {
   const body = `# STN_ID LON LAT STN_SP HT HT_PA HT_TA HT_WD HT_RN STN_CD STN_KO STN_EN STN_AD FCT_ID LAW_ID BASIN
@@ -38,20 +38,11 @@ test("KMA station catalog parser keeps active South Korean ASOS coordinates", ()
   ]);
 });
 
-test("ASOS observation parser distinguishes a dry day from a missing row", () => {
-  assert.equal(
-    parseAsosDailyObservation({
-      response: { body: { items: { item: [{ tm: "2026-08-12", stnId: "108", sumRn: "" }] } } },
-    }),
-    0,
-  );
-  assert.equal(
-    parseAsosDailyObservation({
-      response: { body: { items: { item: { tm: "2026-08-12", stnId: "108", sumRn: "12.4" } } } },
-    }),
-    12.4,
-  );
-  assert.equal(parseAsosDailyObservation({ response: { body: {} } }), null);
+test("ASOS observation parser keeps explicit blank precipitation as dry", () => {
+  const raw = { response: { body: { totalCount: 1, items: { item: [
+    { tm: "2026-08-12", stnId: "108", sumRn: "" },
+  ] } } } };
+  assert.equal(parseAsosRows(raw, "108", "2026-08-12", "2026-08-12").get("2026-08-12"), 0);
 });
 
 test("KMA performance readers reject oversized upstream bodies", async () => {
@@ -193,7 +184,11 @@ test("the catalog waits between attempts instead of retrying inside the same bli
 const asosBody = (resultCode: string, sumRn = ""): string => JSON.stringify({
   response: {
     header: { resultCode, resultMsg: "test" },
-    body: { dataType: "JSON", items: { item: [{ stnId: "108", sumRn }] } },
+    body: {
+      dataType: "JSON",
+      totalCount: resultCode === "00" ? 1 : 0,
+      items: { item: resultCode === "00" ? [{ tm: "2026-08-23", stnId: "108", sumRn }] : [] },
+    },
   },
 });
 
@@ -308,7 +303,7 @@ test("a missing observation key is a reported fault, not a silent absence", asyn
 const asosRangeBody = (rows: { tm: string; sumRn: string }[]): string => JSON.stringify({
   response: {
     header: { resultCode: "00", resultMsg: "NORMAL_SERVICE" },
-    body: { dataType: "JSON", items: { item: rows.map((row) => ({ stnId: "108", ...row })) } },
+    body: { dataType: "JSON", totalCount: rows.length, items: { item: rows.map((row) => ({ stnId: "108", ...row })) } },
   },
 });
 
@@ -417,7 +412,7 @@ test("an observation window is bounded where the request is built, not only by i
   });
 });
 
-test("a window keeps only the days it asked for", async () => {
+test("a window fails when ASOS returns dates outside the requested range", async () => {
   // A row echoed from outside the window is not evidence this run gathered, and it
   // would also make the caller's days-requested-minus-days-stored arithmetic wrong.
   await withObservationKey(async () => {
@@ -436,6 +431,78 @@ test("a window keeps only the days it asked for", async () => {
           { status: 200 },
         )) as unknown as typeof fetch,
     );
-    assert.deepEqual(read.observations?.map((observation) => observation.date), ["2026-08-21"]);
+    assert.equal(read.status, "failed");
+    assert.match(read.reason ?? "", /outside the requested range/);
+  });
+});
+
+test("malformed ASOS daily rows are faults rather than dry days or absences", async () => {
+  await withObservationKey(async () => {
+    const row = { tm: "2026-08-23", stnId: "108", sumRn: "1.2" };
+    for (const bad of [
+      { ...row, sumRn: undefined },
+      { ...row, sumRn: "not-a-number" },
+      { ...row, stnId: "999" },
+      { ...row, tm: "2026-08-22" },
+    ]) {
+      const payload = JSON.stringify({ response: {
+        header: { resultCode: "00" },
+        body: { totalCount: 1, items: { item: [bad] } },
+      } });
+      const result = await read(async () => new Response(payload, { status: 200 }));
+      assert.equal(result.status, "failed", JSON.stringify(bad));
+      assert.equal(result.observation, undefined);
+      assert.equal(result.retryable, false);
+    }
+  });
+});
+
+test("an invalid row in a window rejects the whole batch before any observation is returned", async () => {
+  await withObservationKey(async () => {
+    const rows = [
+      { tm: "2026-08-21", stnId: "108", sumRn: "3.1" },
+      { tm: "2026-08-22", stnId: "108", sumRn: "bad" },
+    ];
+    const payload = JSON.stringify({ response: {
+      header: { resultCode: "00" },
+      body: { totalCount: 2, items: { item: rows } },
+    } });
+    const result = await fetchAsosObservationWindow(
+      "108", "2026-08-21", "2026-08-22", AT,
+      (async () => new Response(payload, { status: 200 })) as typeof fetch,
+    );
+    assert.equal(result.status, "failed");
+    assert.equal(result.observations, undefined);
+  });
+});
+
+test("ASOS parser rejects duplicate dates and inconsistent page totals", () => {
+  const row = { tm: "2026-08-23", stnId: "108", sumRn: "0.1" };
+  const envelope = (rows: unknown[], totalCount: number | string) => ({ response: { body: {
+    totalCount, items: { item: rows },
+  } } });
+  assert.throws(() => parseAsosRows(envelope([row, row], 2), "108", "2026-08-23", "2026-08-23"), /duplicate/);
+  assert.throws(() => parseAsosRows(envelope([row], 2), "108", "2026-08-23", "2026-08-23"), /row count/);
+  assert.throws(() => parseAsosRows(envelope([], " "), "108", "2026-08-23", "2026-08-23"), /row count/);
+  assert.deepEqual([...parseAsosRows(envelope([], 0), "108", "2026-08-23", "2026-08-23")], []);
+});
+
+test("an OK envelope needs explicit zero count to mean no observation", async () => {
+  await withObservationKey(async () => {
+    for (const body of [
+      { items: { item: [] } },
+      { totalCount: 1, items: { item: [] } },
+      { totalCount: 0, items: { item: [{}] } },
+    ]) {
+      const payload = JSON.stringify({ response: { header: { resultCode: "00" }, body } });
+      const result = await read(async () => new Response(payload, { status: 200 }));
+      assert.equal(result.status, "failed");
+    }
+    const empty = JSON.stringify({ response: {
+      header: { resultCode: "00" },
+      body: { totalCount: 0, items: { item: [] } },
+    } });
+    const result = await read(async () => new Response(empty, { status: 200 }));
+    assert.equal(result.status, "absent");
   });
 });

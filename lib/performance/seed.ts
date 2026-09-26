@@ -1,4 +1,5 @@
 import { classifyKmaResponse } from "../providers/kma.ts";
+import { parseAsosRows } from "./asosRows.ts";
 import { readResponseBytes } from "../httpResponse.ts";
 import type {
   ObservationStation,
@@ -172,41 +173,11 @@ export async function fetchArchivedDayAheadForecasts(
   return parseArchivedDayAheadForecasts(payload);
 }
 
-interface AsosDailyRangeItem {
-  tm?: string;
-  sumRn?: string;
-}
-
-/** Parse an ASOS daily RANGE response into observed millimetres keyed by date. */
-export function parseAsosDailyRange(raw: unknown): Map<string, number> {
-  const item = (raw as {
-    response?: { body?: { items?: { item?: unknown } } };
-  } | null)?.response?.body?.items?.item;
-  const rows: AsosDailyRangeItem[] = Array.isArray(item)
-    ? (item as AsosDailyRangeItem[])
-    : item && typeof item === "object"
-      ? [item as AsosDailyRangeItem]
-      : [];
-
-  const observed = new Map<string, number>();
-  for (const row of rows) {
-    const date = (row.tm ?? "").trim();
-    if (!isDate(date)) continue;
-    // ASOS leaves 일강수량 blank on a dry day; a present row with a blank total is
-    // a measured zero, not missing data.
-    const value = (row.sumRn ?? "").trim();
-    const observedMm = value === "" ? 0 : Number(value);
-    if (!Number.isFinite(observedMm) || observedMm < 0) continue;
-    observed.set(date, observedMm);
-  }
-  return observed;
-}
-
 /**
  * Fetch observed daily precipitation for one station across a date range. The
  * ASOS daily service accepts a range, so a month of ground truth costs one call.
- * Returns an empty map rather than throwing when the service is unusable, so a
- * backfill skips that window instead of fabricating it.
+ * Transport/API unavailability returns an empty map for this optional seed path.
+ * A malformed successful response throws so corrupt ground truth is visible.
  */
 export async function fetchAsosObservationRange(
   stationId: string,
@@ -243,7 +214,7 @@ export async function fetchAsosObservationRange(
   const text = new TextDecoder().decode(bytes);
   const classified = classifyKmaResponse(response.status, text);
   if (classified.class !== "ok") return new Map();
-  return parseAsosDailyRange(classified.json);
+  return parseAsosRows(classified.json, stationId, startDate, endDate);
 }
 
 /** Join archived forecasts to observations for one station. Unpaired dates drop. */

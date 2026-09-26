@@ -1228,7 +1228,7 @@ test("the rain window is marked on the ribbon, and only once rain is actually li
   assert.equal(dry.container.querySelectorAll(".local-ribbon-col.is-wet").length, 0);
   assert.match(
     dry.container.querySelector("#forecast-heading")?.textContent ?? "",
-    /발표된 시간대의 강수확률은 모두 40% 미만입니다/,
+    /발표된 시간대에 비 예상 없음/g,
   );
   await dry.cleanup();
 
@@ -1274,7 +1274,7 @@ test("the umbrella advice never contradicts the headline above it", async () => 
 
   assert.match(
     view.container.querySelector("#forecast-heading")?.textContent ?? "",
-    /발표된 시간대의 강수확률은 모두 40% 미만입니다/,
+    /발표된 시간대에 비 예상 없음/g,
   );
   assert.match(
     view.container.querySelector(".local-answer-action")?.textContent ?? "",

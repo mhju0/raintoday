@@ -48,7 +48,7 @@ That offset is not symmetry for its own sake. ASOS compiles a calendar day's sum
 
 ## When a run fails
 
-Both workflow attempts pass `--require-all-providers`. Before opening the database or
+All five workflow attempts pass `--require-all-providers`. Before opening the database or
 fetching weather, the CLI checks configuration through the shared provider registry and
 fails with the missing variable names. A declared but empty Actions secret must not
 silently remove a provider from an immutable cohort. Local capture without this flag
@@ -69,11 +69,18 @@ provider blip faulted 3 of 97, an egress blackout faulted all 97. **Observation*
 zero tolerance — a station ASOS has no row for is an absence, anything else is a fault that
 fails the run at any count.
 
-The workflow runs the cohort a second time on a fresh runner when the first attempt fails.
-The blackouts behind #103 followed the runner's egress address rather than the hour, so a
-new machine is an independent draw; the first attempt tolerates its own failure and
-publishes the verdict as a job output, so a run the retry rescues finishes green and only
-a double failure alerts.
+The workflow allows five fresh-runner attempts, targeting 0, 10, 25, 40 and 55
+minutes from the first attempt. A late offset runs immediately; capture duration
+can delay the later attempts. Each attempt reports its real result, and the final
+verdict succeeds only if an attempt actually succeeds.
+
+The outage breaker stops re-proving a transport outage after 12 consecutive
+station failures for a source with no success in the pass. Abandoned work is
+reported separately and fails the cohort. The next runner re-walks the catalog;
+existing captures remain immutable. Provider-level logs corrected the earlier
+all-provider-blackout diagnosis: repeated 19-minute attempts reflected the cost
+of a full failing walk, not a measured outage duration. See
+[the current runbook](../../docs/OPERATIONS.md) for the recovery policy and limits.
 
 ## Seeding
 

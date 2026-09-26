@@ -54,164 +54,37 @@ and residual risks. The old v1.0.0 tag intentionally remains on the earlier appl
 
 ## Session log
 
-### 2026-09-19 — collector retry spacing (#168, PR #169)
+### 2026-09-19–23 — Collector recovery and corrected incident interpretation
 
-Changed: attempts 2 and 3 of `local-performance` now wait until 10 and 25 minutes
-after collection began before probing, measured from attempt 1's published start so
-a slow first failure cannot collapse the spacing. Each retry's job budget covers its
-own wait (35 → 47 / 62 min). The transport preflight spreads up to four probes over
-~90 s instead of two inside 20 s.
+Condensed September 26. Detailed dated evidence remains in Git history, PRs
+#169/#171/#172/#174/#177, and issue #175.
 
-Why: run 35444845449 lost all three runners to the credential-free ASOS preflight
-from three distinct egress addresses inside 83 seconds, while the endpoint answered
-a local probe in ~50 ms. The recovery design assumed a blackout follows the egress
-address (#103), so it varied the machine but not the moment. Runs 34910557704 and
-35351001382 show the route flapping on a scale of tens of seconds, which no number
-of back-to-back runners can survive. The #103 premise is qualified, not discarded:
-it still holds for a sustained outage.
+- #169 spaced fresh-runner attempts at 0/10/25 minutes and spread ASOS transport
+  probes across about 90 seconds. Any HTTP response proves route reachability,
+  not credentials, other providers or the database.
+- #171 extended narrowly proven pre-connect PostgreSQL retries to initialization,
+  station listing and catalog synchronization. #172 records the stage where an
+  attempt fails. Blank AggregateError messages had obscured diagnosis; #174 moved
+  the guarded error walker into driver-free `errorDetail.ts` for batch reporting.
+- The August ~1-second failures were a missing database secret, not the later
+  cold-start database defect. `continue-on-error` means a green capture job/step
+  is not proof of a successful cohort; inspect counts and the authoritative verdict.
+- The September 22 all-provider-egress-blackout and 37–38-minute-duration diagnosis
+  was corrected September 23. Pirate Weather and WeatherAPI succeeded; KMA and
+  some Open-Meteo reads failed. Repeated ~1,140-second attempts measured the cost
+  of a full failing station walk, not outage duration, and delayed retry offsets.
+- #177 added an outage breaker after 12 consecutive station transport failures
+  for a source with no success in the pass. It reports abandoned work separately,
+  and abandonment fails the cohort. The threshold is above the catalog's allowed
+  fault tolerance. Five attempts at 0/10/25/40/55 minutes preserve recovery reach.
+  A 97-station fixture measured 165 seconds versus 1,334 seconds; this is not live
+  outage validation. Successful immutable captures are never overwritten.
 
-Deliberately unchanged: no missed cohort is rerun or relabelled, and no required-
-provider or observation-failure rule is relaxed. A scheduled cohort is never refused
-on the hour, so a later capture is still evidence for its slot, and a run whose route
-is down for the whole spread still fails.
-
-Open issues: #168 closes itself on the next successful monitored run — if it does not,
-the flap is longer than 25 minutes and the offsets are the thing to revisit, not the
-provider rules. #154 has an evidence pass recorded; its Vercel/Neon usage items need
-account access. #146 and #140 stay open on their access- and time-blocked items.
-
-Observed in passing: the Actions registry lists `network-diagnostic` and nine
-`recovery-replay-*` workflows as active, but none of those files exist on `main`.
-They are leftovers from deleted investigation branches and cannot fire. A future
-audit counting live workflows should not be misled by them.
-
-Next step: watch the 2026-09-19 21:10Z and 2026-09-20 09:10Z cohorts. The spacing
-only proves itself on a run that actually meets a flap.
-
-### 2026-09-22 — the collector's failures are three modes, not one (#170, PRs #171, #172)
-
-Changed: `initialize`, `listStations` and `syncStations` now run inside the #167
-connection-retry wrapper, and a fatal capture line is never blank. The
-local-performance incident issue now records the stage each capture attempt died
-at, written while the incident is open.
-
-Why: run 35621896930 lost all three attempts in ~1.3 s each, printing one blank
-line. Attempts 1 and 3 had cleared the KMA preflight — they died on `initialize()`,
-the cohort's first database statement and the only one outside the #167 wrapper.
-`Error.message` is `""` on an `AggregateError`, which is what Node raises when
-every address refuses, so the log held no evidence but the preflight. That is how
-#103, #168 and #169 were all aimed at the route while the database was failing.
-
-Classifying 29 failures gives three modes, and they need different answers:
-
-1. Preflight route flap — fast fail. #169's spacing is the response.
-2. **Broad runner egress blackout — the preflight PASSES, then Open-Meteo, KMA
-   and Visual Crossing all fail for ~19 min and 97/97 stations fault** (runs
-   34034376096, 34724129443, 33517589359). Not a KMA problem. UNADDRESSED.
-3. Silent cold-start database failure — fixed in #171.
-
-Two traps for whoever reads a run next. Job conclusions are meaningless here:
-`continue-on-error` makes a capture job report `success` when its capture failed,
-and it masks the *step* conclusion too. Only `skipped` marks where a job stopped.
-
-Open issues: mode 2 has no owner and no decision. The user asked for measurement
-before any code: how often it hits, how long it lasts, whether it tracks the
-runner's Azure region or egress address. Runs 34910557704 (332 s, 28/97 faulted)
-and 35351001382 (a 93/97 cohort) suggest partial blackouts exist, so it is a
-spectrum rather than a binary.
-
-Also unfixed and now proven, not latent: `failureMessage` (lib/performance/batch.ts:89)
-carries the same empty-AggregateError-message defect as the CLI did. Run
-35351001382 failed a 93/97 cohort reporting `4 x observation: ` with no reason at
-all. Fixing it properly means sharing `describePostgresError`'s guarded tree
-walker — it redacts credentials, and observation URLs carry a KMA authKey — which
-is a three-module change and was left for an explicit decision.
-
-Next step: measure mode 2 before changing anything. The incident issue now
-carries its own classification, so the next failure should not need re-derivation.
-
-### 2026-09-22 — the batch's blank reasons, and the blackout measured (#174, #175)
-
-Changed: the guarded error-tree walker moved to `lib/performance/errorDetail.ts`,
-driver-free so the capture batch can share it. `failureMessage` in the batch was
-still `error.message` and so still blank on an `AggregateError`: run 35351001382
-stored 93 of 97 observations, inserted 93 captures, then failed the cohort on
-`4 x observation: ` with no reason. Observations have zero fault tolerance.
-Redaction now also covers query-parameter credentials, because KMA passes its key
-in the query string and the walker is no longer reachable only from the adapter.
-
-Measured the egress blackout across all 80 scheduled runs; recorded in #175.
-The cause table there supersedes any earlier count. Two corrections worth keeping:
-
-- The August cluster of ~1s failures was a missing `PERFORMANCE_DATABASE_URL`
-  secret, **not** the #171 cold-start defect, despite an identical shape. Date
-  proximity is not a cause.
-- A capture taking ~1140 s is not by itself a blackout: successful cohorts also
-  run that long when many provider reads retry. The blackout signature is
-  97/97 faulted with every provider failing at once.
-
-Blackout duration is bimodal. It either clears inside one capture budget — the
-next attempt then succeeds in ~110 s, 4 for 4 — or it is still running at 37–38
-minutes and the next attempt burns its budget too, 3 for 3. #169's spacing tops
-out at +25 min, so it would not have rescued any of the three sustained cases.
-No blackout since 09-13, so the spacing is untested against this mode, not proven.
-
-Open issues: #175 needs a decision between accepting the blackout and combining
-a fast abandon with a fourth attempt past 40 minutes. #146 and #140 stay blocked.
-
-Next step: #175 is a decision, not an implementation task. Do not add retries to
-`local-performance` before it is answered.
-
-## 2026-09-23 — the collector's own cost was the recurring failure
-
-Changed: `lib/performance/batch.ts` gains an outage breaker
-(`OUTAGE_EVIDENCE_THRESHOLD = 12`). Once a source has failed that many
-consecutive stations on transport with nothing having succeeded anywhere in the
-pass, it stops being called; the remaining stations are counted as
-`observationsAbandoned` / `capturesAbandoned` and `abandonedReason` is set.
-`cohortRunFailed` fails on `abandonedReason` directly, because unattempted
-stations are deliberately in neither the fault counts nor `failures` and a
-stopped pass would otherwise read as a small green one.
-`local-performance.yml` goes from three attempts to five, at 0/10/25/40/55
-minutes.
-
-Why: #175's measurement was read wrongly and the four options in it were all
-built on that misreading. Five separate failed runs spent 1139, 1141, 1141,
-1139 and 1141 seconds in their capture step. An outage does not land within two
-seconds of itself five times — that number is ours. During a KMA outage a
-station costs about 47s (three 15s ASOS attempts with backoff, then a 10s
-provider timeout), and the batch walks all 97 at concurrency 4, so a failing
-attempt costs ~1140s whatever the route is doing.
-
-Three things follow, and each contradicts something recorded earlier:
-
-- The "37–38 minute blackout" was two full walks, not a 38-minute outage.
-  Nothing measured says the route was down past the first walk.
-- #169's spacing never ran. It aims attempts at +0/+10/+25 min, but attempt 1
-  does not *return* until +19, so the samples actually landed at 0/19/38.
-- It was never an egress blackout. `pirate-weather` and `weather-api` never
-  appear in those runs' failure lines — they succeeded for all 97 stations.
-  Only `kma` (97/97) and `open-meteo` (~50%) failed.
-
-Safety: the threshold is held above the cohort's fault tolerance
-(`OUTAGE_SAFE_COHORT_LIMIT`, bound to `FALLBACK_STATION_CATALOG` in
-`cli.test.ts`), so tripping is only possible in a run already destined to fail,
-and one success anywhere clears the counter. The next attempt re-walks every
-station, so a false trip costs one cheap attempt, never evidence. Measured at
-the real 97-station shape and concurrency 4: 165s against 1334s.
-
-Note the ordering trap: the breaker *alone* would have narrowed the sampling
-window from the accidental 0/19/38 to 0/10/25. The extra attempts are not a
-separate improvement, they are what keeps the reach.
-
-Open: five attempts and the breaker are untested against a live outage — the
-last one was 2026-09-13. #175 needs its analysis corrected; its four options are
-superseded. Scorecard alert #28 (`LicenseID`) is still open on purpose and still
-emails; it can be dismissed as "won't fix" whenever you want.
-
-Next: watch the first red `local-performance` run for the new `OUTAGE:` line. If
-it appears, the breaker worked and the question becomes whether 55 minutes is
-far enough. If a run goes red *without* it, the cause is not the KMA route.
+Still open: prove the breaker on a real outage; #175's body was corrected September 26;
+#146 and #154 require private backup/dashboard work. The live evidence transition
+in #140 needed a current station/cohort read. LicenseID alert #28 is intentional.
+Deleted diagnostic/recovery workflow registrations may still appear active in
+GitHub's inventory without corresponding files on main; they cannot fire there.
 
 ## 2026-09-25 — iPhone layout pass and Korean line breaks (#178, #179)
 
@@ -271,3 +144,45 @@ Open: "모두 0mm".
 ## 2026-09-26 — "모두 0mm" resolved
 
 A rain window whose total rounds to 0 now reads "모두 0.1mm 미만". "비 예상 … 모두 0mm" contradicted itself; the published amount is kept as a bound rather than hidden. It fits on one line from 320px up, in both engines. This closes the open item carried by the last three entries.
+
+## 2026-09-26 — Repository audit and recruiting presentation
+
+Prepared a concise self-contained HTML report, proposed README, portfolio/GitHub copy,
+and first-party comparative research under `docs/audits/2026-09-26/` and
+`docs/research/2026-09-26-weather-project-presentation.md`. Source reviewed: `be4120f`.
+No app fixes, GitHub metadata changes, publication, deployment or evidence writes.
+
+Verified: full local check passes; current-head CI SQL contract passes. Live Seoul
+now reports recent-evidence weighting (ramping), 32 benchmark samples, and five
+responding providers. This supersedes the earlier seed/26 snapshot only for this
+dated station/cohort read, not a nationwide accuracy claim.
+
+Open: validate malformed/mismatched KMA observation rows; redact populated error
+messages; fix audit 005's table keyboard access and chooser semantics; reconcile
+README/OPERATIONS/performance README with five collector attempts and current DB
+retry coverage. Findings are reproduced or explicitly labelled recommendations;
+production data corruption or credential leakage was not observed.
+
+Next: owner reviews numbered findings and recruiting drafts. Preserve existing
+chart-recorder design and immutable evidence; use independent data-integrity review
+for any parser/persistence correction. Outage-breaker live-outage proof and existing
+private backup/dashboard follow-ups remain open.
+
+## 2026-09-26 — Approved audit remediation and recruiting overview
+
+The owner approved all findings and requested a rainy screenshot. Implemented
+shared ASOS row validation, ordinary-error redaction, chooser/table accessibility,
+and modest readability changes. Optional omitted rainfall is unusable for scoring;
+explicit documented blank rainfall stays a dry observation. Historical evidence,
+scoring thresholds and provider order are unchanged.
+
+The concise README links FORECAST_CONTRACT.md for methodology. Its real production
+Busan screenshot shows a 91% peak rain chance. GitHub description was updated and
+re-fetched; #175 now marks the old diagnosis superseded and stays open for live
+outage proof. Condensed the oldest handoff entries while retaining unresolved work.
+
+Verification: local full check passed before the final regression additions; CUA
+confirmed local chooser semantics and 320/390 px layout. Pinned Playwright fixtures
+now cover selection/folding/keyboard interaction in CI. Final frozen-commit review,
+CI and deployment verification are required before delivery. Private backup and
+hosting-account follow-ups remain outside these fixes.

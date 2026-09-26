@@ -55,10 +55,20 @@ Open `http://localhost:3100` at desktop and 390px mobile widths. Check:
 - The ribbon responds to arrow keys, and evidence can fold/unfold without horizontal overflow.
 - Browser console has no hydration or runtime errors.
 
-An available browser automation tool can perform these checks and save screenshots outside
-Git. No browser runner is currently installed in the repository. A pinned, fixture-backed
-Playwright flow would be the next step if UI work resumes; avoid making paid provider access
-or production database availability prerequisites for CI.
+A pinned Playwright regression suite uses fixed forecast and search responses,
+without provider credentials or a performance database:
+
+```sh
+npm run build
+npx playwright install chromium
+npm run test:browser
+```
+
+It checks location selection, evidence expansion and timeline keyboard interaction
+at 390 px and 1440 px. CI installs Chromium and runs it after the production build.
+The suite starts its own server on port 3101; leave that port free. It supplements
+manual scoring-page, responsive and assistive-technology checks rather than proving
+full accessibility conformance. Browser output belongs in ignored test directories.
 
 ## PostgreSQL contract
 

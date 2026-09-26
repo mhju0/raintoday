@@ -53,6 +53,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser regression
+        run: npm run test:browser
+
   store-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 10
