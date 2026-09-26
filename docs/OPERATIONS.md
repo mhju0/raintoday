@@ -280,6 +280,7 @@ separate incident decision, with a fresh backup and an isolated restore rehearsa
 Use annotated `vMAJOR.MINOR.PATCH` tags for tested product milestones. For this hosted
 application, these are release identifiers, not a promise of a public API compatibility
 contract. Describe user-visible changes, validation and limitations in the GitHub release.
-Retain `v1.0.0` at its original SeoulSky commit. `v1.1.0` records the current rain product
-and maintenance/security work. Future compatible fixes normally increment the patch.
+Retain `v1.0.0` at its original SeoulSky commit. `v1.1.0` was the first 오늘비 maintenance
+release. `v2.0.0` marks 오늘비 as the successor to SeoulSky: a different product on the same
+repository. Future compatible fixes normally increment the patch.
 Do not archive the repository while the hosted service and scheduled collectors operate.

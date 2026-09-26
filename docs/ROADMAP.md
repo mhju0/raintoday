@@ -4,12 +4,12 @@ Updated 2026-09-26. The project is in maintenance mode: correctness, security,
 provider compatibility and service operation. New product scope requires an owner decision.
 Source/tests and Git take precedence over this document.
 
-## Release 1.1.0
+## Release 2.0.0
 
-The maintenance release includes the approved audit fixes, local versus regional
-observation wording, shared agent instructions, and the security/recovery review.
-The release tag must point at verified main after its production deployment is checked.
-The old v1.0.0 tag remains unchanged; it contains the earlier SeoulSky application.
+2.0.0 marks 오늘비 as the successor to SeoulSky (v1.0.0). It adds no new product scope:
+it follows v1.1.0 with the September 26 audit fixes, accessibility work, the type-scale pass
+and the shorter README. The tag must point at verified main after its production deployment
+is checked. The v1.0.0 tag remains unchanged on the SeoulSky source.
 
 ## Maintenance follow-ups
 
