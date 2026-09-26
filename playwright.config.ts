@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: "./tests/browser",
   testMatch: "*.spec.ts",
   retries: 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   reporter: "line",
   use: {
     baseURL: "http://127.0.0.1:3101",
