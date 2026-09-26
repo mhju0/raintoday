@@ -246,3 +246,9 @@ The owner's rule: the umbrella line is about the rest of today (now until midnig
 The pinned bar uses the headline's words ("내일 자정부터 비 예상 · 최대 90%"). It no longer shows "예보 끝까지" or an open-run "0mm". Checked at 641–1440px in Chromium and WebKit: no overlap with the toggle and no overflow.
 
 Why the noon cutoff: providers publish a day total without timing, so after noon it cannot show whether that rain is still ahead.
+
+## 2026-09-26: 2.1.1, no second ring inside the search fields
+
+- Clicking the forecast search field or the record-page station field drew the page's offset focus ring inside the field's own border. Text fields match `:focus-visible` on a mouse click, and `.local-forecast-page :focus-visible` outranked the field's `outline: none`.
+- Decision (owner): remove the ring on those two text fields. The field border turns `--local-accent-deep` on focus instead. Buttons keep the keyboard-only ring, which a mouse click never shows (probed every control on `/` and `/behind-the-data`).
+- Guarded by a Playwright test. No open issues from this change.

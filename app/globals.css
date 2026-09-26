@@ -434,6 +434,13 @@ html {
   border-color: var(--local-accent-deep);
 }
 
+/* A text field matches :focus-visible on a mouse click too, so the page ring
+   drew a second, offset box inside the field's own border. The border above
+   is the field's focus mark; the caret does the rest. */
+.local-search-form input:focus-visible {
+  outline: none;
+}
+
 .local-search-form > svg {
   color: var(--local-muted);
 }
@@ -2730,6 +2737,14 @@ html {
   font: inherit;
   /* 16px: below it iOS Safari zooms the page on focus and leaves it zoomed. */
   font-size: 1rem;
+  transition: border-color 160ms ease;
+}
+
+/* Same reason as the forecast search field: the border marks focus, not a
+   second ring outside it. */
+.btd-page .btd-picker-input:focus-visible {
+  outline: none;
+  border-color: var(--local-accent-deep);
 }
 
 .btd-picker-message {
