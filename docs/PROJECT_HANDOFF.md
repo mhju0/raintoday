@@ -219,3 +219,18 @@ Next: after the PR merges and production shows the merged SHA, tag `v2.0.0` on m
   - The README screenshot is now 제주시 with the current labels. It shows real production forecast data rendered by this branch.
 - Branches: the seven merged local branches were deleted. `reliability-state` stays by design.
 - Tracked-file audit: nothing tracked is gitignored, there are no stray untracked files, `.env.example` has empty values, and every ignored path has a stated reason in `.gitignore`.
+
+## 2026-09-26 — Plain rain headline (2.0.2)
+
+The owner asked for a simpler conclusion and approved the recommended set:
+- The label above the headline is now "비 예보", replacing "결론 : 앞으로 24시간, 한 문장으로".
+- Dry: "앞으로 24시간 비 예상 없음". The number is the series' own length, and it only appears when every block is published and the blocks are back to back. Otherwise the headline falls back to "발표된 시간대에 비 예상 없음" (the audit 002 #12 bound).
+- Rain window: "오후 3시부터 저녁 7시까지 비 예상". The window total moved to the line below as "구간 합계".
+- Open run: "내일 자정부터 비 예상". Whole series wet: "앞으로 24시간 내내 비 예상".
+- No probabilities: "시간대별 강수확률 미발표".
+- No hourly timeline: "오늘 강수확률 82%", replacing the question "오늘 비가 올까요?".
+- The later-run note uses the 12-hour clock ("저녁 6시"), matching the headline.
+
+Checked in Chromium and WebKit at 320–1440px across all eight cases: the last line is never shorter than half the widest line, and nothing overflows.
+
+Open: when the blended day amount is at least 10mm, the umbrella line can say "우산을 꼭 챙기세요" under a dry hourly headline. This predates the change and needs an owner decision.
