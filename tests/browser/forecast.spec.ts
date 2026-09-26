@@ -32,7 +32,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
     await expect(page.getByRole("option", { name: /서울특별시 강남구 역삼1동/ })).toBeVisible();
     await search.press("Enter");
 
-    await expect(page.getByRole("heading", { name: /비 예상: 오후 12시부터 밤 9시까지/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /오후 12시부터 밤 9시까지 비 예상/ })).toBeVisible();
     await expect(page.getByRole("main")).toHaveCount(1);
     await expect(page.locator(".local-stubs")).toBeVisible();
     const ribbon = page.locator(".local-ribbon-grid");

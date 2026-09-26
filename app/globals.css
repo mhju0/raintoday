@@ -1140,10 +1140,6 @@ html {
   font-weight: 650;
 }
 
-.local-answer-dim {
-  color: var(--local-dim);
-}
-
 /* Clauses break as whole units. A phone gives each its own line (below), so
    the headline never needs a comma at a line end to separate them. */
 .local-answer-clause {
@@ -1531,15 +1527,6 @@ html {
   border-radius: 2px;
   background: var(--local-mm);
   margin-right: 0.45rem;
-}
-
-/* The sentence's total rides the verdict but keeps the amount's own ink. */
-.local-answer h1 .local-answer-mm {
-  color: var(--local-muted);
-}
-
-.local-answer h1 .local-answer-mm b {
-  color: var(--local-mm-ink);
 }
 
 /* ---- chart recorder: the pinned mini-ribbon and its density toggle ---- */
