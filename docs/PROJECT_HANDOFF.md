@@ -187,3 +187,25 @@ revision after authentic read-only KMA and adversarial parser/redaction checks.
 Preview Chromium confirmed mobile table keyboard scrolling and chooser semantics.
 PR #182 tracks final merge/deployment verification. Private backup, hosting-account
 follow-ups and live outage-breaker proof remain open.
+
+## 2026-09-26 — Release 2.0.0 polish
+
+Changed:
+- The tomorrow card cites the benchmark count the scoring record shows. It had cited the weakest provider's count, which was 15 against 32.
+- Header and hero use one rainfall format (`0.4mm`) and Korean labels.
+- Every label below `--t-label` (0.78rem) was raised to it.
+- `/behind-the-data` has a back link at the top.
+- Provider names, the footer arrow and the empty-instrument labels no longer split across lines.
+- The README has CI and collection badges and dated counts from a read-only production query.
+- Orphaned screenshots and recruiting drafts were removed. `docs/audits/antislop/` was renamed to `docs/audits/ui/`.
+- `.mailmap` maps both author identities to Michael Ju.
+- The version is 2.0.0.
+- On GitHub: the v1.0.0 release was retitled "SeoulSky (predecessor)" with a note that its tag holds the old source, and four unused default labels were deleted.
+
+Decisions:
+- Git history was not rewritten, because it would need a force-push and would break PR and tag links. The cinematic media stays in history, by owner decision.
+- 2.0.0 marks the SeoulSky → 오늘비 succession; it adds no new product scope.
+
+Checked: layout at 320–1440px in Chromium and WebKit against production.
+
+Next: after the PR merges and production shows the merged SHA, tag `v2.0.0` on main and publish the release.
