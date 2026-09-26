@@ -181,8 +181,10 @@ Busan screenshot shows a 91% peak rain chance. GitHub description was updated an
 re-fetched; #175 now marks the old diagnosis superseded and stays open for live
 outage proof. Condensed the oldest handoff entries while retaining unresolved work.
 
-Verification: local full check passed before the final regression additions; CUA
-confirmed local chooser semantics and 320/390 px layout. Pinned Playwright fixtures
-now cover selection/folding/keyboard interaction in CI. Final frozen-commit review,
-CI and deployment verification are required before delivery. Private backup and
-hosting-account follow-ups remain outside these fixes.
+Verification: full Node 24 check passed (485 tests; disposable SQL test skipped
+locally). CI on `9aa6327` passed, including SQL contract, both pinned browser tests,
+dependency review and CodeQL. Independent Astra review approved this exact source
+revision after authentic read-only KMA and adversarial parser/redaction checks.
+Preview Chromium confirmed mobile table keyboard scrolling and chooser semantics.
+PR #182 tracks final merge/deployment verification. Private backup, hosting-account
+follow-ups and live outage-breaker proof remain open.
