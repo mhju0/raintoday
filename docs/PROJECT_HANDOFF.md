@@ -234,3 +234,15 @@ The owner asked for a simpler conclusion and approved the recommended set:
 Checked in Chromium and WebKit at 320–1440px across all eight cases: the last line is never shorter than half the widest line, and nothing overflows.
 
 Open: when the blended day amount is at least 10mm, the umbrella line can say "우산을 꼭 챙기세요" under a dry hourly headline. This predates the change and needs an owner decision.
+
+## 2026-09-26 — Umbrella line answers for the rest of today (2.1.0)
+
+The owner's rule: the umbrella line is about the rest of today (now until midnight KST).
+- Rain in today's remaining hourly blocks means "오늘 우산을 꼭 챙기세요", or "작은 우산" below 70%. This holds for a 3 a.m. check with evening rain too.
+- Before noon, a blended day total of 10mm or more also means take one, even when the hourly source is dry, because most of the day is still ahead. The line says why.
+- After noon the day total may already have fallen, so today's remaining hours decide. Dry today with rain later in the series reads "오늘은 우산 없이 괜찮아요. 내일 자정부터는 챙기세요."
+- This resolves the 2.0.2 open item: a dry headline over "꼭 챙기세요".
+
+The pinned bar uses the headline's words ("내일 자정부터 비 예상 · 최대 90%"). It no longer shows "예보 끝까지" or an open-run "0mm". Checked at 641–1440px in Chromium and WebKit: no overlap with the toggle and no overflow.
+
+Why the noon cutoff: providers publish a day total without timing, so after noon it cannot show whether that rain is still ahead.

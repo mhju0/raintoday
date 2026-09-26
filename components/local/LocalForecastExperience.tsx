@@ -885,6 +885,51 @@ function publishedHours(blocks: LocalForecastTimelineBlock[]): number | null {
   return blocks.reduce((hours, block) => hours + ((block.endHour - block.startHour + 24) % 24 || 24), 0);
 }
 
+/** "지금부터" / "내일 새벽 3시부터", and the end "밤 9시까지" when the series saw one. */
+function windowWords(run: NonNullable<TimelineReading["firstRun"]>, endsTomorrow: boolean) {
+  const onset = run.startIndex === 0
+    ? "지금부터"
+    : `${run.startsTomorrow ? "내일 " : ""}${clockLabel(run.startHour)}부터`;
+  const end = run.endsWithinWindow
+    ? `${endsTomorrow && !run.startsTomorrow ? "내일 " : ""}${clockLabel(run.endHour)}까지`
+    : null;
+  return { onset, end };
+}
+
+/**
+ * The umbrella line answers for the rest of today (now until midnight KST), the
+ * way a person reads the question when they check before heading out:
+ *
+ * - rain in today's remaining blocks → take one, firmly when it is likely;
+ * - before noon, a blended day total of 10mm or more also means take one,
+ *   even when the hourly source is dry — most of the day is still ahead;
+ * - after noon the day total may already have fallen, so today's remaining
+ *   hours decide;
+ * - dry today but rain in the series tomorrow → today is fine, and says when.
+ */
+function umbrellaAdvice({ blocks, dayOffsets, threshold, run, endsTomorrow, today }: {
+  blocks: LocalForecastTimelineBlock[];
+  dayOffsets: number[];
+  threshold: number;
+  run: TimelineReading["firstRun"];
+  endsTomorrow: boolean;
+  today: { precipitationAmountMm: number | null } | null;
+}): string {
+  const rest = blocks.filter((block, index) => dayOffsets[index] === 0 && block.precipMax !== null);
+  if (rest.length === 0) return "강수 정보를 충분히 모으지 못했어요.";
+  const restPeak = Math.max(...rest.map((block) => block.precipMax ?? 0));
+  const restMm = rest.reduce((sum, block) => sum + (block.precipSumMm ?? 0), 0);
+  if (restPeak >= threshold) {
+    return restPeak >= 70 || restMm >= 10 ? "오늘 우산을 꼭 챙기세요." : "오늘 작은 우산을 챙기면 마음이 놓여요.";
+  }
+  const dayMm = today?.precipitationAmountMm ?? null;
+  if (blocks[0].startHour < 12 && dayMm !== null && dayMm >= 10) {
+    return `시간대별 예보에는 없지만 여러 서비스가 오늘 ${formatMm(dayMm)}mm를 예상해요. 우산을 챙기세요.`;
+  }
+  if (run && dayOffsets[run.startIndex] > 0) return `오늘은 우산 없이 괜찮아요. ${windowWords(run, endsTomorrow).onset}는 챙기세요.`;
+  return "우산 없이 나서도 괜찮아 보여요.";
+}
+
 /**
  * The rain window as the sentence the page leads with: when, then "비 예상".
  * One span per clause and no punctuation between them, so a phone sets each
@@ -915,10 +960,8 @@ function RainSentence({ run, endsTomorrow, peak, hours }: {
       </>
     );
   }
-  const onset = run.startIndex === 0
-    ? "지금부터"
-    : `${run.startsTomorrow ? "내일 " : ""}${clockLabel(run.startHour)}부터`;
-  if (!run.endsWithinWindow) {
+  const { onset, end } = windowWords(run, endsTomorrow);
+  if (end === null) {
     return (
       <>
         <span className="local-answer-clause"><b>{onset}</b></span>{" "}
@@ -930,7 +973,7 @@ function RainSentence({ run, endsTomorrow, peak, hours }: {
     <>
       <span className="local-answer-clause"><b>{onset}</b></span>{" "}
       <span className="local-answer-clause">
-        <b>{endsTomorrow && !run.startsTomorrow ? "내일 " : ""}{clockLabel(run.endHour)}까지</b> 비 예상
+        <b>{end}</b> 비 예상
       </span>
     </>
   );
@@ -1050,11 +1093,16 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
 
   // What the pinned bar says while the big graph is off screen: the run's own
   // numbers, already derived — never a new claim.
-  const minibarSummary = run
-    ? `${Math.round(run.peakProbability)}%${
-        run.endsWithinWindow ? ` · ${clockLabel(run.endHour)}까지` : " · 예보 끝까지"
-      }${run.sumMm != null ? ` · ${formatMm(run.sumMm)}mm` : ""}`
-    : peak ? `발표된 확률 ${timeline?.threshold}% 미만` : "시간대 확률 미발표";
+  // The same words as the headline, compact enough for the bar.
+  const hours = publishedHours(blocks);
+  const runEndsTomorrow = run !== null && dayOffsets[run.endIndex] > 0;
+  const minibarSummary = !peak
+    ? "시간대별 강수확률 미발표"
+    : !run
+      ? `${hours === null ? "발표된 시간대" : `${hours}시간`} 비 예상 없음`
+      : `${!run.endsWithinWindow && run.startIndex === 0 && hours !== null
+        ? `${hours}시간 내내`
+        : Object.values(windowWords(run, runEndsTomorrow)).filter(Boolean).join(" ")} 비 예상 · 최대 ${Math.round(run.peakProbability)}%`;
 
   const amountRange = forecast.tomorrowAmountRange ?? null;
 
@@ -1131,7 +1179,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
         <p className="local-kicker">비 예보</p>
         <h1 id="forecast-heading" ref={headingRef} tabIndex={-1}>
           {timeline
-            ? <RainSentence run={run} endsTomorrow={run !== null && dayOffsets[run.endIndex] > 0} peak={peak} hours={publishedHours(blocks)} />
+            ? <RainSentence run={run} endsTomorrow={runEndsTomorrow} peak={peak} hours={hours} />
             : <HeadlineDay day={today ?? tomorrow} label={today ? "오늘" : "내일"} />}
         </h1>
         {timeline && (
@@ -1156,15 +1204,14 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
           </p>
         )}
         <p className="local-answer-action">
-          {rainAction(
-            // The section is the timeline's, so the advice follows the timeline's
-            // peak where there is one; the blended day probability is a different
-            // number from a different set of sources and would contradict it.
-            timeline ? (peak?.probability ?? null) : (today ?? tomorrow).precipitationProbability,
-            (today ?? tomorrow).precipitationAmountMm,
-            timeline?.threshold ?? RAIN_ONSET_PROBABILITY,
-          )}
-          {laterRun && ` 이후 ${laterRun.startsTomorrow ? "내일 " : ""}${clockLabel(laterRun.startHour)}부터 다시 비가 예상됩니다.`}
+          {timeline
+            ? umbrellaAdvice({ blocks, dayOffsets, threshold: timeline.threshold, run, endsTomorrow: runEndsTomorrow, today })
+            : rainAction(
+              (today ?? tomorrow).precipitationProbability,
+              (today ?? tomorrow).precipitationAmountMm,
+              RAIN_ONSET_PROBABILITY,
+            )}
+          {laterRun && run && !run.startsTomorrow && ` 이후 ${laterRun.startsTomorrow ? "내일 " : ""}${clockLabel(laterRun.startHour)}부터 다시 비가 예상됩니다.`}
         </p>
       </section>
 
