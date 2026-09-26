@@ -1,5 +1,8 @@
 # 오늘비 · Raintoday
 
+[![CI](https://github.com/mhju0/raintoday/actions/workflows/ci.yml/badge.svg)](https://github.com/mhju0/raintoday/actions/workflows/ci.yml)
+[![Evidence collection](https://github.com/mhju0/raintoday/actions/workflows/local-performance.yml/badge.svg)](https://github.com/mhju0/raintoday/actions/workflows/local-performance.yml)
+
 **Rain forecasts for South Korea, with the evidence behind tomorrow’s forecast.**
 
 오늘비 helps people check when rain is expected and compare forecasts from five weather services. It pairs a 24-hour timeline from one named provider with daily comparisons and a tomorrow forecast that can use performance evidence from nearby KMA observation stations.
@@ -21,7 +24,7 @@ The interface is in Korean. Open the app and choose **서울**, **부산**, **�
 
 ## Engineering highlights
 
-**Forecasts saved before outcomes.** A scheduled collector stores immutable next-day forecasts and later pairs them with completed KMA ASOS observations in PostgreSQL. Morning and evening capture groups are scored separately.
+**Forecasts saved before outcomes.** A scheduled collector stores immutable next-day forecasts and later pairs them with completed KMA ASOS observations in PostgreSQL. Morning and evening capture groups are scored separately. As of September 26, 2026, it had stored 6,278 forecast captures and 3,666 station-day observations across 97 KMA stations, collected twice daily since August 19, 2026.
 
 **Evidence controls the blend.** Recent-performance influence applies only to tomorrow and requires sufficient wet/dry samples and a prospective benchmark no worse than equal weighting. Eligible archive evidence can provide a limited adjustment while recent records accumulate; otherwise the app uses equal influence. Retrospective evidence never enters the prospective benchmark.
 

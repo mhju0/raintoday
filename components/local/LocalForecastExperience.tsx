@@ -39,7 +39,7 @@ interface ChosenForecastLocation {
 }
 
 /**
- * The forecast providers, in the order CLAUDE.md pins them. The chooser states
+ * The forecast providers, in the order AGENTS.md pins them. The chooser states
  * the count before a visitor commits a coordinate, so it counts this list
  * rather than carrying a number that can drift away from it.
  */
@@ -278,7 +278,8 @@ function SearchMark() {
 
 // The no-break space ties each dot to the name before it, so a wrapped list
 // never opens its next line with a separator.
-const providerList = COMPARED_PROVIDER_NAMES.join("\u00a0· ");
+// A provider is one name: "Pirate Weather" must not break across a line.
+const providerList = COMPARED_PROVIDER_NAMES.map((name) => name.replace(/ /g, "\u00a0")).join("\u00a0· ");
 
 export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   onChoose(input: ChosenForecastLocation): void;
@@ -701,7 +702,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
           </strong>
         </div>
         <div>
-          <span>{seedRanked.length > 0 ? "과거 비교 기록\u00a0· 서비스별 최소" : "비교한 예보"}</span>
+          <span>{seedRanked.length > 0 ? "과거 비교 기록\u00a0· 서비스별 최소" : "비교한 예보\u00a0· 서비스별 최소"}</span>
           <strong>
             {seedRanked.length > 0
               ? `${Math.min(...seedRanked.map((row) => row.sampleCount))}일`
@@ -774,7 +775,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
                     <span role="cell">{provider.windowBrier.toFixed(3)}</span>
                     <span role="cell">누락 {provider.misses} · 오보 {provider.falseAlarms}</span>
                     <span role="cell">
-                      {provider.rainyAmountMae === null ? "기록 없음" : `${provider.rainyAmountMae.toFixed(1)} mm`}
+                      {provider.rainyAmountMae === null ? "기록 없음" : `${provider.rainyAmountMae.toFixed(1)}mm`}
                       {provider.rainyAmountSampleCount > 0 && ` · ${provider.rainyAmountSampleCount}일`}
                     </span>
                   </div>
@@ -1088,7 +1089,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             <>
               <span className="local-strip-temp">{Math.round(forecast.current.temperature)}°</span>
               <span className="local-strip-meta">
-                {CONDITION_LABELS_KO[forecast.current.condition]} · KST
+                {CONDITION_LABELS_KO[forecast.current.condition]}
               </span>
             </>
           )}
@@ -1108,7 +1109,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             {peak && <span>최대 <b className="is-wet">{Math.round(peak.probability)}%</b> · {peak.rangeLabel}</span>}
             {run && <span>지속 <b>{run.durationHours}시간</b></span>}
             {tomorrow.precipitationAmountMm !== null && (
-              <span>내일 예상 강수량 <b>{tomorrow.precipitationAmountMm.toFixed(1)} mm</b></span>
+              <span>내일 예상 강수량 <b>{formatMm(tomorrow.precipitationAmountMm)}mm</b></span>
             )}
             <span>{timeline.threshold}% 이상인 시간대를 비 예상 구간으로 봅니다</span>
           </p>
@@ -1353,7 +1354,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             {seeded
               ? "최근 비교 기록이 부족해 과거 모델 예보와 관측을 비교한 결과를 일부 반영했습니다."
               : learned
-                ? <>관측소 {forecast.evidence.station?.name ?? "근처 관측소"}의 <b>{forecast.evidence.comparisonSampleCount}일 기록</b>을 반영했습니다.</>
+                ? <>관측소 {forecast.evidence.station?.name ?? "근처 관측소"}의 <b>비교 기록 {forecast.evidence.benchmark?.sampleCount ?? forecast.evidence.comparisonSampleCount}건</b>을 반영했습니다.</>
                 : "현재 가중치 적용 조건을 충족하지 않아 응답한 서비스를 같은 비중으로 평균했습니다."}
           </p>
         </section>
@@ -1462,7 +1463,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             page nobody reads, and the claim it carries is the product's. */}
         <p>
           <a className="local-footer-link" href={recordHref}>
-            이 예보를 어떻게 채점하는가 →
+            이 예보를 어떻게 채점하는가{"\u00a0"}→
           </a>
         </p>
       </footer>
@@ -1627,7 +1628,7 @@ export default function LocalForecastExperience() {
           <span className="local-wordmark">오늘비</span>
           <small>전국 로컬 예보</small>
         </button>
-        <span className="local-live-mark"><i /> KST · LIVE SOURCES</span>
+        <span className="local-live-mark"><i /> 실시간 예보 · KST</span>
       </header>
 
       {(state.kind === "idle" || state.kind === "loading") && (
@@ -1672,7 +1673,7 @@ export default function LocalForecastExperience() {
       )}
 
       {state.kind === "error" && (
-        <div className="local-state-card">
+        <main className="local-state-card">
           {/* Two failures, two shapes. `retry` is null exactly when the same
               request can never succeed, so that card offers no retry and says
               why rather than leaving a button that is guaranteed to fail. */}
@@ -1710,7 +1711,7 @@ export default function LocalForecastExperience() {
               ? "저장된 위치는 지우지 않았습니다."
               : "이 좌표는 기기에 저장하지 않았습니다."}
           </p>
-        </div>
+        </main>
       )}
 
       {state.kind === "ready" && (

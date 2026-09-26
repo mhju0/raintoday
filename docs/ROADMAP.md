@@ -4,12 +4,12 @@ Updated 2026-09-26. The project is in maintenance mode: correctness, security,
 provider compatibility and service operation. New product scope requires an owner decision.
 Source/tests and Git take precedence over this document.
 
-## Release 1.1.0
+## Release 2.0.0
 
-The maintenance release includes the approved audit fixes, local versus regional
-observation wording, shared agent instructions, and the security/recovery review.
-The release tag must point at verified main after its production deployment is checked.
-The old v1.0.0 tag remains unchanged; it contains the earlier SeoulSky application.
+2.0.0 marks 오늘비 as the successor to SeoulSky (v1.0.0). It adds no new product scope:
+it follows v1.1.0 with the September 26 audit fixes, accessibility work, the type-scale pass
+and the shorter README. The tag must point at verified main after its production deployment
+is checked. The v1.0.0 tag remains unchanged on the SeoulSky source.
 
 ## Maintenance follow-ups
 
@@ -40,7 +40,7 @@ and account checks are tracked in [#140](https://github.com/mhju0/raintoday/issu
   validation, shared provider/search code, UI audit and public-copy corrections.
 - Expanded CI covers route behavior and a disposable PostgreSQL store contract.
 - September 26 audit remediation adds pinned, fixture-backed browser checks and a
-  shorter recruiting overview; detailed methodology remains in FORECAST_CONTRACT.md.
+  shorter project overview; detailed methodology remains in FORECAST_CONTRACT.md.
 - The v1.0.0 release description and GitHub public descriptions were edited without
   changing historical tags or pretending that old source represents the current app.
 
@@ -61,7 +61,7 @@ and account checks are tracked in [#140](https://github.com/mhju0/raintoday/issu
 The product remains Korean-language, precipitation-focused and limited to South Korea.
 The retired cinematic scene, radar and second scoring pipeline stay retired. The
 `reliability-state` archive and its deployment guard remain. Station eligibility and
-scoring policy are unchanged by the local/regional wording. The September 26 owner approval adopts a shorter recruiting README with a real
+scoring policy are unchanged by the local/regional wording. The September 26 owner approval adopts a shorter README with a real
 rainy-forecast screenshot and retains the detailed contract in linked documentation.
 
 Dated audits and research preserve their observation date. They are not live task lists.

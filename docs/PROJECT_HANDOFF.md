@@ -16,7 +16,7 @@ Resolve conflicts using source/tests, Git, DECISIONS, ROADMAP, this handoff, the
 historical Claude material. `AGENTS.md` holds shared repository instructions;
 `CLAUDE.md` imports it and adds only the installed Next.js documentation reminder.
 Keep personal instructions in ignored `CLAUDE.local.md` and scratch work in `.scratch/`.
-Reviewed Antislop reports belong in [audits/antislop](audits/antislop/).
+Reviewed Antislop reports belong in [audits/ui](audits/ui/).
 
 ## Boundaries to preserve
 
@@ -145,11 +145,10 @@ Open: "모두 0mm".
 
 A rain window whose total rounds to 0 now reads "모두 0.1mm 미만". "비 예상 … 모두 0mm" contradicted itself; the published amount is kept as a bound rather than hidden. It fits on one line from 320px up, in both engines. This closes the open item carried by the last three entries.
 
-## 2026-09-26 — Repository audit and recruiting presentation
+## 2026-09-26 — Repository, security and accessibility audit
 
-Prepared a concise self-contained HTML report, proposed README, portfolio/GitHub copy,
-and first-party comparative research under `docs/audits/2026-09-26/` and
-`docs/research/2026-09-26-weather-project-presentation.md`. Source reviewed: `be4120f`.
+Recorded the evidence in `docs/audits/2026-09-26/evidence.md` and the accessibility
+findings in audit 005. Source reviewed: `be4120f`.
 No app fixes, GitHub metadata changes, publication, deployment or evidence writes.
 
 Verified: full local check passes; current-head CI SQL contract passes. Live Seoul
@@ -163,12 +162,12 @@ README/OPERATIONS/performance README with five collector attempts and current DB
 retry coverage. Findings are reproduced or explicitly labelled recommendations;
 production data corruption or credential leakage was not observed.
 
-Next: owner reviews numbered findings and recruiting drafts. Preserve existing
+Next: owner reviews numbered findings. Preserve existing
 chart-recorder design and immutable evidence; use independent data-integrity review
 for any parser/persistence correction. Outage-breaker live-outage proof and existing
 private backup/dashboard follow-ups remain open.
 
-## 2026-09-26 — Approved audit remediation and recruiting overview
+## 2026-09-26 — Approved audit remediation and README overview
 
 The owner approved all findings and requested a rainy screenshot. Implemented
 shared ASOS row validation, ordinary-error redaction, chooser/table accessibility,
@@ -183,8 +182,30 @@ outage proof. Condensed the oldest handoff entries while retaining unresolved wo
 
 Verification: full Node 24 check passed (485 tests; disposable SQL test skipped
 locally). CI on `9aa6327` passed, including SQL contract, both pinned browser tests,
-dependency review and CodeQL. Independent Astra review approved this exact source
+dependency review and CodeQL. An independent review approved this exact source
 revision after authentic read-only KMA and adversarial parser/redaction checks.
 Preview Chromium confirmed mobile table keyboard scrolling and chooser semantics.
 PR #182 tracks final merge/deployment verification. Private backup, hosting-account
 follow-ups and live outage-breaker proof remain open.
+
+## 2026-09-26 — Release 2.0.0 polish
+
+Changed:
+- The tomorrow card cites the benchmark count the scoring record shows. It had cited the weakest provider's count, which was 15 against 32.
+- Header and hero use one rainfall format (`0.4mm`) and Korean labels.
+- Every label below `--t-label` (0.78rem) was raised to it.
+- `/behind-the-data` has a back link at the top.
+- Provider names, the footer arrow and the empty-instrument labels no longer split across lines.
+- The README has CI and collection badges and dated counts from a read-only production query.
+- Orphaned screenshots and recruiting drafts were removed. `docs/audits/antislop/` was renamed to `docs/audits/ui/`.
+- `.mailmap` maps both author identities to Michael Ju.
+- The version is 2.0.0.
+- On GitHub: the v1.0.0 release was retitled "SeoulSky (predecessor)" with a note that its tag holds the old source, and four unused default labels were deleted.
+
+Decisions:
+- Git history was not rewritten, because it would need a force-push and would break PR and tag links. The cinematic media stays in history, by owner decision.
+- 2.0.0 marks the SeoulSky → 오늘비 succession; it adds no new product scope.
+
+Checked: layout at 320–1440px in Chromium and WebKit against production.
+
+Next: after the PR merges and production shows the merged SHA, tag `v2.0.0` on main and publish the release.

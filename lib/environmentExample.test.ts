@@ -6,7 +6,7 @@ import test from "node:test";
 
 /**
  * `.env.example` is the only inventory of what this project can be configured
- * with, and CLAUDE.md makes a promise about it: it declares what the code reads
+ * with, and AGENTS.md makes a promise about it: it declares what the code reads
  * and nothing else, "because a stale example is how a dead key survives a
  * cleanup". That promise was made in prose carrying a literal count, and the
  * count went stale the moment a fifth provider was added — the sentence warning
