@@ -906,7 +906,11 @@ function RainSentence({ run, endsTomorrow, peak, threshold }: {
           rain stop AND every block in the run published an amount: an open run
           or a partial sum would claim a total the data never stated. */}
       {run.sumMm != null && (
-        <>{" "}<span className="local-answer-clause local-answer-mm">모두 <b>{formatMm(run.sumMm)}mm</b></span></>
+        <>{" "}<span className="local-answer-clause local-answer-mm">모두 <b>{
+          // A total that rounds to 0 would read "비 예상 … 모두 0mm", which
+          // contradicts itself; state it as the bound it is.
+          formatMm(run.sumMm) === "0" ? "0.1mm 미만" : `${formatMm(run.sumMm)}mm`
+        }</b></span></>
       )}
     </>
   );
