@@ -83,8 +83,9 @@ check `maintenance` itself and re-enable schedules when necessary. See
 September 6 incident: `apis.data.go.kr` connections timed out from the local probe,
 and scheduled collection and the served KMA forecast failed as well. A separate
 HTTPS probe reached `apihub.kma.go.kr`. Its documented forecast endpoints rejected
-the current API Hub key with HTTP 403, so no gateway switch was made. KMA must restore
-the original route or approve equivalent API access before that fallback is usable.
+the current API Hub key with HTTP 403, so no gateway switch was made. The next scheduled
+cohort recovered that night. The 403 was later traced to the account never being approved
+for forecast endpoints (see Credentials below), not to the key or its expiry.
 This identifies the failing connection boundary, not the provider's internal root cause.
 
 September 13 incident, run #64: the first collector attempt and its single fresh-runner
@@ -227,9 +228,13 @@ pg_restore --exit-on-error --no-owner --no-acl --dbname="$RESTORE_DATABASE" "$BA
 ```
 
 Verify station, capture, observation and seed row counts and deterministic row checksums.
-Set both sessions to UTC before comparing timestamp representations. On September 6,
-2026, a private backup restored successfully into local PostgreSQL 18: 97 stations,
-3,077 captures, 1,746 observations and 8,822 seed comparisons matched the source.
+Set both sessions to UTC before comparing timestamp representations, and order rows with
+`COLLATE "C"`. Initialise the restore cluster with `initdb --locale=C`: Neon runs
+`C.UTF-8`, and under a macOS default locale (`en_US.UTF-8`) the row-to-text rendering
+double-quotes some Hangul station names, so identical data produces a different checksum.
+On September 28, 2026, a private backup restored successfully into local PostgreSQL 18:
+97 stations, 6,565 captures, 3,860 observations and 8,822 seed comparisons matched the
+source by count and checksum (the September 6 backup matched 97, 3,077, 1,746 and 8,822).
 This proves that backup's recovery, not a future backup or a managed retention policy.
 The Neon dashboard showed a six-hour history retention window on September 6, 2026.
 This is short-term recovery, not a substitute for private backups. With monthly manual

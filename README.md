@@ -24,7 +24,7 @@ The interface is in Korean. Open the app and choose **서울**, **부산**, **�
 
 ## Engineering highlights
 
-**Forecasts saved before outcomes.** A scheduled collector stores immutable next-day forecasts and later pairs them with completed KMA ASOS observations in PostgreSQL. Morning and evening capture groups are scored separately. As of September 26, 2026, it had stored 6,278 forecast captures and 3,666 station-day observations across 97 KMA stations, collected twice daily since August 19, 2026.
+**Forecasts saved before outcomes.** A scheduled collector stores immutable next-day forecasts and later pairs them with completed KMA ASOS observations in PostgreSQL. Morning and evening capture groups are scored separately. As of September 28, 2026, it had stored 6,565 forecast captures and 3,860 station-day observations across 97 KMA stations, collected twice daily since August 19, 2026. Seoul's morning capture group became the first to move from archive evidence to recent-evidence weighting, which so far matches equal weighting rather than beating it.
 
 **Evidence controls the blend.** Recent-performance influence applies only to tomorrow and requires sufficient wet/dry samples and a prospective benchmark no worse than equal weighting. Eligible archive evidence can provide a limited adjustment while recent records accumulate; otherwise the app uses equal influence. Retrospective evidence never enters the prospective benchmark.
 

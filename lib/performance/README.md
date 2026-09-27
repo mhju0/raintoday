@@ -65,7 +65,7 @@ Refusing and alerting are separate decisions. A refused capture stores nothing, 
 are missing data rather than wrong data, and `cohortRunFailed` fails the run only past
 `CAPTURE_FAULT_TOLERANCE` of the cohort. Below that line the counts are still reported and
 a warning names them. The observed separation is wide: clean runs fault none, a transient
-provider blip faulted 3 of 97, an egress blackout faulted all 97. **Observation** reads keep
+provider blip faulted 3 of 97, a KMA outage faulted all 97. **Observation** reads keep
 zero tolerance — a station ASOS has no row for is an absence, anything else is a fault that
 fails the run at any count.
 

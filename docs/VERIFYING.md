@@ -65,7 +65,9 @@ npm run test:browser
 ```
 
 It checks location selection, evidence expansion and timeline keyboard interaction
-at 390 px and 1440 px. CI installs Chromium and runs it after the production build.
+at 390 px and 1440 px, and that the search field marks focus with its own border
+while buttons keep the keyboard focus ring. It runs against the last `npm run build`,
+so rebuild after changing CSS or components. CI installs Chromium and runs it after the production build.
 The suite starts its own server on port 3101; leave that port free. It supplements
 manual scoring-page, responsive and assistive-technology checks rather than proving
 full accessibility conformance. Browser output belongs in ignored test directories.
@@ -89,7 +91,7 @@ alone does not establish SQL behavior.
 `npm run service:health` reads the deployed forecast and quota headers; it consumes provider
 quota. `-- --target=local` checks port 3000 and requires the same configured services.
 Capture, seed and observation scripts write evidence and are not validation commands.
-Never dispatch extra production cohorts to accelerate #124, or backfill frozen forecasts.
+Never dispatch extra production cohorts to accelerate evidence, or backfill frozen forecasts.
 
 GitHub PRs get CI and Vercel previews; merging main deploys to production. There is no
 separate staging promotion gate. Review the actual diff and checks before merging. Keep
