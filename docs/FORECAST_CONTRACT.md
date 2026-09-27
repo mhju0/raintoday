@@ -58,7 +58,8 @@ npm run performance:seed -- --start=2025-06-01 --end=2025-08-31
 ## User flow
 
 1. Choose device location, search for a Korean area, or select an example.
-2. Read the expected rain window and next 24 hours from the named hourly provider. The rain-window threshold is 40% or higher. Lower values do not mean rain is impossible; unpublished values remain labelled as missing.
+2. Read the expected rain window and next 24 hours from the named hourly provider, for example "오후 3시부터 저녁 7시까지 비 예상". The rain-window threshold is 40% or higher. Lower values do not mean rain is impossible; unpublished values remain labelled as missing, and a length such as "앞으로 24시간" is stated only when every block is published and the blocks are contiguous. Without an hourly series, the headline shows the blended day probability instead.
+   The umbrella line covers the rest of today (now until midnight KST). Rain at or above the threshold in today's remaining blocks means take an umbrella. Before noon, a blended day total of 10 mm or more also does, because a day total carries no timing. Rain only after midnight reads as no umbrella today.
 3. Compare today and tomorrow, each labelled with its calculation method. Rainfall amount has its own provider count.
 4. Expand the provider comparison, longer outlook and scoring evidence if needed.
 5. Open the evidence-status link to the station's [`/behind-the-data`](https://raintoday.vercel.app/behind-the-data) record. Device-location links carry only the public station ID; area links carry the area's representative coordinate.

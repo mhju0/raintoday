@@ -13,7 +13,7 @@ implemented for v1.1.0. The approved copy pass supersedes the earlier README-len
 rejection. Security and recovery procedures are in [OPERATIONS.md](OPERATIONS.md).
 Older dated measurements below describe their observation date, not current guarantees.
 
-Compiled 2026-09-04; audited and updated 2026-09-05. Sources are ADRs, Git history,
+Compiled 2026-09-04; audited and updated 2026-09-05; open items refreshed 2026-09-28. Sources are ADRs, Git history,
 GitHub issues and PRs, and prior working
 conversations. Chronological. The point of this file is the part git cannot reconstruct:
 **why** something was decided, what it replaced, and — for the many entries where it
@@ -832,7 +832,7 @@ so they are not re-proposed as if new.
 | --- | --- |
 | **English UI / i18n** | Biggest cost, least product value — the README captions already translate the interface for an evaluator. The product is for Korean users. |
 | **Shortening the README** | Superseded by the owner-approved September 6 public-copy pass. |
-| **Splitting `LocalForecastExperience.tsx`** | 1,801 lines, judged and **deferred**: it serves the reviewer, not the product. Do it only if the code should read as well as the docs do. |
+| **Splitting `LocalForecastExperience.tsx`** | 1,815 lines, judged and **deferred**: it serves the reviewer, not the product. Do it only if the code should read as well as the docs do. |
 | **Adding `server-only`** to the service-area module | A new dependency for a guard the tests already provide (ADR 0006). |
 | **Reviving the radar / the cinematic scene** | Removed with an ADR behind it. |
 | **Any new product scope** | `CLAUDE.md` states the rule directly; the project is in maintenance mode. |
@@ -841,7 +841,7 @@ so they are not re-proposed as if new.
 | **MET Norway** | No `probability_of_precipitation` for Korea. |
 | **Coach marks / guided tours / numbered chapters** | ADR 0010. |
 | **Quartile or percentile wording for amount spread** | Dishonest at n ≤ 4; named min/max instead. |
-| **Silencing the run-failure alert** | The failed step, its warning, and the retry job's presence are what keep a blackout visible. |
+| **Silencing the run-failure alert** | The failed step, its warning, and the retry job's presence are what keep an outage visible. |
 | **Adding a `LICENSE`** to clear the Scorecard alert | Deliberately all-rights-reserved; see 2026-07-31. |
 
 ---
@@ -850,17 +850,17 @@ so they are not re-proposed as if new.
 
 | Item | Status | Note |
 | --- | --- | --- |
-| The seed → live handover | **EXPERIMENTAL** | Never executed on real data. Projected ~2026-09-22; #89 closed on the *fix*, not the event, so nobody is watching. |
+| The seed → live handover | **ACTIVE (observed once)** | First seen 2026-09-26 and recorded on #140 on 2026-09-28: station 108 cohort 06 is `ramping` on a passing 34-sample benchmark, adaptive = equal (0.0525). Cohort 18 was still `seed` at 28 of 30. Other stations and cohorts are unobserved. |
 | Provider behaviour at the handover | **UNKNOWN** | History and wet/dry coverage vary by station/cohort. Two eligible providers are sufficient; KMA is not a global gate. The zero-history fallback fix is approved. |
 | Which weight projection is correct | **UNKNOWN** | Water-filling survives by inheritance. ADR 0004's 78% / 0.167 measurement is the only account of what is at stake. |
-| Does the blend beat the best single provider? | **UNKNOWN** | The published position is "not yet". A live read on 2026-09-04 had adaptive **and** equal at Brier 0.197, both better than Open-Meteo alone at 0.233 — over 10 comparisons, so noise, but the opposite of what the README and release note say. |
+| Does the blend beat the best single provider? | **UNKNOWN** | The published position is "not yet". Station 108 cohort 06 on 2026-09-27: adaptive = equal at Brier 0.0525 over 34 comparisons, slightly better than Open-Meteo alone (0.0548) and well ahead of KMA alone (0.109). One station, one cohort, a mostly dry month: not a claim. (2026-09-04: both 0.197 against Open-Meteo 0.233 over 10.) |
 | Grouping captures by measured lead time | **DEFERRED** | #118. |
 | Eligibility counts cumulatively; the benchmark counts within the window | **UNKNOWN** | A latent asymmetry: a provider can be eligible on lifetime count while its Brier rests on very few recent comparisons. Scoring policy, so it sits behind the ADR gate. |
-| `v1.1.0` and the tagging policy | **APPROVED** | #124 accepted September 6; publish from verified main after production checks. Retain v1.0.0. |
+| `v1.1.0` and the tagging policy | **DONE** | v1.1.0 released September 6. Since 2026-09-26 every merged change ships as a release; see below. v1.0.0 retained. |
 | Retaining the `reliability-state` branch | **ACTIVE** | Owner approved retaining the archive and deployment guard. |
-| The ADR 0005 `proximity` dimension | **APPROVED** | Wording only; implementation queued. |
-| Dependabot auto-merge on patch/minor updates | **APPROVED** | Require passing CI first; major upgrades stay manual. |
-| data.go.kr key 활용기간 expiry | **Human-only** | A lapse fails the daily run loudly, so it is caught — but it is the one calendar item worth setting. |
+| The ADR 0005 `proximity` dimension | **ACTIVE** | Wording only; shipped in v1.1.0. |
+| Dependabot auto-merge on patch/minor updates | **ACTIVE, narrowed** | Since #165 (2026-09-18) Dependabot opens security-fix PRs only; patch/minor ones may auto-merge after required CI, majors stay manual. |
+| data.go.kr key 활용기간 expiry | **ACTIVE (#152)** | End dates in `CREDENTIAL_EXPIRIES`; the maintenance workflow opens a renewal issue at 30 days and escalates at 7. Renewal itself is human-only. |
 
 ---
 
@@ -893,3 +893,50 @@ Node 24 and IPv4 curl in all paired probes. No IP-family or runner-platform chan
 supported by those samples. These changes handle reproduced recovery gaps; they do
 not establish or repair the external network's root cause, and they do not backfill
 missed historical captures.
+
+---
+
+## 2026-09-18 — Dependabot opens security fixes only
+
+**Status: ACTIVE (#165)**
+
+Routine version PRs were churn for a maintenance-mode project. `open-pull-requests-limit: 0`
+stops them; security updates are enabled separately and still arrive as PRs. Routine
+upgrades are reviewed by hand when a fix or support deadline calls for one.
+
+---
+
+## 2026-09-19 → 09-23 — Space retries in time, and establish an outage once
+
+**Status: ACTIVE (#169, #177). The breaker is EXPERIMENTAL until a real outage exercises it (#175).**
+
+Three fresh runners inside 83 seconds were one sample of a flapping route (#169), so
+attempts target 0, 10, 25, 40 and 55 minutes from the first. The September 22 reading
+of ~1,140-second failures as a long egress blackout was wrong: that was the cost of
+walking 97 failing stations. #177 abandons a source after 12 consecutive transport
+failures with no success in the pass, reports abandoned work separately, and fails
+the cohort. Captures stay immutable and missed cohorts are never backfilled.
+
+---
+
+## 2026-09-26 — 2.0.0, and a release for every merged change
+
+**Status: ACTIVE (`AGENTS.md` → Releases)**
+
+2.0.0 marks 오늘비 as SeoulSky's successor without new product scope. From then on every
+merged change ships as a release: patch for fixes, copy, layout, docs and operations;
+minor for a new or clearly changed capability; major only by owner decision. Tag only
+after production serves the merge commit and CI on `main` passes. Git history was not
+rewritten (no force-push); `.mailmap` maps both author identities to Michael Ju.
+
+---
+
+## 2026-09-26 — A plain headline, and an umbrella line about the rest of today
+
+**Status: ACTIVE (2.0.2, 2.1.0)**
+
+The headline states the rain window in plain words from the named hourly provider.
+"앞으로 N시간" appears only for a fully published, contiguous series (audit 002 #12).
+The umbrella line answers for now until midnight KST: today's remaining blocks decide,
+and a blended day total of 10 mm or more also counts before noon, because a day total
+carries no timing. The noon cutoff is a rule of thumb, not a measured threshold.
