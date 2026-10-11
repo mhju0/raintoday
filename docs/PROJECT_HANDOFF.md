@@ -132,3 +132,11 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Decision: the ribbon's minimum width is in rem, so at enlarged text it scrolls sideways at any viewport instead of overlapping its labels. At normal text size its layout is unchanged.
 - Decision: the 200% mid-word break at 320px and short last lines in long record paragraphs at 130% stay as they are; reasons in the audit follow-up.
 - Release candidate: 2.1.5. Audit 007 has no open findings. Next: merge after checks, confirm main CI and the production merge SHA, then tag and publish the release.
+
+## 2026-10-12 — 2.1.5 released; timeline amounts use the probability's model
+
+- 2.1.5 (PR #198, `a9c2a8f`): main CI passed, production serves the merge commit, annotated tag and GitHub release published.
+- Owner reported timeline blocks reading 75% over 0 mm. Cause is in the source: Open-Meteo's default hourly probability for Korea equals its ECMWF IFS 0.25° series (checked at six locations), while its default hourly amount comes from another model. Block arithmetic was correct.
+- Decision (owner chose "timeline only"): hourly amounts are a second Open-Meteo request with `models=ecmwf_ifs025`. Daily probability and amount, the blend and stored captures are unchanged. If the second request fails, hourly amounts stay missing; no fallback to the mismatched default.
+- Open-Meteo requests per forecast read double (serving and capture share `read()`); it has no key or metered quota here.
+- Release candidate: 2.1.6. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish; then retake the README screenshot and refresh its dated figures as 2.1.7 (work stashed as `readme-refresh-216`). Open, owner-only: the repository's GitHub social preview image lists four providers; the portfolio's Raintoday screenshot awaits owner approval.

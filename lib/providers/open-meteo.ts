@@ -35,7 +35,6 @@ interface OpenMeteoResponse {
     time: string[];
     temperature_2m: number[];
     precipitation_probability: (number | null)[];
-    precipitation: (number | null)[];
     weather_code: number[];
     wind_speed_10m: number[];
     relative_humidity_2m: number[];
@@ -59,10 +58,61 @@ interface Snapshot {
 }
 
 const OPEN_METEO_MAX_BYTES = 2 * 1024 * 1024;
+const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
+
+/**
+ * Open-Meteo's default hourly `precipitation_probability` for Korea is the
+ * ECMWF IFS 0.25° ensemble's, while its default hourly `precipitation` comes
+ * from a different model, so one hour can read 74% over 0 mm. The hourly
+ * amounts are requested from the probability's own model instead.
+ */
+const HOURLY_AMOUNT_MODEL = "ecmwf_ifs025";
+
+interface HourlyAmountResponse {
+  hourly?: {
+    time?: string[];
+    precipitation?: (number | null)[];
+  };
+}
 
 /** Open-Meteo returns naive local timestamps ("2026-06-12T23:45") — pin them to KST. */
 function toKstIso(naive: string): string {
   return `${naive}:00+09:00`.replace(/:00:00\+/, ":00+");
+}
+
+/**
+ * Hourly amounts by naive local hour. A failed read leaves them missing rather
+ * than pairing the probability with another model's amounts.
+ */
+async function fetchHourlyAmounts(location: ForecastLocation): Promise<Map<string, number>> {
+  const amounts = new Map<string, number>();
+  try {
+    const params = new URLSearchParams({
+      latitude: String(location.latitude),
+      longitude: String(location.longitude),
+      timezone: location.timezone,
+      forecast_days: "3",
+      hourly: "precipitation",
+      models: HOURLY_AMOUNT_MODEL,
+    });
+    const res = await fetch(`${OPEN_METEO_URL}?${params}`, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return amounts;
+    const bytes = await readResponseBytes(res, {
+      maxBytes: OPEN_METEO_MAX_BYTES,
+      contentType: "application/json",
+    });
+    const data = JSON.parse(new TextDecoder().decode(bytes)) as HourlyAmountResponse;
+    const values = data.hourly?.precipitation;
+    data.hourly?.time?.forEach((time, i) => {
+      const value = values?.[i];
+      if (typeof value === "number") amounts.set(time, value);
+    });
+  } catch {
+    amounts.clear();
+  }
+  return amounts;
 }
 
 async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
@@ -74,14 +124,15 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
     current:
       "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,snowfall,weather_code,cloud_cover,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day,visibility",
     hourly:
-      "temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,relative_humidity_2m",
+      "temperature_2m,precipitation_probability,weather_code,wind_speed_10m,relative_humidity_2m",
     daily:
       "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset",
   });
 
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, {
-    signal: AbortSignal.timeout(10_000),
-  });
+  const [res, hourlyAmounts] = await Promise.all([
+    fetch(`${OPEN_METEO_URL}?${params}`, { signal: AbortSignal.timeout(10_000) }),
+    fetchHourlyAmounts(location),
+  ]);
   if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
   const bytes = await readResponseBytes(res, {
     maxBytes: OPEN_METEO_MAX_BYTES,
@@ -122,7 +173,7 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
         time: toKstIso(t),
         temperature: data.hourly.temperature_2m[idx],
         precipitationProbability: data.hourly.precipitation_probability[idx] ?? null,
-        precipitationAmount: data.hourly.precipitation?.[idx] ?? null,
+        precipitationAmount: hourlyAmounts.get(t) ?? null,
         windSpeed: data.hourly.wind_speed_10m[idx],
         humidity: data.hourly.relative_humidity_2m[idx],
         condition: conditionFromWmoCode(data.hourly.weather_code[idx]),
