@@ -95,3 +95,17 @@ Open (owner access only):
   workflows as active, although their files are gone from `main` and they cannot fire.
 
 Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, then closes #146 and #154.
+
+## 2026-10-11 — Probability ribbon baseline audit
+
+- Report only, per owner request: [audit 006](audits/ui/audit-006-2026-10-11.md), with live production screenshots and Chromium/WebKit controlled-response measurements.
+- Confirmed independently sized column auto rows let wrapped captions shift probability bars and the 40% line above 900px. Normal phone/portrait-tablet checks did not reproduce the symptom; device-specific state remains unknown.
+- Recommendation: shared chart rows, preferably row subgrid, so captions cannot move plot origins. No application changes, commit, release or deployment. Next: owner reviews the report; implementation awaits an explicit request.
+
+## 2026-10-11 — Shared chart baseline and responsive layout fixes
+
+- Owner authorized implementation, then expanded the scope to service-wide wrapping, spacing and alignment fixes delivered to main. Kept the chart-recorder direction and forecast semantics; no provider, probability, amount or scoring rules changed.
+- Shared ribbon rows keep bar origins and the 40% line aligned despite varying captions. Narrow/enlarged-text layouts now reflow rainfall attribution, provider and evidence rows, outlook, search controls, metadata, footer links and fallback text. WebKit checks also caught an implicit minimum width in the scoring record's numbered rules. Intentional chart/raw-table scrolling remains.
+- Verification covers Chromium and WebKit, phone/tablet/desktop widths from 320–1440px, normal and 200% root text, long location names, 0/100% and missing values, large rainfall ranges, provider gaps, mature evidence, loading/error and fallback pages. Full lint/type/unit/route/build checks and browser regressions gate release; controlled responses are layout evidence, not live-weather validation.
+- Patched compatible Next/sharp/tooling dependencies for the release. The remaining development-only braces advisory has a narrowly pinned, independently reviewed audit exception expiring 2026-10-25 00:00 UTC; all other high/critical findings still block CI. See OPERATIONS for removal conditions.
+- Release candidate: 2.1.3. Next: merge after required checks, confirm main CI and the production merge SHA, exercise live forecast/record pages, then publish the annotated tag and GitHub release. Existing owner-only operations issues above remain open.

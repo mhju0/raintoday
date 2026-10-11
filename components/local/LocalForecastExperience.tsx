@@ -278,8 +278,7 @@ function SearchMark() {
 
 // The no-break space ties each dot to the name before it, so a wrapped list
 // never opens its next line with a separator.
-// A provider is one name ("Pirate Weather"), and "많으면 3.8mm (Visual Crossing)"
-// is one clause: neither may break across a line.
+// Keep provider names together in the shared source list.
 const keepWhole = (text: string): string => text.replace(/ /g, "\u00a0");
 const providerList = COMPARED_PROVIDER_NAMES.map(keepWhole).join("\u00a0· ");
 
@@ -941,9 +940,8 @@ function RainSentence({ run, endsTomorrow, peak, hours }: {
   peak: TimelineReading["peak"];
   hours: number | null;
 }) {
-  // One clause, so a phone breaks it "시간대별 / 강수확률 미발표" rather than
-  // stranding 미발표 on a line of its own.
-  if (!peak) return <>시간대별 강수확률{"\u00a0"}<b>미발표</b></>;
+  // Natural spaces allow larger text to wrap at word boundaries.
+  if (!peak) return <>시간대별 <span className="local-probability-label">강수확률 <b className="local-keep">미발표</b></span></>;
   if (!run) {
     return (
       <>
@@ -982,8 +980,8 @@ function RainSentence({ run, endsTomorrow, peak, hours }: {
 /** Without an hourly series the headline states the day's own number. */
 function HeadlineDay({ day, label }: { day: { precipitationProbability: number | null }; label: string }) {
   return day.precipitationProbability === null
-    ? <>{label} 강수확률{"\u00a0"}<b>미발표</b></>
-    : <>{label} 강수확률{"\u00a0"}<b>{Math.round(day.precipitationProbability)}%</b></>;
+    ? <>{label} <span className="local-probability-label">강수확률 <b className="local-keep">미발표</b></span></>
+    : <>{label} <span className="local-probability-label">강수확률 <b className="local-keep">{Math.round(day.precipitationProbability)}%</b></span></>;
 }
 
 function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
@@ -1268,7 +1266,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
                 prints its trace left→right in block steps, then never moves
                 again. CSS-driven, so prefers-reduced-motion strips it whole. */}
             <div
-              className="local-ribbon-grid is-sweeping"
+              className={`local-ribbon-grid is-sweeping${laneVisible ? " has-mm" : ""}`}
               style={{ "--cols": blocks.length } as CSSProperties}
               tabIndex={0}
               aria-label="시간대 블록 탐색 · 좌우 화살표로 이동"
@@ -1429,8 +1427,10 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
                 {amountMeta(tomorrow.amountProviderCount, forecast.comparedProviderCount)}
                 {/* The extremes are named members, not percentiles — n≤4 cannot
                     honestly support interval language. */}
-                {amountRange &&
-                  `\u00a0· ${keepWhole(`많으면 ${formatMm(amountRange.maxMm)}mm (${amountRange.maxName})`)}\u00a0· ${keepWhole(`적으면 ${formatMm(amountRange.minMm)}mm (${amountRange.minName})`)}`}
+                {amountRange && <>
+                  {"\u00a0· "}<span className="local-amount-bound">많으면{"\u00a0"}{formatMm(amountRange.maxMm)}mm <span className="local-amount-provider">({amountRange.maxName})</span></span>
+                  {"\u00a0· "}<span className="local-amount-bound">적으면{"\u00a0"}{formatMm(amountRange.minMm)}mm <span className="local-amount-provider">({amountRange.minName})</span></span>
+                </>}
               </small>
             </p>
           </div>
@@ -1539,7 +1539,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
       </div>
 
       <footer className="local-footer">
-        <p>출처 Open-Meteo&nbsp;· 기상청&nbsp;· Pirate Weather&nbsp;· WeatherAPI&nbsp;· Visual Crossing 중 응답한 서비스&nbsp;· 모든 시각 KST</p>
+        <p>출처 Open-Meteo&nbsp;· 기상청&nbsp;· Pirate Weather&nbsp;· WeatherAPI&nbsp;· Visual Crossing 중 응답한 서비스&nbsp;· 모든 시각&nbsp;KST</p>
         <p>관측 검증: 기상청 ASOS&nbsp;· 사용자 좌표는 성능 기록 DB에 저장하지 않습니다.</p>
         {timeline && (
           <p>

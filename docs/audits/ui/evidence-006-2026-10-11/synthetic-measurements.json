@@ -1,0 +1,3522 @@
+[
+  {
+    "engine": "chromium",
+    "lane": true,
+    "width": 320,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.5625,
+        "trackBottom": 781.5625,
+        "trackHeight": 122,
+        "rows": "48.3125px 122px 31.4375px 63.7812px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": true,
+    "width": 390,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.5625,
+        "trackBottom": 781.5625,
+        "trackHeight": 122,
+        "rows": "48.3125px 122px 31.4375px 63.7812px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": true,
+    "width": 640,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.734375,
+        "trackBottom": 697.734375,
+        "trackHeight": 122,
+        "rows": "48.3125px 122px 31.4375px 63.7812px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px 63.7031px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": true,
+    "width": 768,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.390625,
+        "trackBottom": 648.390625,
+        "trackHeight": 140,
+        "rows": "48.3125px 140px 31.4375px 63.7812px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": true,
+    "width": 820,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.390625,
+        "trackBottom": 648.390625,
+        "trackHeight": 140,
+        "rows": "48.3125px 140px 31.4375px 63.7812px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": true,
+    "width": 900,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.390625,
+        "trackBottom": 648.390625,
+        "trackHeight": 140,
+        "rows": "48.3125px 140px 31.4375px 63.7812px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px 63.7031px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": true,
+    "width": 901,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 519.53125,
+        "trackBottom": 679.53125,
+        "trackHeight": 160,
+        "barBottom": 678.53125,
+        "rows": "59.4531px 160px 60.6719px 74.9375px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 508.3125,
+        "trackBottom": 668.3125,
+        "trackHeight": 160,
+        "barBottom": 667.3125,
+        "rows": "48.2344px 160px 83.125px 63.7031px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 513.921875,
+        "trackBottom": 673.921875,
+        "trackHeight": 160,
+        "barBottom": 672.921875,
+        "rows": "53.8438px 160px 71.8906px 69.3281px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 513.921875,
+        "trackBottom": 673.921875,
+        "trackHeight": 160,
+        "barBottom": 672.921875,
+        "rows": "53.8438px 160px 71.8906px 69.3281px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 519.53125,
+        "trackBottom": 679.53125,
+        "trackHeight": 160,
+        "barBottom": 678.53125,
+        "rows": "59.4531px 160px 60.6719px 74.9375px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 508.390625,
+        "trackBottom": 668.390625,
+        "trackHeight": 160,
+        "rows": "48.3125px 160px 82.9688px 63.7812px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 519.53125,
+        "trackBottom": 679.53125,
+        "trackHeight": 160,
+        "barBottom": 678.53125,
+        "rows": "59.4531px 160px 60.6719px 74.9375px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 513.921875,
+        "trackBottom": 673.921875,
+        "trackHeight": 160,
+        "barBottom": 672.921875,
+        "rows": "53.8438px 160px 71.8906px 69.3281px"
+      }
+    ],
+    "baselineSpread": 11.21875,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": true,
+    "width": 1024,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 516.734375,
+        "trackBottom": 676.734375,
+        "trackHeight": 160,
+        "barBottom": 675.734375,
+        "rows": "53.8438px 160px 56.8281px 69.3281px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.125,
+        "trackBottom": 671.125,
+        "trackHeight": 160,
+        "barBottom": 670.125,
+        "rows": "48.2344px 160px 68.0625px 63.7031px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.125,
+        "trackBottom": 671.125,
+        "trackHeight": 160,
+        "barBottom": 670.125,
+        "rows": "48.2344px 160px 68.0625px 63.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.125,
+        "trackBottom": 671.125,
+        "trackHeight": 160,
+        "barBottom": 670.125,
+        "rows": "48.2344px 160px 68.0625px 63.7031px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 516.734375,
+        "trackBottom": 676.734375,
+        "trackHeight": 160,
+        "barBottom": 675.734375,
+        "rows": "53.8438px 160px 56.8281px 69.3281px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.796875,
+        "trackBottom": 671.796875,
+        "trackHeight": 160,
+        "rows": "48.9062px 160px 66.7188px 64.375px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 516.734375,
+        "trackBottom": 676.734375,
+        "trackHeight": 160,
+        "barBottom": 675.734375,
+        "rows": "53.8438px 160px 56.8281px 69.3281px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.125,
+        "trackBottom": 671.125,
+        "trackHeight": 160,
+        "barBottom": 670.125,
+        "rows": "48.2344px 160px 68.0625px 63.7031px"
+      }
+    ],
+    "baselineSpread": 5.609375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": true,
+    "width": 1318,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.671875,
+        "trackBottom": 689.671875,
+        "trackHeight": 160,
+        "barBottom": 688.671875,
+        "rows": "53.8438px 160px 63.8906px 69.3281px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 524.0625,
+        "trackBottom": 684.0625,
+        "trackHeight": 160,
+        "barBottom": 683.0625,
+        "rows": "48.2344px 160px 75.125px 63.7031px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.671875,
+        "trackBottom": 689.671875,
+        "trackHeight": 160,
+        "barBottom": 688.671875,
+        "rows": "53.8438px 160px 63.8906px 69.3281px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 524.0625,
+        "trackBottom": 684.0625,
+        "trackHeight": 160,
+        "barBottom": 683.0625,
+        "rows": "48.2344px 160px 75.125px 63.7031px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 529.671875,
+        "trackBottom": 689.671875,
+        "trackHeight": 160,
+        "barBottom": 688.671875,
+        "rows": "53.8438px 160px 63.8906px 69.3281px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 527.078125,
+        "trackBottom": 687.078125,
+        "trackHeight": 160,
+        "rows": "51.25px 160px 69.0781px 66.7344px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.671875,
+        "trackBottom": 689.671875,
+        "trackHeight": 160,
+        "barBottom": 688.671875,
+        "rows": "53.8438px 160px 63.8906px 69.3281px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 524.0625,
+        "trackBottom": 684.0625,
+        "trackHeight": 160,
+        "barBottom": 683.0625,
+        "rows": "48.2344px 160px 75.125px 63.7031px"
+      }
+    ],
+    "baselineSpread": 5.609375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": true,
+    "width": 1440,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 535.03125,
+        "trackBottom": 695.03125,
+        "trackHeight": 160,
+        "barBottom": 694.03125,
+        "rows": "53.8438px 160px 64.6406px 69.3281px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.421875,
+        "trackBottom": 689.421875,
+        "trackHeight": 160,
+        "barBottom": 688.421875,
+        "rows": "48.2344px 160px 75.875px 63.7031px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 535.03125,
+        "trackBottom": 695.03125,
+        "trackHeight": 160,
+        "barBottom": 694.03125,
+        "rows": "53.8438px 160px 64.6406px 69.3281px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.421875,
+        "trackBottom": 689.421875,
+        "trackHeight": 160,
+        "barBottom": 688.421875,
+        "rows": "48.2344px 160px 75.875px 63.7031px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 535.03125,
+        "trackBottom": 695.03125,
+        "trackHeight": 160,
+        "barBottom": 694.03125,
+        "rows": "53.8438px 160px 64.6406px 69.3281px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 532.6875,
+        "trackBottom": 692.6875,
+        "trackHeight": 160,
+        "rows": "51.5px 160px 69.3281px 66.9844px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 535.03125,
+        "trackBottom": 695.03125,
+        "trackHeight": 160,
+        "barBottom": 694.03125,
+        "rows": "53.8438px 160px 64.6406px 69.3281px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.421875,
+        "trackBottom": 689.421875,
+        "trackHeight": 160,
+        "barBottom": 688.421875,
+        "rows": "48.2344px 160px 75.875px 63.7031px"
+      }
+    ],
+    "baselineSpread": 5.609375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": false,
+    "width": 320,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.59375,
+        "trackBottom": 781.59375,
+        "trackHeight": 122,
+        "rows": "48.3438px 122px 31.4844px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": false,
+    "width": 390,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.59375,
+        "trackBottom": 781.59375,
+        "trackHeight": 122,
+        "rows": "48.3438px 122px 31.4844px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.484375,
+        "trackBottom": 781.484375,
+        "trackHeight": 122,
+        "barBottom": 780.484375,
+        "rows": "48.2344px 122px 31.5938px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": false,
+    "width": 640,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.765625,
+        "trackBottom": 697.765625,
+        "trackHeight": 122,
+        "rows": "48.3438px 122px 31.4844px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.65625,
+        "trackBottom": 697.65625,
+        "trackHeight": 122,
+        "barBottom": 696.65625,
+        "rows": "48.2344px 122px 31.5938px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": false,
+    "width": 768,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.421875,
+        "trackBottom": 648.421875,
+        "trackHeight": 140,
+        "rows": "48.3438px 140px 31.4844px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": false,
+    "width": 820,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.421875,
+        "trackBottom": 648.421875,
+        "trackHeight": 140,
+        "rows": "48.3438px 140px 31.4844px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": false,
+    "width": 900,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.421875,
+        "trackBottom": 648.421875,
+        "trackHeight": 140,
+        "rows": "48.3438px 140px 31.4844px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.3125,
+        "trackBottom": 648.3125,
+        "trackHeight": 140,
+        "barBottom": 647.3125,
+        "rows": "48.2344px 140px 31.5938px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": false,
+    "width": 901,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 525.15625,
+        "trackBottom": 685.15625,
+        "trackHeight": 160,
+        "barBottom": 684.15625,
+        "rows": "65.0781px 160px 66.2812px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 508.3125,
+        "trackBottom": 668.3125,
+        "trackHeight": 160,
+        "barBottom": 667.3125,
+        "rows": "48.2344px 160px 83.125px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 516.734375,
+        "trackBottom": 676.734375,
+        "trackHeight": 160,
+        "barBottom": 675.734375,
+        "rows": "56.6562px 160px 74.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 516.734375,
+        "trackBottom": 676.734375,
+        "trackHeight": 160,
+        "barBottom": 675.734375,
+        "rows": "56.6562px 160px 74.7031px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 525.15625,
+        "trackBottom": 685.15625,
+        "trackHeight": 160,
+        "barBottom": 684.15625,
+        "rows": "65.0781px 160px 66.2812px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 508.421875,
+        "trackBottom": 668.421875,
+        "trackHeight": 160,
+        "rows": "48.3438px 160px 83.0156px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 525.15625,
+        "trackBottom": 685.15625,
+        "trackHeight": 160,
+        "barBottom": 684.15625,
+        "rows": "65.0781px 160px 66.2812px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 516.734375,
+        "trackBottom": 676.734375,
+        "trackHeight": 160,
+        "barBottom": 675.734375,
+        "rows": "56.6562px 160px 74.7031px"
+      }
+    ],
+    "baselineSpread": 16.84375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": false,
+    "width": 1024,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 519.546875,
+        "trackBottom": 679.546875,
+        "trackHeight": 160,
+        "barBottom": 678.546875,
+        "rows": "56.6562px 160px 59.6406px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.125,
+        "trackBottom": 671.125,
+        "trackHeight": 160,
+        "barBottom": 670.125,
+        "rows": "48.2344px 160px 68.0625px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.125,
+        "trackBottom": 671.125,
+        "trackHeight": 160,
+        "barBottom": 670.125,
+        "rows": "48.2344px 160px 68.0625px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.125,
+        "trackBottom": 671.125,
+        "trackHeight": 160,
+        "barBottom": 670.125,
+        "rows": "48.2344px 160px 68.0625px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 519.546875,
+        "trackBottom": 679.546875,
+        "trackHeight": 160,
+        "barBottom": 678.546875,
+        "rows": "56.6562px 160px 59.6406px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 512.125,
+        "trackBottom": 672.125,
+        "trackHeight": 160,
+        "rows": "49.2344px 160px 67.0625px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 519.546875,
+        "trackBottom": 679.546875,
+        "trackHeight": 160,
+        "barBottom": 678.546875,
+        "rows": "56.6562px 160px 59.6406px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.125,
+        "trackBottom": 671.125,
+        "trackHeight": 160,
+        "barBottom": 670.125,
+        "rows": "48.2344px 160px 68.0625px"
+      }
+    ],
+    "baselineSpread": 8.421875,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": false,
+    "width": 1318,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 532.484375,
+        "trackBottom": 692.484375,
+        "trackHeight": 160,
+        "barBottom": 691.484375,
+        "rows": "56.6562px 160px 66.7031px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 524.0625,
+        "trackBottom": 684.0625,
+        "trackHeight": 160,
+        "barBottom": 683.0625,
+        "rows": "48.2344px 160px 75.125px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 532.484375,
+        "trackBottom": 692.484375,
+        "trackHeight": 160,
+        "barBottom": 691.484375,
+        "rows": "56.6562px 160px 66.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 524.0625,
+        "trackBottom": 684.0625,
+        "trackHeight": 160,
+        "barBottom": 683.0625,
+        "rows": "48.2344px 160px 75.125px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 532.484375,
+        "trackBottom": 692.484375,
+        "trackHeight": 160,
+        "barBottom": 691.484375,
+        "rows": "56.6562px 160px 66.7031px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 528.59375,
+        "trackBottom": 688.59375,
+        "trackHeight": 160,
+        "rows": "52.7656px 160px 70.5938px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 532.484375,
+        "trackBottom": 692.484375,
+        "trackHeight": 160,
+        "barBottom": 691.484375,
+        "rows": "56.6562px 160px 66.7031px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 524.0625,
+        "trackBottom": 684.0625,
+        "trackHeight": 160,
+        "barBottom": 683.0625,
+        "rows": "48.2344px 160px 75.125px"
+      }
+    ],
+    "baselineSpread": 8.421875,
+    "pageOverflow": false
+  },
+  {
+    "engine": "chromium",
+    "lane": false,
+    "width": 1440,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 537.84375,
+        "trackBottom": 697.84375,
+        "trackHeight": 160,
+        "barBottom": 696.84375,
+        "rows": "56.6562px 160px 67.4531px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.421875,
+        "trackBottom": 689.421875,
+        "trackHeight": 160,
+        "barBottom": 688.421875,
+        "rows": "48.2344px 160px 75.875px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 537.84375,
+        "trackBottom": 697.84375,
+        "trackHeight": 160,
+        "barBottom": 696.84375,
+        "rows": "56.6562px 160px 67.4531px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.421875,
+        "trackBottom": 689.421875,
+        "trackHeight": 160,
+        "barBottom": 688.421875,
+        "rows": "48.2344px 160px 75.875px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 537.84375,
+        "trackBottom": 697.84375,
+        "trackHeight": 160,
+        "barBottom": 696.84375,
+        "rows": "56.6562px 160px 67.4531px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 534.328125,
+        "trackBottom": 694.328125,
+        "trackHeight": 160,
+        "rows": "53.1406px 160px 70.9688px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 537.84375,
+        "trackBottom": 697.84375,
+        "trackHeight": 160,
+        "barBottom": 696.84375,
+        "rows": "56.6562px 160px 67.4531px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.421875,
+        "trackBottom": 689.421875,
+        "trackHeight": 160,
+        "barBottom": 688.421875,
+        "rows": "48.2344px 160px 75.875px"
+      }
+    ],
+    "baselineSpread": 8.421875,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": true,
+    "width": 320,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.40625,
+        "trackBottom": 781.40625,
+        "trackHeight": 122,
+        "rows": "48.28125px 122px 31.421875px 63.765625px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": true,
+    "width": 390,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.40625,
+        "trackBottom": 781.40625,
+        "trackHeight": 122,
+        "rows": "48.28125px 122px 31.421875px 63.765625px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": true,
+    "width": 640,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.609375,
+        "trackBottom": 697.609375,
+        "trackHeight": 122,
+        "rows": "48.28125px 122px 31.421875px 63.765625px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px 63.6875px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": true,
+    "width": 768,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.296875,
+        "trackBottom": 648.296875,
+        "trackHeight": 140,
+        "rows": "48.28125px 140px 31.421875px 63.765625px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": true,
+    "width": 820,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.296875,
+        "trackBottom": 648.296875,
+        "trackHeight": 140,
+        "rows": "48.28125px 140px 31.421875px 63.765625px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": true,
+    "width": 900,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.296875,
+        "trackBottom": 648.296875,
+        "trackHeight": 140,
+        "rows": "48.28125px 140px 31.421875px 63.765625px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px 63.6875px"
+      }
+    ],
+    "baselineSpread": 0.078125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": true,
+    "width": 901,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 519.4375,
+        "trackBottom": 679.4375,
+        "trackHeight": 160,
+        "barBottom": 678.4375,
+        "rows": "59.421875px 160px 60.625px 74.90625px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 508.21875,
+        "trackBottom": 668.21875,
+        "trackHeight": 160,
+        "barBottom": 667.21875,
+        "rows": "48.203125px 160px 83.0625px 63.6875px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 513.828125,
+        "trackBottom": 673.828125,
+        "trackHeight": 160,
+        "barBottom": 672.828125,
+        "rows": "53.8125px 160px 71.84375px 69.296875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 513.828125,
+        "trackBottom": 673.828125,
+        "trackHeight": 160,
+        "barBottom": 672.828125,
+        "rows": "53.8125px 160px 71.84375px 69.296875px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 519.4375,
+        "trackBottom": 679.4375,
+        "trackHeight": 160,
+        "barBottom": 678.4375,
+        "rows": "59.421875px 160px 60.625px 74.90625px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 508.296875,
+        "trackBottom": 668.296875,
+        "trackHeight": 160,
+        "rows": "48.28125px 160px 82.90625px 63.765625px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 519.4375,
+        "trackBottom": 679.4375,
+        "trackHeight": 160,
+        "barBottom": 678.4375,
+        "rows": "59.421875px 160px 60.625px 74.90625px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 513.828125,
+        "trackBottom": 673.828125,
+        "trackHeight": 160,
+        "barBottom": 672.828125,
+        "rows": "53.8125px 160px 71.84375px 69.296875px"
+      }
+    ],
+    "baselineSpread": 11.21875,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": true,
+    "width": 1024,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 516.65625,
+        "trackBottom": 676.65625,
+        "trackHeight": 160,
+        "barBottom": 675.65625,
+        "rows": "53.8125px 160px 56.796875px 69.296875px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.046875,
+        "trackBottom": 671.046875,
+        "trackHeight": 160,
+        "barBottom": 670.046875,
+        "rows": "48.203125px 160px 68.015625px 63.6875px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.046875,
+        "trackBottom": 671.046875,
+        "trackHeight": 160,
+        "barBottom": 670.046875,
+        "rows": "48.203125px 160px 68.015625px 63.6875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.046875,
+        "trackBottom": 671.046875,
+        "trackHeight": 160,
+        "barBottom": 670.046875,
+        "rows": "48.203125px 160px 68.015625px 63.6875px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 516.65625,
+        "trackBottom": 676.65625,
+        "trackHeight": 160,
+        "barBottom": 675.65625,
+        "rows": "53.8125px 160px 56.796875px 69.296875px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.71875,
+        "trackBottom": 671.71875,
+        "trackHeight": 160,
+        "rows": "48.875px 160px 66.671875px 64.359375px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 516.65625,
+        "trackBottom": 676.65625,
+        "trackHeight": 160,
+        "barBottom": 675.65625,
+        "rows": "53.8125px 160px 56.796875px 69.296875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.046875,
+        "trackBottom": 671.046875,
+        "trackHeight": 160,
+        "barBottom": 670.046875,
+        "rows": "48.203125px 160px 68.015625px 63.6875px"
+      }
+    ],
+    "baselineSpread": 5.609375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": true,
+    "width": 1318,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.59375,
+        "trackBottom": 689.59375,
+        "trackHeight": 160,
+        "barBottom": 688.59375,
+        "rows": "53.8125px 160px 63.84375px 69.296875px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 523.984375,
+        "trackBottom": 683.984375,
+        "trackHeight": 160,
+        "barBottom": 682.984375,
+        "rows": "48.203125px 160px 75.0625px 63.6875px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.59375,
+        "trackBottom": 689.59375,
+        "trackHeight": 160,
+        "barBottom": 688.59375,
+        "rows": "53.8125px 160px 63.84375px 69.296875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 523.984375,
+        "trackBottom": 683.984375,
+        "trackHeight": 160,
+        "barBottom": 682.984375,
+        "rows": "48.203125px 160px 75.0625px 63.6875px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 529.59375,
+        "trackBottom": 689.59375,
+        "trackHeight": 160,
+        "barBottom": 688.59375,
+        "rows": "53.8125px 160px 63.84375px 69.296875px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 527,
+        "trackBottom": 687,
+        "trackHeight": 160,
+        "rows": "51.21875px 160px 69.015625px 66.703125px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.59375,
+        "trackBottom": 689.59375,
+        "trackHeight": 160,
+        "barBottom": 688.59375,
+        "rows": "53.8125px 160px 63.84375px 69.296875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 523.984375,
+        "trackBottom": 683.984375,
+        "trackHeight": 160,
+        "barBottom": 682.984375,
+        "rows": "48.203125px 160px 75.0625px 63.6875px"
+      }
+    ],
+    "baselineSpread": 5.609375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": true,
+    "width": 1440,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 534.953125,
+        "trackBottom": 694.953125,
+        "trackHeight": 160,
+        "barBottom": 693.953125,
+        "rows": "53.8125px 160px 64.625px 69.296875px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.34375,
+        "trackBottom": 689.34375,
+        "trackHeight": 160,
+        "barBottom": 688.34375,
+        "rows": "48.203125px 160px 75.84375px 63.6875px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 534.953125,
+        "trackBottom": 694.953125,
+        "trackHeight": 160,
+        "barBottom": 693.953125,
+        "rows": "53.8125px 160px 64.625px 69.296875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.34375,
+        "trackBottom": 689.34375,
+        "trackHeight": 160,
+        "barBottom": 688.34375,
+        "rows": "48.203125px 160px 75.84375px 63.6875px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 534.953125,
+        "trackBottom": 694.953125,
+        "trackHeight": 160,
+        "barBottom": 693.953125,
+        "rows": "53.8125px 160px 64.625px 69.296875px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 532.625,
+        "trackBottom": 692.625,
+        "trackHeight": 160,
+        "rows": "51.484375px 160px 69.28125px 66.96875px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 534.953125,
+        "trackBottom": 694.953125,
+        "trackHeight": 160,
+        "barBottom": 693.953125,
+        "rows": "53.8125px 160px 64.625px 69.296875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.34375,
+        "trackBottom": 689.34375,
+        "trackHeight": 160,
+        "barBottom": 688.34375,
+        "rows": "48.203125px 160px 75.84375px 63.6875px"
+      }
+    ],
+    "baselineSpread": 5.609375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": false,
+    "width": 320,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.4375,
+        "trackBottom": 781.4375,
+        "trackHeight": 122,
+        "rows": "48.3125px 122px 31.453125px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": false,
+    "width": 390,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.4375,
+        "trackBottom": 781.4375,
+        "trackHeight": 122,
+        "rows": "48.3125px 122px 31.453125px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 659.328125,
+        "trackBottom": 781.328125,
+        "trackHeight": 122,
+        "barBottom": 780.328125,
+        "rows": "48.203125px 122px 31.578125px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": false,
+    "width": 640,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.640625,
+        "trackBottom": 697.640625,
+        "trackHeight": 122,
+        "rows": "48.3125px 122px 31.453125px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 575.53125,
+        "trackBottom": 697.53125,
+        "trackHeight": 122,
+        "barBottom": 696.53125,
+        "rows": "48.203125px 122px 31.578125px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": false,
+    "width": 768,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.328125,
+        "trackBottom": 648.328125,
+        "trackHeight": 140,
+        "rows": "48.3125px 140px 31.453125px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": false,
+    "width": 820,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.328125,
+        "trackBottom": 648.328125,
+        "trackHeight": 140,
+        "rows": "48.3125px 140px 31.453125px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": false,
+    "width": 900,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.328125,
+        "trackBottom": 648.328125,
+        "trackHeight": 140,
+        "rows": "48.3125px 140px 31.453125px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "none",
+        "trackTop": 508.21875,
+        "trackBottom": 648.21875,
+        "trackHeight": 140,
+        "barBottom": 647.21875,
+        "rows": "48.203125px 140px 31.578125px"
+      }
+    ],
+    "baselineSpread": 0.109375,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": false,
+    "width": 901,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 525.046875,
+        "trackBottom": 685.046875,
+        "trackHeight": 160,
+        "barBottom": 684.046875,
+        "rows": "65.03125px 160px 66.234375px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 508.21875,
+        "trackBottom": 668.21875,
+        "trackHeight": 160,
+        "barBottom": 667.21875,
+        "rows": "48.203125px 160px 83.0625px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 516.625,
+        "trackBottom": 676.625,
+        "trackHeight": 160,
+        "barBottom": 675.625,
+        "rows": "56.609375px 160px 74.640625px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 516.625,
+        "trackBottom": 676.625,
+        "trackHeight": 160,
+        "barBottom": 675.625,
+        "rows": "56.609375px 160px 74.640625px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 525.046875,
+        "trackBottom": 685.046875,
+        "trackHeight": 160,
+        "barBottom": 684.046875,
+        "rows": "65.03125px 160px 66.234375px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 508.328125,
+        "trackBottom": 668.328125,
+        "trackHeight": 160,
+        "rows": "48.3125px 160px 82.9375px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 525.046875,
+        "trackBottom": 685.046875,
+        "trackHeight": 160,
+        "barBottom": 684.046875,
+        "rows": "65.03125px 160px 66.234375px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 516.625,
+        "trackBottom": 676.625,
+        "trackHeight": 160,
+        "barBottom": 675.625,
+        "rows": "56.609375px 160px 74.640625px"
+      }
+    ],
+    "baselineSpread": 16.828125,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": false,
+    "width": 1024,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 519.453125,
+        "trackBottom": 679.453125,
+        "trackHeight": 160,
+        "barBottom": 678.453125,
+        "rows": "56.609375px 160px 59.59375px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.046875,
+        "trackBottom": 671.046875,
+        "trackHeight": 160,
+        "barBottom": 670.046875,
+        "rows": "48.203125px 160px 68.015625px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.046875,
+        "trackBottom": 671.046875,
+        "trackHeight": 160,
+        "barBottom": 670.046875,
+        "rows": "48.203125px 160px 68.015625px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.046875,
+        "trackBottom": 671.046875,
+        "trackHeight": 160,
+        "barBottom": 670.046875,
+        "rows": "48.203125px 160px 68.015625px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 519.453125,
+        "trackBottom": 679.453125,
+        "trackHeight": 160,
+        "barBottom": 678.453125,
+        "rows": "56.609375px 160px 59.59375px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 512.046875,
+        "trackBottom": 672.046875,
+        "trackHeight": 160,
+        "rows": "49.203125px 160px 67px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 519.453125,
+        "trackBottom": 679.453125,
+        "trackHeight": 160,
+        "barBottom": 678.453125,
+        "rows": "56.609375px 160px 59.59375px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 511.046875,
+        "trackBottom": 671.046875,
+        "trackHeight": 160,
+        "barBottom": 670.046875,
+        "rows": "48.203125px 160px 68.015625px"
+      }
+    ],
+    "baselineSpread": 8.40625,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": false,
+    "width": 1318,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 532.390625,
+        "trackBottom": 692.390625,
+        "trackHeight": 160,
+        "barBottom": 691.390625,
+        "rows": "56.609375px 160px 66.640625px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 523.984375,
+        "trackBottom": 683.984375,
+        "trackHeight": 160,
+        "barBottom": 682.984375,
+        "rows": "48.203125px 160px 75.0625px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 532.390625,
+        "trackBottom": 692.390625,
+        "trackHeight": 160,
+        "barBottom": 691.390625,
+        "rows": "56.609375px 160px 66.640625px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 523.984375,
+        "trackBottom": 683.984375,
+        "trackHeight": 160,
+        "barBottom": 682.984375,
+        "rows": "48.203125px 160px 75.0625px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 532.390625,
+        "trackBottom": 692.390625,
+        "trackHeight": 160,
+        "barBottom": 691.390625,
+        "rows": "56.609375px 160px 66.640625px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 528.515625,
+        "trackBottom": 688.515625,
+        "trackHeight": 160,
+        "rows": "52.734375px 160px 70.53125px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 532.390625,
+        "trackBottom": 692.390625,
+        "trackHeight": 160,
+        "barBottom": 691.390625,
+        "rows": "56.609375px 160px 66.640625px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 523.984375,
+        "trackBottom": 683.984375,
+        "trackHeight": 160,
+        "barBottom": 682.984375,
+        "rows": "48.203125px 160px 75.0625px"
+      }
+    ],
+    "baselineSpread": 8.40625,
+    "pageOverflow": false
+  },
+  {
+    "engine": "webkit",
+    "lane": false,
+    "width": 1440,
+    "cols": [
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 537.75,
+        "trackBottom": 697.75,
+        "trackHeight": 160,
+        "barBottom": 696.75,
+        "rows": "56.609375px 160px 67.421875px"
+      },
+      {
+        "value": "40%",
+        "hint": "비가 예상되는 구간의 시작입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.34375,
+        "trackBottom": 689.34375,
+        "trackHeight": 160,
+        "barBottom": 688.34375,
+        "rows": "48.203125px 160px 75.84375px"
+      },
+      {
+        "value": "75%",
+        "hint": "가장 높은 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 537.75,
+        "trackBottom": 697.75,
+        "trackHeight": 160,
+        "barBottom": 696.75,
+        "rows": "56.609375px 160px 67.421875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.34375,
+        "trackBottom": 689.34375,
+        "trackHeight": 160,
+        "barBottom": 688.34375,
+        "rows": "48.203125px 160px 75.84375px"
+      },
+      {
+        "value": "0%",
+        "hint": "비 예보 없음.",
+        "hintDisplay": "block",
+        "trackTop": 537.75,
+        "trackBottom": 697.75,
+        "trackHeight": 160,
+        "barBottom": 696.75,
+        "rows": "56.609375px 160px 67.421875px"
+      },
+      {
+        "value": "미발표",
+        "hint": "강수확률이 발표되지 않았습니다.",
+        "hintDisplay": "block",
+        "trackTop": 534.265625,
+        "trackBottom": 694.265625,
+        "trackHeight": 160,
+        "rows": "53.125px 160px 70.921875px"
+      },
+      {
+        "value": "10%",
+        "hint": "기준 아래입니다.",
+        "hintDisplay": "block",
+        "trackTop": 537.75,
+        "trackBottom": 697.75,
+        "trackHeight": 160,
+        "barBottom": 696.75,
+        "rows": "56.609375px 160px 67.421875px"
+      },
+      {
+        "value": "60%",
+        "hint": "비가 예상되는 시간대입니다.",
+        "hintDisplay": "block",
+        "trackTop": 529.34375,
+        "trackBottom": 689.34375,
+        "trackHeight": 160,
+        "barBottom": 688.34375,
+        "rows": "48.203125px 160px 75.84375px"
+      }
+    ],
+    "baselineSpread": 8.40625,
+    "pageOverflow": false
+  }
+]
