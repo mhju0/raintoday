@@ -308,6 +308,10 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   const message = notice ?? (expanded && search.status in searchMessages
     ? searchMessages[search.status as keyof typeof searchMessages]
     : null);
+  const messageShown = !searching && message !== null;
+  const [messageHeld, setMessageHeld] = useState(false);
+  if (messageShown && !messageHeld) setMessageHeld(true);
+  if (!messageShown && messageHeld && query.trim() === "") setMessageHeld(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Returning from a forecast puts the user back here on purpose, so land them
@@ -487,23 +491,6 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
           <p className="local-form-message" role="status">지역 검색 중…</p>
         )}
 
-        {!searching && message && (
-          <div className="local-form-status">
-            <p className="local-form-message" role="status">{message}</p>
-            {retryAvailable && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMessage(null);
-                  search.retry();
-                }}
-              >
-                다시 시도
-              </button>
-            )}
-          </div>
-        )}
-
         <ul
           id={listboxId}
           className="local-search-results"
@@ -530,6 +517,31 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
         </ul>
         </div>
         </div>
+
+        {/* In the flow, unlike the result list: these messages send the reader
+            to the shortcuts below, so they must not cover them. The room stays
+            reserved while the field has text, so the page is resized once and
+            not on every keystroke. */}
+        {(messageShown || messageHeld) && (
+          <div className="local-form-slot">
+            {messageShown && (
+              <div className="local-form-status">
+                <p className="local-form-message" role="status">{message}</p>
+                {retryAvailable && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMessage(null);
+                      search.retry();
+                    }}
+                  >
+                    다시 시도
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* The third way in. Both of the two above assume something a visitor
             may not have — a device inside Korea, or a place name they can type
@@ -1109,7 +1121,11 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
   // aid, not the only access, and stays aria-hidden. Pointer sweeps it along
   // the grid; arrow keys walk it; Escape (or leaving) clears it.
   const [scrubIndex, setScrubIndex] = useState<number | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const readoutRef = useRef<HTMLDivElement | null>(null);
+  const scrubbedByKey = useRef(false);
   const scrubTo = (event: ReactPointerEvent<HTMLDivElement>) => {
+    scrubbedByKey.current = false;
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width <= 0 || blocks.length === 0) return;
     const x = Math.min(Math.max(event.clientX - rect.left, 0), rect.width - 1);
@@ -1122,6 +1138,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
     }
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
     event.preventDefault();
+    scrubbedByKey.current = true;
     const delta = event.key === "ArrowRight" ? 1 : -1;
     setScrubIndex((current) => {
       const base = current ?? (delta === 1 ? -1 : blocks.length);
@@ -1130,15 +1147,64 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
   };
   const scrubbed = scrubIndex !== null ? blocks[scrubIndex] ?? null : null;
 
+  // The lens is centred on its block but held inside the visible chart, which
+  // scrolls sideways on a phone. A block reached by arrow key is scrolled into
+  // view first; one under a pointer is already there.
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    const readout = readoutRef.current;
+    if (!scroller || !readout || scrubIndex === null || blocks.length === 0) return;
+    const columnWidth = scroller.scrollWidth / blocks.length;
+    const start = scrubIndex * columnWidth;
+    if (scrubbedByKey.current) {
+      if (start < scroller.scrollLeft) scroller.scrollLeft = start;
+      else if (start + columnWidth > scroller.scrollLeft + scroller.clientWidth) {
+        scroller.scrollLeft = start + columnWidth - scroller.clientWidth;
+      }
+    }
+    const half = readout.offsetWidth / 2;
+    const least = scroller.scrollLeft + half;
+    const most = Math.max(least, scroller.scrollLeft + scroller.clientWidth - half);
+    readout.style.left = `${Math.min(Math.max(start + columnWidth / 2, least), most)}px`;
+  });
+
   // The chooser this replaced is gone from the DOM, so without this the whole
   // swap leaves focus on <body> and a keyboard user restarts from the top.
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
   }, []);
 
+  // On a phone both the location strip and the pinned summary stick to the top.
+  // The strip is one or two rows depending on the place name, so its height is
+  // published for the summary to sit beneath it. With enlarged text the two
+  // together can take most of a small screen; past 30% of it the summary
+  // scrolls away and the strip alone stays.
+  const dashboardRef = useRef<HTMLElement | null>(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const dashboard = dashboardRef.current;
+    const strip = stripRef.current;
+    if (!dashboard || !strip || typeof ResizeObserver === "undefined") return;
+    const summary = dashboard.querySelector<HTMLElement>(".local-minibar");
+    const publish = () => {
+      dashboard.style.setProperty("--local-strip-h", `${strip.offsetHeight}px`);
+      const pinned = strip.offsetHeight + (summary?.offsetHeight ?? 0);
+      dashboard.toggleAttribute("data-crowded-top", pinned > window.innerHeight * 0.3);
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(strip);
+    if (summary) observer.observe(summary);
+    window.addEventListener("resize", publish);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", publish);
+    };
+  }, []);
+
   return (
-    <main className="local-dashboard">
-      <div className="local-strip">
+    <main className="local-dashboard" ref={dashboardRef}>
+      <div className="local-strip" ref={stripRef}>
         <div className="local-strip-place">
           <span className="local-strip-pin" aria-hidden><LocationMark /></span>
           <b>{forecast.locationName}</b>
@@ -1261,7 +1327,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             </span>
           </div>
 
-          <div className="local-ribbon-scroll">
+          <div className="local-ribbon-scroll" ref={scrollerRef}>
             {/* is-sweeping: the one arrival animation (D-08) — the recorder
                 prints its trace left→right in block steps, then never moves
                 again. CSS-driven, so prefers-reduced-motion strips it whole. */}
@@ -1280,7 +1346,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
                 <div
                   className="local-ribbon-readout"
                   aria-hidden
-                  style={{ left: `${((scrubIndex + 0.5) / blocks.length) * 100}%` }}
+                  ref={readoutRef}
                 >
                   <b>{scrubbed.label} {scrubbed.rangeLabel}{scrubbed.wet ? " · 비 구간" : ""}</b>
                   <span>
@@ -1424,13 +1490,14 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
                 ? <b className="is-na">미발표</b>
                 : <b>{formatMm(tomorrow.precipitationAmountMm)}mm</b>}
               <small>
-                {amountMeta(tomorrow.amountProviderCount, forecast.comparedProviderCount)}
                 {/* The extremes are named members, not percentiles — n≤4 cannot
-                    honestly support interval language. */}
-                {amountRange && <>
-                  {"\u00a0· "}<span className="local-amount-bound">많으면{"\u00a0"}{formatMm(amountRange.maxMm)}mm <span className="local-amount-provider">({amountRange.maxName})</span></span>
-                  {"\u00a0· "}<span className="local-amount-bound">적으면{"\u00a0"}{formatMm(amountRange.minMm)}mm <span className="local-amount-provider">({amountRange.minName})</span></span>
-                </>}
+                    honestly support interval language. Each separator sits
+                    inside the phrase before it, so no line starts with one. */}
+                {amountRange ? <>
+                  <span className="local-amount-bound">{amountMeta(tomorrow.amountProviderCount, forecast.comparedProviderCount)}{"\u00a0·"}</span>{" "}
+                  <span className="local-amount-bound">많으면{"\u00a0"}{formatMm(amountRange.maxMm)}mm <span className="local-amount-last"><span className="local-amount-provider">({amountRange.maxName})</span>{"\u00a0·"}</span></span>{" "}
+                  <span className="local-amount-bound">적으면{"\u00a0"}{formatMm(amountRange.minMm)}mm <span className="local-amount-provider">({amountRange.minName})</span></span>
+                </> : amountMeta(tomorrow.amountProviderCount, forecast.comparedProviderCount)}
               </small>
             </p>
           </div>
@@ -1512,7 +1579,10 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
               <h2 id="outlook-heading" tabIndex={-1}>{forecast.outlook.length}일 전망</h2>
               <b>동일 비중</b>
             </div>
-            <div className="local-week">
+            <div
+              className="local-week"
+              style={{ "--cols": forecast.outlook.length, "--cols-narrow": Math.ceil(forecast.outlook.length / 2) } as CSSProperties}
+            >
               {forecast.outlook.map((day) => (
                 <div className="local-wd" key={day.date}>
                   <span className="local-wd-d">{formatOutlookDate(day.date)}</span>

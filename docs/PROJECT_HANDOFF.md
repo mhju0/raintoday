@@ -109,3 +109,18 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Verification covers Chromium and WebKit, phone/tablet/desktop widths from 320–1440px, normal and 200% root text, long location names, 0/100% and missing values, large rainfall ranges, provider gaps, mature evidence, loading/error and fallback pages. Full lint/type/unit/route/build checks and browser regressions gate release; controlled responses are layout evidence, not live-weather validation.
 - Patched compatible Next/sharp/tooling dependencies for the release. The remaining development-only braces advisory has a narrowly pinned, independently reviewed audit exception expiring 2026-10-25 00:00 UTC; all other high/critical findings still block CI. See OPERATIONS for removal conditions.
 - Release candidate: 2.1.3. Next: merge after required checks, confirm main CI and the production merge SHA, exercise live forecast/record pages, then publish the annotated tag and GitHub release. Existing owner-only operations issues above remain open.
+
+## 2026-10-11 — Service-wide layout and typography audit (report only)
+
+- Owner asked for an independent second pass after 2.1.3: [audit 007](audits/ui/audit-007-2026-10-11.md). Chromium and WebKit, 16 widths from 320–1920px, 100/130/200% text, 20 controlled forecast states plus chooser, loading, error, record and 404 screens.
+- The 2.1.3 baseline fix holds in every state. Twelve numbered findings remain; two are HIGH (phone sticky bars overlap; chart readout clipped at the edges). Three are the same family as the original bug at smaller scale (caption row offset under `미발표`, provider meters on different scales in narrow cards, today/tomorrow rows not shared).
+- No application changes, commit, release or deployment. The report and its evidence folder are uncommitted in the working tree.
+- Next: owner approves finding numbers; fixes ship as 2.1.4 through a PR.
+
+## 2026-10-11 — Audit 007 findings 1–7 fixed
+
+- Owner approved findings 1–7. Phone sticky bars stack; the chart readout stays inside the chart and follows the keyboard; search messages no longer cover the shortcut chips; caption row, provider tracks, outlook columns and the two day cards each share one line or scale. CSS and one component only; no forecast, provider or scoring rules changed.
+- Decision: search messages moved into the flow, against the earlier "everything out of flow" rule, because they point the reader at the chips they were covering. The room is held while the field has text, so the iOS keyboard-walk bug stays fixed (browser test covers it).
+- Decision: when the two pinned bars would exceed 30% of the screen height, only the location strip stays pinned.
+- Port 3101 was held by another project's server on this machine, so the browser suite ran through an ignored `.scratch` config on 3111. CI is unaffected.
+- Release candidate: 2.1.4. Open: findings 8–12 of audit 007. Next: merge after checks, confirm main CI and the production merge SHA, then tag and publish the release.

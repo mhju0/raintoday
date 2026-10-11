@@ -498,6 +498,15 @@ html {
   margin-top: 1rem;
 }
 
+/* Two lines of message, held open while the field has text. */
+.local-form-slot {
+  min-height: calc(var(--t-label) * 1.65 * 2);
+}
+
+.local-form-slot .local-form-message {
+  margin-top: 0;
+}
+
 .local-form-status {
   display: flex;
   align-items: baseline;
@@ -535,9 +544,9 @@ html {
    iOS Safari responded by rescrolling beneath the open keyboard, so the page
    walked as you typed. As a popup it overlays what follows, which is what a
    combobox popup is supposed to do, and the document height stops moving. */
-/* Everything that appears and disappears while typing lives here: the searching
-   line, the error and retry row, and the result list. All of it is out of flow,
-   so the document height no longer depends on what the query matched. */
+/* The searching line and the result list live here, out of flow, so the
+   document height does not depend on what the query matched. Messages do not:
+   see .local-form-slot. */
 .local-search-popup {
   position: absolute;
   top: 100%;
@@ -1479,6 +1488,7 @@ html {
 }
 
 .local-ribbon-cfoot {
+  --local-ribbon-val: clamp(0.95rem, 1.6vw, 1.35rem);
   padding: 0.55rem 0.25rem 0;
   display: grid;
   align-content: start;
@@ -1487,7 +1497,8 @@ html {
 
 .local-ribbon-val {
   font-family: var(--local-mono);
-  font-size: clamp(0.95rem, 1.6vw, 1.35rem);
+  font-size: var(--local-ribbon-val);
+  line-height: 1.5;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--local-ink);
@@ -1837,8 +1848,11 @@ html {
 }
 
 .local-day-value .local-missing-value,
+/* Smaller type, same line box: the caption beneath starts where its
+   neighbours' captions start. */
 .local-ribbon-val.is-na {
   font-size: var(--t-body);
+  line-height: calc(var(--local-ribbon-val) * 1.5);
   color: var(--local-dim);
 }
 
@@ -1863,6 +1877,15 @@ html {
   max-width: 100%;
 }
 
+/* A provider name and the separator after it: the dot never wraps alone. */
+.local-amount-last {
+  white-space: nowrap;
+}
+
+.local-amount-last .local-amount-provider {
+  white-space: normal;
+}
+
 .local-ribbon-swipe {
   display: none;
   padding-top: 0.5rem;
@@ -1880,9 +1903,13 @@ html {
   padding: 1.75rem 0 0;
 }
 
+/* The two cards share their four rows, so a longer note in one cannot push its
+   temperature and explanation below the other's. */
 .local-day {
   min-width: 0;
   display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
   gap: 0.55rem;
   align-content: start;
   padding: 0.95rem 1rem 1rem;
@@ -2081,8 +2108,10 @@ html {
 }
 
 @container (max-width: 18rem) {
+  /* Fixed value columns: sized by content, a row reading 100% drew a shorter
+     track than a row reading 80%. */
   .local-prow {
-    grid-template-columns: minmax(0, 1fr) max-content max-content;
+    grid-template-columns: minmax(0, 1fr) 2.25rem 3.4rem;
   }
 
   .local-prow-n {
@@ -2094,8 +2123,23 @@ html {
 
 .local-week {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 2.5rem), 1fr));
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
   gap: 4px;
+}
+
+/* Too narrow for one row: two even rows, never one day left on its own. */
+@container (max-width: 16rem) {
+  .local-week {
+    grid-template-columns: repeat(var(--cols-narrow), minmax(0, 1fr));
+    row-gap: 0.75rem;
+  }
+}
+
+/* A date label is about 3rem wide; three no longer fit. */
+@container (max-width: 10rem) {
+  .local-week {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .local-wd {
@@ -2242,6 +2286,15 @@ html {
     padding-inline: 1rem;
     background: color-mix(in srgb, var(--local-bg) 88%, transparent);
     backdrop-filter: blur(14px);
+  }
+
+  /* Beneath the strip, not on top of it. */
+  .local-minibar {
+    top: var(--local-strip-h, 0px);
+  }
+
+  .local-dashboard[data-crowded-top] .local-minibar {
+    position: static;
   }
 
   /* The strip is sticky across the whole scroll, so the provenance line is
