@@ -25,7 +25,7 @@ export function RecordStationPicker({ stationName }: { stationName: string | nul
 
   const messages = {
     searching: "지역을 찾는 중이에요. 잠시만 기다려 주세요.",
-    invalid: "검색어를 인식하지 못했어요. 시·구·동 이름으로 더 짧게 입력해 주세요.",
+    invalid: "검색어를 인식하지 못했어요. 시\u2060·\u2060구\u2060·\u2060동 이름으로 더 짧게 입력해 주세요.",
     "rate-limited": "검색 요청이 많아요. 잠시 후 다시 시도해 주세요.",
     "not-configured": "이곳에서는 지역 검색을 쓸 수 없어요.",
     unavailable: "지역을 찾지 못했어요. 잠시 후 다시 시도해 주세요.",
@@ -39,7 +39,7 @@ export function RecordStationPicker({ stationName }: { stationName: string | nul
     return (
       <button type="button" className="btd-picker-open" onClick={() => setOpen(true)}>
         다른 지역의 기록 보기
-        {stationName ? <span> · 지금은 {stationName}</span> : null}
+        {stationName ? <span>&nbsp;· 지금은 {stationName}</span> : null}
       </button>
     );
   }

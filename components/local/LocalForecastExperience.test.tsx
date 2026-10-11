@@ -1703,7 +1703,7 @@ test("the amount says how many services it came from when that is not the card's
     (cell) => cell.textContent ?? "",
   );
   assert.match(mms[0], /2\.7mm/);
-  assert.match(mms[0], /2곳 평균 · 확률은 4곳/, "an amount from fewer services says so");
+  assert.match(mms[0], /2곳 평균\u00a0· 확률은 4곳/, "an amount from fewer services says so");
   assert.match(mms[1], /0\.7mm/);
   assert.match(mms[1], /4곳 평균/);
   assert.doesNotMatch(mms[1], /확률은/, "no redundant marker when nothing is being narrowed");
@@ -1993,7 +1993,7 @@ test("the minibar miniatures the ribbon and answers at a glance", async () => {
   assert.equal(spark.querySelectorAll("i").length, 3, "one bar per ribbon block — it is that graph's miniature");
   assert.match(
     view.container.querySelector(".local-minibar-sum")?.textContent ?? "",
-    /^오후 12시부터 밤 9시까지 비 예상 · 최대 75%$/,
+    /^오후 12시부터 밤 9시까지 비 예상\u00a0· 최대 75%$/,
     "the pinned bar keeps the answer readable while the evidence scrolls",
   );
   await view.cleanup();

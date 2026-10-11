@@ -299,11 +299,11 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   const retryAvailable = expanded && search.retryAvailable;
   const searchMessages = {
     "too-short": "지역 이름을 두 글자 이상 입력해 주세요.",
-    invalid: "검색어를 인식하지 못했어요. 시·구·동 이름으로 더 짧게 입력해 주세요.",
+    invalid: "검색어를 인식하지 못했어요. 시\u2060·\u2060구\u2060·\u2060동 이름으로 더 짧게 입력해 주세요.",
     "rate-limited": "검색 요청이 많아요. 잠시 후 다시 시도해 주세요.",
     "not-configured": "이곳에서는 지역 검색을 쓸 수 없어요. 아래 예시나 위의 ‘\u2060내\u00a0위치로\u00a0보기’를 사용해 주세요.",
     unavailable: "지역 검색이 잠시 원활하지 않아요. 다시 시도해 주세요.",
-    empty: "대한민국 안에서 일치하는 행정구역을 찾지 못했어요. 시·구·동을 함께 입력해 보세요.",
+    empty: "대한민국 안에서 일치하는 행정구역을 찾지 못했어요. 시\u2060·\u2060구\u2060·\u2060동을 함께 입력해 보세요.",
   };
   const message = notice ?? (expanded && search.status in searchMessages
     ? searchMessages[search.status as keyof typeof searchMessages]
@@ -526,7 +526,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
           <div className="local-form-slot">
             {messageShown && (
               <div className="local-form-status">
-                <p className="local-form-message" role="status">{message}</p>
+                <p className="local-form-message" role="status">{keepQuoted(message)}</p>
                 {retryAvailable && (
                   <button
                     type="button"
@@ -581,7 +581,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             이 기기에 저장합니다. 예보 데이터는 좌표 기반으로 서버 메모리에 잠시 캐시될
             수 있습니다. 지역 검색어는 Kakao에 전달되며, 검색 응답은 저장하지 않습니다.
           </p>
-          <p>검색 결과는 행정구역 또는 법정구역 대표 위치 · 지역 검색 Kakao Map</p>
+          <p>검색 결과는 행정구역 또는 법정구역 대표 위치&nbsp;· 지역 검색 Kakao Map</p>
         </div>
       </div>
 
@@ -597,7 +597,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
           </div>
           <div>
             <dt>검증 관측소</dt>
-            <dd>{VERIFICATION_STATION_COUNT}개<small>기상청 ASOS · 익일 예보만 채점합니다</small></dd>
+            <dd>{VERIFICATION_STATION_COUNT}개<small>기상청 ASOS&nbsp;· 익일 예보만 채점합니다</small></dd>
           </div>
           <div>
             <dt>시간축</dt>
@@ -610,8 +610,8 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             data — gridlines and a sentence, nothing else. */}
         <div className="local-instrument-empty" aria-hidden>
           <div className="local-instrument-empty-lab">
-            <span>시간대 강수확률 · 강수량</span>
-            <span>0–100% · MM</span>
+            <span>시간대 강수확률&nbsp;· 강수량</span>
+            <span>0–100%&nbsp;· MM</span>
           </div>
           <div className="local-instrument-empty-grid">
             <span>위치를 고르면 여기 그려집니다</span>
@@ -685,7 +685,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
     <section className="local-evidence-section" aria-labelledby="evidence-heading">
       <div className="local-section-heading">
         <div>
-          <p className="local-kicker">기록 <span>: {evidence.proximity === "regional" ? "광역 관측소로 채점한 성적" : "근처 관측소로 채점한 성적"}</span></p>
+          <p className="local-kicker">기록&nbsp;<span>: {evidence.proximity === "regional" ? "광역 관측소로 채점한 성적" : "근처 관측소로 채점한 성적"}</span></p>
           <h2 id="evidence-heading" tabIndex={-1}>
             {seedRanked.length > 0
               ? <>과거 기록에서<br />누가 더 잘 맞았나</>
@@ -702,7 +702,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
       <div className="local-evidence-meta">
         <div>
           <span>{evidence.proximity === "regional" ? "광역 비교 관측소" : "비교 관측소"}</span>
-          <strong>{station ? `${station.name} · ${station.distanceKm.toFixed(1)}km` : "아직 연결되지 않음"}</strong>
+          <strong>{station ? `${station.name}\u00a0· ${station.distanceKm.toFixed(1)}km` : "아직 연결되지 않음"}</strong>
         </div>
         <div>
           <span>채점 기간</span>
@@ -710,8 +710,8 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
               a flat retrospective sample, so claiming it here would be false. */}
           <strong>
             {seedRanked.length > 0
-              ? "과거 예보 기록 · 기간 전체를 같은 비중으로 반영"
-              : "최근 60일 · 최근 예보일수록 크게 반영"}
+              ? "과거 예보 기록\u00a0· 기간 전체를 같은 비중으로 반영"
+              : "최근 60일\u00a0· 최근 예보일수록 크게 반영"}
           </strong>
         </div>
         <div>
@@ -719,15 +719,15 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
           <strong>
             {seedRanked.length > 0
               ? `${Math.min(...seedRanked.map((row) => row.sampleCount))}일`
-              : comparisonSampleCount > 0 ? `${comparisonSampleCount}회 · ${cohortLabel}` : "수집 전"}
+              : comparisonSampleCount > 0 ? `${comparisonSampleCount}회\u00a0· ${cohortLabel}` : "수집 전"}
           </strong>
         </div>
       </div>
 
       {station && (
         <p className="local-method-note">
-          {evidence.proximity === "regional" ? "25 km보다 먼 관측소의 광역 기록으로 채점합니다." : "25 km 이내 관측소의 기록으로 채점합니다."} 선택한 위치의 실제 날씨와 다를 수 있으며,
-          기상청 예보 격자는 5 km 단위입니다.
+          {evidence.proximity === "regional" ? "25\u00a0km보다 먼 관측소의 광역 기록으로 채점합니다." : "25\u00a0km 이내 관측소의 기록으로 채점합니다."} 선택한 위치의 실제 날씨와 다를 수 있으며,
+          기상청 예보 격자는 5&nbsp;km 단위입니다.
         </p>
       )}
 
@@ -778,7 +778,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
                   <span role="columnheader">서비스</span>
                   <span role="columnheader">최근 7일 Brier</span>
                   <span role="columnheader">60일 Brier</span>
-                  <span role="columnheader">누락 · 오보</span>
+                  <span role="columnheader">누락&nbsp;· 오보</span>
                   <span role="columnheader">비 온 날 강수량 오차</span>
                 </div>
                 {ranked.map((provider) => (
@@ -786,10 +786,10 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
                     <strong role="cell">{provider.name}</strong>
                     <span role="cell">{provider.last7DaysBrier?.toFixed(3) ?? "기록 없음"}</span>
                     <span role="cell">{provider.windowBrier.toFixed(3)}</span>
-                    <span role="cell">누락 {provider.misses} · 오보 {provider.falseAlarms}</span>
+                    <span role="cell">누락 {provider.misses}&nbsp;· 오보 {provider.falseAlarms}</span>
                     <span role="cell">
                       {provider.rainyAmountMae === null ? "기록 없음" : `${provider.rainyAmountMae.toFixed(1)}mm`}
-                      {provider.rainyAmountSampleCount > 0 && ` · ${provider.rainyAmountSampleCount}일`}
+                      {provider.rainyAmountSampleCount > 0 && `\u00a0· ${provider.rainyAmountSampleCount}일`}
                     </span>
                   </div>
                 ))}
@@ -849,7 +849,7 @@ function amountMeta(amountProviderCount: number, comparedProviderCount: number):
   if (amountProviderCount <= 0) return "양을 발표한 서비스 없음";
   return amountProviderCount === comparedProviderCount
     ? `${amountProviderCount}곳 평균`
-    : `${amountProviderCount}곳 평균 · 확률은 ${comparedProviderCount}곳`;
+    : `${amountProviderCount}곳 평균\u00a0· 확률은 ${comparedProviderCount}곳`;
 }
 
 /**
@@ -894,6 +894,13 @@ function publishedHours(blocks: LocalForecastTimelineBlock[]): number | null {
   if (blocks.length === 0 || blocks.some((block) => block.precipMax === null)) return null;
   if (blocks.some((block, index) => index > 0 && block.startHour !== blocks[index - 1].endHour)) return null;
   return blocks.reduce((hours, block) => hours + ((block.endHour - block.startHour + 24) % 24 || 24), 0);
+}
+
+/** Safari breaks right after an opening quote even with a word joiner there, so a quoted term is kept whole. */
+function keepQuoted(text: string | null) {
+  return text?.split(/(‘[^’]*’)/).map((part, index) => (
+    index % 2 === 1 ? <span key={index} className="local-keep">{part}</span> : part
+  ));
 }
 
 /** "지금부터" / "내일 새벽 3시부터", and the end "밤 9시까지" when the series saw one. */
@@ -1112,7 +1119,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
       ? `${hours === null ? "발표된 시간대" : `${hours}시간`} 비 예상 없음`
       : `${!run.endsWithinWindow && run.startIndex === 0 && hours !== null
         ? `${hours}시간 내내`
-        : Object.values(windowWords(run, runEndsTomorrow)).filter(Boolean).join(" ")} 비 예상 · 최대 ${Math.round(run.peakProbability)}%`;
+        : Object.values(windowWords(run, runEndsTomorrow)).filter(Boolean).join(" ")} 비 예상\u00a0· 최대 ${Math.round(run.peakProbability)}%`;
 
   const amountRange = forecast.tomorrowAmountRange ?? null;
 
@@ -1223,7 +1230,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
           >
             {forecast.locationName === DEVICE_PLACEHOLDER_NAME
               ? locationDescription.precision
-              : `${locationDescription.source} · ${locationDescription.precision}`}
+              : `${locationDescription.source}\u00a0· ${locationDescription.precision}`}
           </span>
         </div>
         <div className="local-strip-now">
@@ -1248,7 +1255,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
         </h1>
         {timeline && (
           <p className="local-answer-sub">
-            {peak && <span>최대 <b className="is-wet">{Math.round(peak.probability)}%</b> · {peak.rangeLabel}</span>}
+            {peak && <span>최대 <b className="is-wet">{Math.round(peak.probability)}%</b>&nbsp;· {peak.rangeLabel}</span>}
             {run && <span>지속 <b>{run.durationHours}시간</b></span>}
             {/* The total is the run's own sum from the ribbon's provider — the same
                 claim as the window itself. It appears only when the series saw the
@@ -1275,7 +1282,9 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
               (today ?? tomorrow).precipitationAmountMm,
               RAIN_ONSET_PROBABILITY,
             )}
-          {laterRun && run && !run.startsTomorrow && ` 이후 ${laterRun.startsTomorrow ? "내일 " : ""}${clockLabel(laterRun.startHour)}부터 다시 비가 예상됩니다.`}
+          {laterRun && run && !run.startsTomorrow && (
+            <> 이후 <span className="local-keep">{laterRun.startsTomorrow ? "내일 " : ""}{clockLabel(laterRun.startHour)}부터</span> 다시 비가 예상됩니다.</>
+          )}
         </p>
       </section>
 
@@ -1309,7 +1318,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
               onClick={toggleGlance}
             >
               {glance
-                ? <>전체 근거 보기<span className="local-minibar-tgl-cargo"> · 비교 + 기록</span></>
+                ? <>전체 근거 보기<span className="local-minibar-tgl-cargo">&nbsp;· 비교 + 기록</span></>
                 : "한눈에 보기"}
             </button>
           </div>
@@ -1320,7 +1329,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
         <section className="local-ribbon" aria-labelledby="ribbon-heading">
           <div className="local-ribbon-head">
             <h2 id="ribbon-heading" className="local-ribbon-src">
-              <i aria-hidden />시간대 강수확률 · {timeline.sourceName} 단독 예보
+              <i aria-hidden />시간대 강수확률&nbsp;· {timeline.sourceName} 단독 예보
             </h2>
             <span className="local-ribbon-note">
               3시간 블록 {blocks.length}개
@@ -1348,10 +1357,10 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
                   aria-hidden
                   ref={readoutRef}
                 >
-                  <b>{scrubbed.label} {scrubbed.rangeLabel}{scrubbed.wet ? " · 비 구간" : ""}</b>
+                  <b>{scrubbed.label} {scrubbed.rangeLabel}{scrubbed.wet ? "\u00a0· 비 구간" : ""}</b>
                   <span>
                     {scrubbed.precipMax === null ? "확률 미발표" : `확률 ${Math.round(scrubbed.precipMax)}%`}
-                    {scrubbed.precipSumMm != null && ` · 강수 ${formatMm(scrubbed.precipSumMm)}mm`}
+                    {scrubbed.precipSumMm != null && `\u00a0· 강수 ${formatMm(scrubbed.precipSumMm)}mm`}
                   </span>
                 </div>
               )}
@@ -1421,7 +1430,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
             </div>
             {laneVisible && (
               <div className="local-ribbon-mmlab">
-                <span><i aria-hidden />강수량 mm · 같은 출처 · 확률과 다른 축</span>
+                <span><i aria-hidden />강수량 mm&nbsp;· 같은 출처&nbsp;· 확률과 다른 축</span>
                 <span>0–{laneCapMm}mm</span>
               </div>
             )}
@@ -1430,7 +1439,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
         </section>
       )}
 
-      <p className="local-kicker">{today ? "오늘 · 내일" : "내일"} <span>: 여러 서비스를 섞은 하루 숫자</span></p>
+      <p className="local-kicker">{today ? "오늘\u00a0· 내일" : "내일"}&nbsp;<span>: 여러 서비스를 섞은 하루 숫자</span></p>
       <div className="local-days">
         {today && (
           <section className="local-day" aria-labelledby="today-heading">
@@ -1534,11 +1543,11 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
           </button>
         </div>
       ) : (<>
-      <p className="local-kicker">근거 <span>: 이 숫자가 나온 방식</span></p>
+      <p className="local-kicker">근거&nbsp;<span>: 이 숫자가 나온 방식</span></p>
       <div className="local-evidence-cards">
         <section className="local-card" aria-labelledby="influence-heading">
           <div className="local-card-head">
-            <h2 id="influence-heading" tabIndex={-1}>서비스 {forecast.comparedProviderCount}곳 · 내일</h2>
+            <h2 id="influence-heading" tabIndex={-1}>서비스 {forecast.comparedProviderCount}곳&nbsp;· 내일</h2>
             {spread.length > 1 && (
               <b>편차 {Math.round(Math.min(...spread))}–{Math.round(Math.max(...spread))}%</b>
             )}
@@ -1786,7 +1795,7 @@ export default function LocalForecastExperience() {
           <span className="local-wordmark">오늘비</span>
           <small>전국 로컬 예보</small>
         </button>
-        <span className="local-live-mark"><i /> 실시간 예보 · KST</span>
+        <span className="local-live-mark"><i /> 실시간 예보&nbsp;· KST</span>
       </header>
 
       {(state.kind === "idle" || state.kind === "loading") && (
@@ -1817,8 +1826,8 @@ export default function LocalForecastExperience() {
               per-provider progress row. */}
           <div className="local-instrument-empty is-waiting" aria-hidden>
             <div className="local-instrument-empty-lab">
-              <span>시간대 강수확률 · 강수량</span>
-              <span>0–100% · MM</span>
+              <span>시간대 강수확률&nbsp;· 강수량</span>
+              <span>0–100%&nbsp;· MM</span>
             </div>
             <div className="local-instrument-empty-grid">
               <span>응답한 서비스를 한 번에 그립니다</span>

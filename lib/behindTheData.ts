@@ -295,3 +295,26 @@ export function resolveRecordLocation(
     return { location: DEFAULT_FORECAST_LOCATION, requested: false };
   }
 }
+
+/**
+ * The read time in Seoul, as a date and a time that can be laid out on two
+ * lines. The 오전/오후 wording is built here: left to `Intl`, the same call
+ * printed "PM 8:15" on one ICU build and "오후 8:15" on another.
+ */
+export function seoulTimestamp(now: Date): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((entry) => entry.type === type)?.value ?? "";
+  const hour = Number(part("hour"));
+  return {
+    date: `${part("year")}년 ${part("month")}월 ${part("day")}일`,
+    time: `${hour < 12 ? "오전" : "오후"} ${hour % 12 || 12}:${part("minute")}`,
+  };
+}

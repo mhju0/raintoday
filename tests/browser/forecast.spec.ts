@@ -428,3 +428,121 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     expect(leading).not.toContain("·");
   });
 }
+
+async function enlargeText(page: import("@playwright/test").Page, percent: number) {
+  await page.addInitScript((size) => {
+    document.addEventListener("DOMContentLoaded", () => { document.documentElement.style.fontSize = `${size}%`; });
+  }, percent);
+}
+
+for (const width of [390, 768, 1024]) {
+  test(`ribbon captions stay inside their own columns with text at 200% at ${width}px`, async ({ page }) => {
+    await enlargeText(page, 200);
+    await openForecast(page, width, expandedForecast());
+    const overhang = await page.locator(".local-ribbon-col").evaluateAll((columns) => columns.map((column) => {
+      const right = column.getBoundingClientRect().right;
+      return Math.max(...[...column.querySelectorAll(".local-ribbon-rng, .local-ribbon-hint")].map((label) => {
+        const range = document.createRange();
+        range.selectNodeContents(label);
+        return range.getBoundingClientRect().right - right;
+      }));
+    }));
+    expect(overhang.length).toBeGreaterThan(0);
+    expect(Math.max(...overhang)).toBeLessThanOrEqual(0.5);
+  });
+}
+
+test("the record heading keeps whole words with text at 200%", async ({ page }) => {
+  await enlargeText(page, 200);
+  await page.addInitScript(() => localStorage.setItem("raintoday.view-density.v1", "full"));
+  await openForecast(page, 768, expandedForecast());
+  const heading = await page.locator("#evidence-heading").evaluate((element) => {
+    const size = Number.parseFloat(getComputedStyle(element).fontSize);
+    return { ems: element.getBoundingClientRect().width / size, lines: element.getBoundingClientRect().height / size };
+  });
+  expect(heading.ems, "room for a whole word").toBeGreaterThanOrEqual(6);
+  expect(heading.lines).toBeLessThanOrEqual(4);
+});
+
+test("amount values in the mm lane start on the same edge as the percentages above them", async ({ page }) => {
+  await openForecast(page, 1440, expandedForecast());
+  const edges = await page.locator(".local-ribbon-col").first().evaluate((column) => {
+    const left = (selector: string) => {
+      const range = document.createRange();
+      range.selectNodeContents(column.querySelector(selector)!);
+      return range.getBoundingClientRect().left;
+    };
+    return { value: left(".local-ribbon-val"), amount: left(".local-ribbon-mmval") };
+  });
+  expect(Math.abs(edges.value - edges.amount)).toBeLessThanOrEqual(0.5);
+});
+
+test("the ribbon's source chip and block count share a baseline", async ({ page }) => {
+  await openForecast(page, 1440, expandedForecast());
+  const bottoms = await page.locator(".local-ribbon-head").evaluate((head) => [".local-ribbon-src", ".local-ribbon-note"].map((selector) => {
+    const element = head.querySelector(selector)!;
+    const probe = document.createElement("span");
+    probe.style.cssText = "display:inline-block;width:0;height:0";
+    element.append(probe);
+    const bottom = probe.getBoundingClientRect().bottom;
+    probe.remove();
+    return bottom;
+  }));
+  expect(Math.abs(bottoms[0] - bottoms[1])).toBeLessThanOrEqual(0.5);
+});
+
+test("the retry control is tall enough to tap", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/locations/search**", (route) => route.fulfill({ status: 503, json: { error: "unavailable" } }));
+  await page.goto("/");
+  await page.getByRole("combobox", { name: "대한민국 지역 검색" }).fill("서울");
+  const retry = page.getByRole("button", { name: "다시 시도" });
+  await expect(retry).toBeVisible();
+  expect((await retry.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+});
+
+test("the 404 page sits on the site ground and its way back is a tappable link", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/no-such-page");
+  const link = page.getByRole("link", { name: "예보로 돌아가기" });
+  await expect(link).toBeVisible();
+  expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  const ground = await page.evaluate(() => {
+    const paint = (element: Element | null) => {
+      for (let node = element; node; node = node.parentElement) {
+        const colour = getComputedStyle(node).backgroundColor;
+        if (colour !== "rgba(0, 0, 0, 0)") return colour;
+      }
+      return "";
+    };
+    return paint(document.elementFromPoint(5, 400));
+  });
+  expect(ground).toBe("rgb(11, 15, 20)");
+});
+
+test("the record summary keeps its labels level and its date whole", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/behind-the-data?station=none");
+  const meta = page.locator(".btd-meta").first();
+  await expect(meta).toBeVisible();
+  expect(spreadOf(await tops(meta.locator("dt")))).toBeLessThanOrEqual(0.5);
+  const stamp = await meta.locator("dd").last().evaluate((element) => ({
+    text: element.textContent ?? "",
+    wholeParts: [...element.querySelectorAll("span")].every((part) => part.getClientRects().length === 1),
+  }));
+  expect(stamp.text).toMatch(/^\d{4}년 \d{1,2}월 \d{1,2}일 오[전후] \d{1,2}:\d{2}$/);
+  expect(stamp.wholeParts).toBe(true);
+});
+
+for (const width of [320, 390]) {
+  test(`the unavailable-search message keeps its quoted term whole with text at 130% at ${width}px`, async ({ page }) => {
+    await enlargeText(page, 130);
+    await page.setViewportSize({ width, height: 900 });
+    await page.route("**/api/locations/search**", (route) => route.fulfill({ status: 503, json: { error: "search_not_configured" } }));
+    await page.goto("/");
+    await page.getByRole("combobox", { name: "대한민국 지역 검색" }).fill("서울");
+    const quoted = page.locator(".local-form-message .local-keep");
+    await expect(quoted).toBeVisible();
+    expect(await quoted.evaluate((element) => element.getClientRects().length)).toBe(1);
+  });
+}
