@@ -140,3 +140,10 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Decision (owner chose "timeline only"): hourly amounts are a second Open-Meteo request with `models=ecmwf_ifs025`. Daily probability and amount, the blend and stored captures are unchanged. If the second request fails, hourly amounts stay missing; no fallback to the mismatched default.
 - Open-Meteo requests per forecast read double (serving and capture share `read()`); it has no key or metered quota here.
 - Release candidate: 2.1.6. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish; then retake the README screenshot and refresh its dated figures as 2.1.7 (work stashed as `readme-refresh-216`). Open, owner-only: the repository's GitHub social preview image lists four providers; the portfolio's Raintoday screenshot awaits owner approval.
+
+## 2026-10-12 — 2.1.6 released; README screenshot and dated figures refreshed
+
+- 2.1.6 (PR #199, `ec590fb`): main CI passed, production serves the merge commit, annotated tag and GitHub release published. Live Seoul read after deploy: every block above 40% carries a non-zero amount.
+- Owner asked for current screenshots and an accurate README. The README screenshot is a new production capture taken after 2.1.6 (Seoul, 2026-10-12 about 02:26 KST, full view, dark). Dated figures re-read from the performance database read-only: 9,141 captures, 5,121 station-day observations, 97 stations. The Seoul sentence states what the live record showed that day (39 comparisons, weighted and equal blends both at mean Brier 0.074) instead of the unverified "first to move" claim.
+- Open, owner-only: the repository's GitHub social preview image lists four providers (no Visual Crossing); it is uploaded in repository settings and cannot be changed from the tree.
+- Release candidate: 2.1.7. Next: merge after checks, confirm main CI and the production merge SHA, then tag and publish the release.
