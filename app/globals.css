@@ -1071,12 +1071,18 @@ html {
 .local-footer {
   padding: 2.5rem 0 0;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 2rem;
   color: var(--local-dim);
   font-size: var(--t-label);
   line-height: 1.6;
   letter-spacing: 0.04em;
+}
+
+.local-footer > p {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 
 /* ---------- dashboard: horizontal time axis ----------
@@ -2316,6 +2322,10 @@ html {
     flex-direction: column;
     gap: 0.4rem;
   }
+
+  .local-footer > p {
+    flex: initial;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2552,6 +2562,7 @@ html {
   list-style: none;
   counter-reset: btd-rule;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.4rem;
 }
 
@@ -2559,6 +2570,7 @@ html {
   counter-increment: btd-rule;
   padding-left: 2.2rem;
   position: relative;
+  min-width: 0;
 }
 
 /* The rules are a numbered set of three, not a sequence to work through — the
@@ -2769,8 +2781,8 @@ html {
 
 /* The one route out of the forecast: the scoring record behind it. */
 .local-footer-link {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
+  max-width: 100%;
   min-height: 2.75rem;
   min-width: 2.75rem;
   color: var(--local-accent);

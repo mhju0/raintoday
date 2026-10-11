@@ -124,6 +124,15 @@ for (const width of [320, 390, 768, 900, 901, 1024, 1440]) {
       await page.goto(`/?lat=33.25&lon=126.26&name=${encodeURIComponent("제주특별자치도 서귀포시 대정읍")}&area=h`);
       await expect(page.locator(".local-dashboard")).toBeVisible();
       await page.evaluate((size) => { document.documentElement.style.fontSize = size; }, fontSize);
+      if (width <= 640) {
+        const extraHeight = await page.locator(".local-footer > p").first().evaluate((element) => {
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight);
+          return element.getBoundingClientRect().height - range.getBoundingClientRect().height - lineHeight;
+        });
+        expect(extraHeight, "footer paragraphs should not reserve empty vertical space").toBeLessThanOrEqual(1);
+      }
       await expectContentWithinViewport(page);
       await page.getByRole("button", { name: /전체 근거 보기/ }).click();
       await expect(page.locator(".local-evidence-section")).toBeVisible();
