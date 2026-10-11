@@ -289,3 +289,142 @@ test("search fields mark focus with their own border, not a second ring", async 
   await expect(locate).toBeFocused();
   await expect(locate).toHaveCSS("outline-style", "solid");
 });
+
+// Audit 007. Each of these is one text or one bar moving off a line its
+// neighbours share, or one layer covering another.
+const longPlace = `/?lat=33.25&lon=126.26&name=${encodeURIComponent("제주특별자치도 서귀포시 대정읍")}&area=h`;
+
+async function openForecast(page: import("@playwright/test").Page, width: number, forecast: unknown, height = 900) {
+  await page.setViewportSize({ width, height });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/local-forecast", (route) => route.fulfill({ json: forecast }));
+  await page.goto(longPlace);
+  await expect(page.locator(".local-dashboard")).toBeVisible();
+}
+
+const tops = (locator: import("@playwright/test").Locator) =>
+  locator.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
+const spreadOf = (values: number[]) => Math.max(...values) - Math.min(...values);
+
+for (const width of [320, 390]) {
+  test(`the pinned summary sits below the location strip at ${width}px`, async ({ page }) => {
+    await openForecast(page, width, expandedForecast(), 800);
+    await page.evaluate(() => window.scrollTo({ top: 1400, behavior: "instant" }));
+    const bars = await page.evaluate(() => {
+      const strip = document.querySelector(".local-strip")!.getBoundingClientRect();
+      return { stripTop: strip.top, stripBottom: strip.bottom, summaryTop: document.querySelector(".local-minibar")!.getBoundingClientRect().top };
+    });
+    expect(bars.stripTop, "the strip is pinned").toBeLessThanOrEqual(1);
+    expect(bars.summaryTop, "the summary is pinned").toBeLessThan(200);
+    expect(bars.summaryTop).toBeGreaterThanOrEqual(bars.stripBottom - 1);
+  });
+}
+
+for (const width of [390, 768, 1440]) {
+  test(`the scrub readout stays inside the chart at ${width}px`, async ({ page }) => {
+    await openForecast(page, width, mixedRibbonForecast(true));
+    await page.locator(".local-ribbon-grid").focus();
+    for (let column = 1; column <= 8; column += 1) {
+      await page.keyboard.press("ArrowRight");
+      const bounds = await page.evaluate(() => {
+        const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect();
+        const [readout, scroller, selected] = [box(".local-ribbon-readout"), box(".local-ribbon-scroll"), box(".local-ribbon-col.is-scrubbed")];
+        return { readout: [readout.left, readout.right], scroller: [scroller.left, scroller.right], selected: [selected.left, selected.right] };
+      });
+      expect(bounds.readout[0], `column ${column} readout left`).toBeGreaterThanOrEqual(bounds.scroller[0] - 1);
+      expect(bounds.readout[1], `column ${column} readout right`).toBeLessThanOrEqual(bounds.scroller[1] + 1);
+      expect(bounds.selected[0], `column ${column} in view`).toBeGreaterThanOrEqual(bounds.scroller[0] - 1);
+      expect(bounds.selected[1], `column ${column} in view`).toBeLessThanOrEqual(bounds.scroller[1] + 1);
+    }
+  });
+}
+
+for (const width of [320, 390, 1440]) {
+  test(`a search message leaves the shortcut chips uncovered at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.route("**/api/locations/search**", (route) => route.fulfill({ json: { results: [] } }));
+    await page.goto("/");
+    await page.getByRole("combobox", { name: "대한민국 지역 검색" }).fill("없는곳");
+    const message = page.getByText("일치하는 행정구역을 찾지 못했어요", { exact: false });
+    await expect(message).toBeVisible();
+    const messageBottom = await message.evaluate((element) => element.getBoundingClientRect().bottom);
+    const examplesTop = await page.locator(".local-examples").evaluate((element) => element.getBoundingClientRect().top);
+    expect(examplesTop).toBeGreaterThanOrEqual(messageBottom);
+  });
+}
+
+test("a search message does not resize the page on every keystroke", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/locations/search**", (route) => route.fulfill({ json: { results: [] } }));
+  await page.goto("/");
+  const search = page.getByRole("combobox", { name: "대한민국 지역 검색" });
+  await search.fill("없는곳");
+  await expect(page.getByText("일치하는 행정구역을 찾지 못했어요", { exact: false })).toBeVisible();
+  const height = () => page.evaluate(() => document.documentElement.scrollHeight);
+  const settled = await height();
+  await search.pressSequentially("에");
+  expect(await height(), "while the next search is pending").toBe(settled);
+  await expect(page.getByText("일치하는 행정구역을 찾지 못했어요", { exact: false })).toBeVisible();
+  expect(await height()).toBe(settled);
+});
+
+test("a column with no published value keeps its caption on the shared line", async ({ page }) => {
+  const forecast = mixedRibbonForecast(true);
+  await openForecast(page, 1440, forecast);
+  const captions = await tops(page.locator(".local-ribbon-hint"));
+  expect(captions).toHaveLength(8);
+  expect(spreadOf(captions)).toBeLessThanOrEqual(0.5);
+});
+
+for (const width of [320, 641]) {
+  test(`provider bars share one scale and the outlook leaves no day alone at ${width}px`, async ({ page }) => {
+    await openForecast(page, width, expandedForecast());
+    await page.getByRole("button", { name: /전체 근거 보기/ }).click();
+    const tracks = await page.locator(".local-meter").evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().width));
+    expect(tracks).toHaveLength(5);
+    expect(spreadOf(tracks)).toBeLessThanOrEqual(0.5);
+    const days = await tops(page.locator(".local-wd"));
+    const lastRow = days.filter((top) => Math.abs(top - Math.max(...days)) < 1);
+    expect(lastRow.length, "days on the last outlook row").toBeGreaterThan(1);
+    await expectContentWithinViewport(page);
+  });
+}
+
+for (const width of [641, 768, 1024, 1440]) {
+  test(`today and tomorrow share their rows at ${width}px`, async ({ page }) => {
+    const forecast = { ...expandedForecast(), tomorrowAmountRange: { minMm: 0, minName: "기상청", maxMm: 2.4, maxName: "Open-Meteo" } };
+    await openForecast(page, width, forecast);
+    for (const row of [".local-day-nums", ".local-day-row", ".local-day-why"]) {
+      const rowTops = await tops(page.locator(row));
+      expect(rowTops).toHaveLength(2);
+      expect(spreadOf(rowTops), row).toBeLessThanOrEqual(0.5);
+    }
+  });
+}
+
+for (const width of [320, 390, 768, 1024, 1440]) {
+  test(`no line of the amount note starts with a separator at ${width}px`, async ({ page }) => {
+    const forecast = { ...expandedForecast(), tomorrowAmountRange: { minMm: 0, minName: "기상청", maxMm: 2.4, maxName: "Open-Meteo" } };
+    await openForecast(page, width, forecast);
+    const leading = await page.locator(".local-day-mm small").last().evaluate((note) => {
+      const walker = document.createTreeWalker(note, NodeFilter.SHOW_TEXT);
+      const lines = new Map<number, { left: number; character: string }>();
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const text = node.textContent ?? "";
+        for (let index = 0; index < text.length; index += 1) {
+          if (!text[index].trim()) continue;
+          const range = document.createRange();
+          range.setStart(node, index);
+          range.setEnd(node, index + 1);
+          const bounds = range.getBoundingClientRect();
+          const line = Math.round(bounds.top / 4);
+          const first = lines.get(line);
+          if (!first || bounds.left < first.left) lines.set(line, { left: bounds.left, character: text[index] });
+        }
+      }
+      return [...lines.values()].map((line) => line.character);
+    });
+    expect(leading.length).toBeGreaterThan(0);
+    expect(leading).not.toContain("·");
+  });
+}
