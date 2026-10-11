@@ -58,7 +58,13 @@ html {
      an ink again. */
   --local-mm: #1fae8d;
   --local-mm-ink: #5ce0bd;
-  --local-mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  /* None of the mono families carries Hangul, so each system used to fill it
+     with its own (Apple SD Gothic Neo, Malgun Gothic) beside Noto body text.
+     Naming Noto before the generic keeps Korean labels in the body's face. */
+  --local-mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, Consolas, var(--font-noto-kr), monospace;
+  /* A word space still comes from the mono face and is as wide as a glyph;
+     between Hangul words that reads as a double space. */
+  --local-mono-gap: -0.22em;
 
   /* ---- type scale ----
      Replaces 22 measured sizes, most of them accidental near-duplicates
@@ -250,6 +256,7 @@ html {
 
 .local-eyebrow {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   color: var(--local-accent);
   font-size: var(--t-label);
   font-weight: 400;
@@ -277,7 +284,7 @@ html {
      dashboard that follows it. One type system across both screens. */
   font-size: clamp(2.4rem, 4.6vw, 3.6rem);
   font-weight: 300;
-  line-height: 1.08;
+  line-height: 1.16;
 }
 
 .local-chooser-copy h1 b {
@@ -321,6 +328,7 @@ html {
 
 .local-chooser-facts dt {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -330,6 +338,7 @@ html {
 .local-chooser-facts dd {
   margin: 0;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: 1.06rem;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -362,6 +371,7 @@ html {
 
 .local-panel-title {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -406,6 +416,7 @@ html {
   align-items: center;
   gap: 0.75rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   color: var(--local-dim);
   font-size: var(--t-label);
   letter-spacing: 0.12em;
@@ -516,7 +527,11 @@ html {
 
 .local-form-status button {
   flex: 0 0 auto;
-  padding: 0.8rem 0 0.2rem;
+  /* 44px of touch height; the extra reaches up into the gap above, so the
+     baseline it shares with the message does not move. */
+  min-height: 2.75rem;
+  margin-top: -0.5rem;
+  padding: 1.3rem 0 0.2rem;
   border-bottom: 1px solid var(--local-accent-deep);
   color: var(--local-accent);
   font-size: var(--t-label);
@@ -530,6 +545,7 @@ html {
   display: grid;
   gap: 0.4rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   line-height: 1.75;
   color: var(--local-dim);
@@ -571,6 +587,7 @@ html {
 
 .local-examples-label {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -650,6 +667,7 @@ html {
 
 .local-loading-place {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -670,6 +688,7 @@ html {
 
 .local-loading-names {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   line-height: 1.7;
   color: var(--local-ink-2);
@@ -678,6 +697,7 @@ html {
 
 .local-loading-note {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   line-height: 1.7;
   color: var(--local-dim);
@@ -698,6 +718,7 @@ html {
 
 .local-state-kicker {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -723,6 +744,7 @@ html {
   padding-top: 0.7rem;
   border-top: 1px solid var(--local-line);
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   line-height: 1.7;
   color: var(--local-dim);
@@ -761,6 +783,7 @@ html {
   justify-content: space-between;
   gap: 0.25rem 1rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.08em;
   color: var(--local-dim);
@@ -797,6 +820,7 @@ html {
 .local-instrument-empty-grid span {
   position: relative;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-dim);
 }
@@ -871,7 +895,7 @@ html {
   max-width: 14ch;
   font-size: var(--t-heading);
   font-weight: 360;
-  line-height: 1.04;
+  line-height: 1.16;
 }
 
 .local-section-heading > p {
@@ -879,6 +903,18 @@ html {
   max-width: 24rem;
   color: var(--local-muted);
   line-height: 1.7;
+}
+
+/* In rem, so enlarged text stacks the pair instead of squeezing the heading
+   into a column one glyph wide. */
+@container (max-width: 29rem) {
+  .local-section-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .local-section-heading > p {
+    justify-self: start;
+  }
 }
 
 /* This is the answer to "is this better than a normal weather app?", so it
@@ -1144,6 +1180,7 @@ html {
 
 .local-strip-meta {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.04em;
   color: var(--local-muted);
@@ -1151,6 +1188,7 @@ html {
 
 .local-strip-temp {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -1182,7 +1220,7 @@ html {
   margin: 0.75rem 0 0;
   font-size: var(--t-display);
   font-weight: 300;
-  line-height: 1.1;
+  line-height: 1.18;
   letter-spacing: -0.035em;
 }
 
@@ -1220,6 +1258,7 @@ html {
   flex-wrap: wrap;
   gap: 0.4rem 1.25rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-muted);
 }
@@ -1254,12 +1293,15 @@ html {
 .local-ribbon-src {
   margin: 0;
   display: inline-flex;
-  align-items: center;
+  /* Baseline, not centre: a centred chip takes its baseline from the marker
+     square and sat 4px off the note beside it. */
+  align-items: baseline;
   gap: 0.45rem;
   padding: 0.25rem 0.6rem;
   border: 1px solid var(--local-line-2);
   border-radius: 3px;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   font-weight: 400;
   letter-spacing: 0;
@@ -1275,6 +1317,7 @@ html {
 
 .local-ribbon-note {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.03em;
   color: var(--local-dim);
@@ -1286,6 +1329,12 @@ html {
 .local-ribbon,
 .local-ribbon-scroll {
   min-width: 0;
+}
+
+/* A container so the swipe cue can follow the ribbon's own width: it scrolls
+   whenever it is narrower than its columns need, at any viewport. */
+.local-ribbon {
+  container-type: inline-size;
 }
 
 .local-ribbon-scroll {
@@ -1301,7 +1350,9 @@ html {
   grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
   grid-template-rows: auto var(--local-track) auto;
   column-gap: 3px;
-  min-width: 0;
+  /* Wide enough for eight one-line hints, in rem: with enlarged text the
+     ribbon scrolls sideways instead of printing captions over each other. */
+  min-width: 50rem;
   /* Room for the date tag, which hangs above its column rather than covering
      the period label. */
   padding-top: 1rem;
@@ -1351,6 +1402,7 @@ html {
   border-radius: 3px;
   padding: 0.5rem 0.75rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-ink-2);
   white-space: nowrap;
@@ -1391,6 +1443,7 @@ html {
   padding: 0 0.45rem 0 0.3rem;
   border-left: 1px solid var(--local-line-2);
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   line-height: 1rem;
   letter-spacing: 0.1em;
@@ -1413,6 +1466,7 @@ html {
 
 .local-ribbon-rng {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.02em;
   color: var(--local-dim);
@@ -1443,6 +1497,7 @@ html {
   padding-right: 0.4rem;
   background: var(--local-bg);
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.08em;
   color: var(--local-amber);
@@ -1482,6 +1537,7 @@ html {
   inset: auto 0 0.5rem;
   text-align: center;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.1em;
   color: var(--local-muted);
@@ -1497,6 +1553,7 @@ html {
 
 .local-ribbon-val {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--local-ribbon-val);
   line-height: 1.5;
   font-weight: 600;
@@ -1521,12 +1578,14 @@ html {
 }
 
 .local-ribbon-axis {
+  min-width: 50rem;
   margin-top: 2px;
   padding-top: 0.5rem;
   display: flex;
   justify-content: space-between;
   border-top: 1px solid var(--local-line);
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-dim);
 }
@@ -1542,7 +1601,9 @@ html {
 }
 
 .local-ribbon-mmval {
+  padding-inline: 0.25rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-mm-ink);
 }
@@ -1587,6 +1648,7 @@ html {
   gap: 1rem;
   margin-top: 0.5rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-dim);
 }
@@ -1623,6 +1685,7 @@ html {
 
 .local-minibar-k {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-dim);
   letter-spacing: 0.1em;
@@ -1667,6 +1730,7 @@ html {
 
 .local-minibar-sum {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-ink-2);
   min-width: 0;
@@ -1676,6 +1740,7 @@ html {
 .local-minibar-tgl {
   font: inherit;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-amber);
   background: transparent;
@@ -1711,6 +1776,7 @@ html {
   padding-top: 1rem;
   border-top: 1px solid var(--local-line);
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   font-weight: 400;
   letter-spacing: 0.14em;
@@ -1815,6 +1881,7 @@ html {
 
 .local-stub-go {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-dim);
   white-space: nowrap;
@@ -1859,6 +1926,7 @@ html {
 .local-day-mm small {
   display: block;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-dim);
   margin-top: 0.15rem;
@@ -1890,9 +1958,16 @@ html {
   display: none;
   padding-top: 0.5rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.03em;
   color: var(--local-dim);
+}
+
+@container (max-width: 50rem) {
+  .local-ribbon-swipe {
+    display: block;
+  }
 }
 
 /* ---- today / tomorrow ---- */
@@ -1943,6 +2018,7 @@ html {
 .local-day-when span {
   margin-left: 0.4rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   font-weight: 400;
   color: var(--local-dim);
@@ -1953,6 +2029,7 @@ html {
   border: 1px solid var(--local-line-2);
   border-radius: 2px;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.06em;
   max-width: 100%;
@@ -1969,6 +2046,7 @@ html {
 .local-day-value {
   margin: 0;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: 2.35rem;
   font-weight: 600;
   line-height: 1;
@@ -1988,6 +2066,7 @@ html {
   flex-wrap: wrap;
   gap: 0.2rem 0.75rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-muted);
 }
@@ -2033,6 +2112,7 @@ html {
   align-items: baseline;
   justify-content: space-between;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.12em;
   color: var(--local-muted);
@@ -2095,6 +2175,7 @@ html {
 
 .local-prow-v {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   text-align: right;
   color: var(--local-ink-2);
@@ -2102,6 +2183,7 @@ html {
 
 .local-prow-w {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   text-align: right;
   color: var(--local-muted);
@@ -2150,6 +2232,7 @@ html {
 
 .local-wd-d {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   white-space: nowrap;
   color: var(--local-dim);
@@ -2171,6 +2254,7 @@ html {
 
 .local-wd-v {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-ink-2);
 }
@@ -2208,6 +2292,22 @@ html {
      are the one thing on this page nobody needs in order to get the answer. */
   .local-ribbon-hint {
     display: none;
+  }
+
+  /* Without the hints a column only has to hold its time range. */
+  .local-ribbon-grid,
+  .local-ribbon-axis {
+    min-width: 36rem;
+  }
+
+  .local-ribbon-swipe {
+    display: none;
+  }
+
+  @container (max-width: 36rem) {
+    .local-ribbon-swipe {
+      display: block;
+    }
   }
 }
 
@@ -2325,7 +2425,7 @@ html {
      so nobody has to swipe to get the answer. */
   .local-ribbon-grid,
   .local-ribbon-axis {
-    min-width: 620px;
+    min-width: 38.75rem;
   }
 
   .local-ribbon-swipe {
@@ -2563,11 +2663,13 @@ html {
 
 .btd-meta div {
   display: grid;
+  align-content: start;
   gap: 0.25rem;
 }
 
 .btd-meta dt {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -2634,6 +2736,7 @@ html {
   left: 0;
   top: 0.15rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-dim);
 }
@@ -2676,6 +2779,7 @@ html {
 .btd-facts code,
 .btd code {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: 0.85em;
   color: var(--local-ink-2);
 }
@@ -2699,6 +2803,7 @@ html {
   padding-left: 1rem;
   border-left: 2px solid var(--local-line-2);
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: 0.92rem;
   color: var(--local-ink-2);
 }
@@ -2739,6 +2844,7 @@ html {
 
 .btd-table thead th {
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   font-weight: 400;
   letter-spacing: 0.12em;
@@ -2781,6 +2887,7 @@ html {
   justify-content: space-between;
   margin-top: 1.25rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.1em;
   color: var(--local-dim);
@@ -2872,7 +2979,7 @@ html {
 }
 
 .btd-picker {
-  margin: 1.4rem 0 0;
+  margin: 1.4rem 0;
   padding: 1rem 1.1rem 1.1rem;
   border: 1px solid var(--local-line-2);
   border-radius: 3px;
@@ -2883,6 +2990,7 @@ html {
   display: block;
   margin-bottom: 0.5rem;
   font-family: var(--local-mono);
+  word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   letter-spacing: 0.14em;
   text-transform: uppercase;

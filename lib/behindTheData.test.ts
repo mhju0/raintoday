@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildBehindTheDataView, resolveRecordLocation } from "./behindTheData.ts";
+import { buildBehindTheDataView, resolveRecordLocation, seoulTimestamp } from "./behindTheData.ts";
 import type { LocalForecastEvidence } from "./localForecast.ts";
 import type { PrecipProviderId, RecentPerformanceProfile } from "./performance/types.ts";
 
@@ -375,4 +375,11 @@ test("ramping and insufficient history do not claim fixed strength or no records
   const view = buildBehindTheDataView(evidence({ profile: profile({ mode: "equal-fallback" }) }));
   assert.ok(view.providers.length > 0);
   assert.doesNotMatch(view.status.detail, /기록이 없습니다/);
+});
+
+test("the read time is spelled in Korean whatever locale data the host runtime ships", () => {
+  assert.deepEqual(seoulTimestamp(new Date("2026-10-11T11:15:00Z")), { date: "2026년 10월 11일", time: "오후 8:15" });
+  assert.deepEqual(seoulTimestamp(new Date("2026-10-11T15:05:00Z")), { date: "2026년 10월 12일", time: "오전 12:05" });
+  assert.deepEqual(seoulTimestamp(new Date("2026-01-01T03:00:00Z")), { date: "2026년 1월 1일", time: "오후 12:00" });
+  assert.deepEqual(seoulTimestamp(new Date("2026-01-01T00:30:00Z")), { date: "2026년 1월 1일", time: "오전 9:30" });
 });

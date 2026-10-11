@@ -2,6 +2,7 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
+    <div className="btd-page">
     <main className="btd">
       <header className="btd-mast">
         <p className="local-eyebrow">오늘비 · 404</p>
@@ -9,8 +10,9 @@ export default function NotFound() {
         <p className="btd-lede">주소를 확인하거나 예보 화면에서 지역을 다시 골라 주세요.</p>
       </header>
       <footer className="btd-foot">
-        <Link href="/">예보로 돌아가기</Link>
+        <p className="btd-foot-meta"><Link href="/">← 예보로 돌아가기</Link></p>
       </footer>
     </main>
+    </div>
   );
 }

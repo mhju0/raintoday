@@ -124,3 +124,11 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Decision: when the two pinned bars would exceed 30% of the screen height, only the location strip stays pinned.
 - Port 3101 was held by another project's server on this machine, so the browser suite ran through an ignored `.scratch` config on 3111. CI is unaffected.
 - Release candidate: 2.1.4. Open: findings 8–12 of audit 007. Next: merge after checks, confirm main CI and the production merge SHA, then tag and publish the release.
+
+## 2026-10-12 — 2.1.4 released; audit 007 findings 8–12 fixed
+
+- 2.1.4 (PR #197, `c2f815e`): main CI passed, production serves the merge commit, annotated tag and GitHub release published.
+- Owner approved findings 8–12 in full. Read time built explicitly in Korean; 404 page on the site ground; small alignment and touch-height items; Hangul in mono labels now Noto Sans KR; separators and units bound to their words; ribbon and record heading reflow with enlarged text. No forecast, provider or scoring rules changed.
+- Decision: the ribbon's minimum width is in rem, so at enlarged text it scrolls sideways at any viewport instead of overlapping its labels. At normal text size its layout is unchanged.
+- Decision: the 200% mid-word break at 320px and short last lines in long record paragraphs at 130% stay as they are; reasons in the audit follow-up.
+- Release candidate: 2.1.5. Audit 007 has no open findings. Next: merge after checks, confirm main CI and the production merge SHA, then tag and publish the release.

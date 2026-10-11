@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RecordStationPicker } from "@/components/local/RecordStationPicker";
-import { buildBehindTheDataView, resolveRecordLocation } from "@/lib/behindTheData";
+import { buildBehindTheDataView, resolveRecordLocation, seoulTimestamp } from "@/lib/behindTheData";
 import { captureCohortAt, readRecordEvidence } from "@/lib/localForecast";
 import { evidenceProximity } from "@/lib/performance/stations";
 
@@ -17,14 +17,6 @@ export const metadata: Metadata = {
 // of verdict, and paying for the database on every visit could not be justified
 // on a page that is mostly text (#123).
 export const dynamic = "force-dynamic";
-
-function seoulTimestamp(now: Date): string {
-  return new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    dateStyle: "long",
-    timeStyle: "short",
-  }).format(now);
-}
 
 function brier(value: number | null): string {
   return value === null ? "기록 없음" : value.toFixed(3);
@@ -46,12 +38,13 @@ export default async function BehindTheDataPage({
   const stationId = Array.isArray(params.station) ? params.station[0] : params.station;
   const { location, requested } = resolveRecordLocation(params);
   const { evidence, readAt } = await readRecordEvidence(stationId ?? location, captureCohortAt(now), now);
+  const readStamp = seoulTimestamp(readAt);
   const view = buildBehindTheDataView(evidence);
   const { status, policy } = view;
   const influenceCopy = {
     learned: "최근 비교 기록",
     seed: "과거 모델 기록 (조정 폭 절반)",
-    none: "없음 · 똑같은 비중",
+    none: "없음\u00a0· 똑같은 비중",
   }[status.influenceSource];
 
   return (
@@ -100,7 +93,7 @@ export default async function BehindTheDataPage({
           ) : null}
           <div>
             <dt>읽은 시각</dt>
-            <dd>{seoulTimestamp(readAt)}</dd>
+            <dd><span className="local-keep">{readStamp.date}</span> <span className="local-keep">{readStamp.time}</span></dd>
           </div>
         </dl>
         <RecordStationPicker stationName={view.station?.name ?? null} />
@@ -112,7 +105,7 @@ export default async function BehindTheDataPage({
 
       {/* ── Layer 2: how to read anything on this site, then live evidence ── */}
       <section className="btd-section" aria-labelledby="btd-rules-heading">
-        <p className="local-kicker">숫자 읽는 법 <span>: 이 사이트의 모든 수치에 적용됩니다</span></p>
+        <p className="local-kicker">숫자 읽는 법&nbsp;<span>: 이 사이트의 모든 수치에 적용됩니다</span></p>
         <h2 id="btd-rules-heading">세 가지 규칙</h2>
         <ol className="btd-rules">
           <li>
@@ -140,7 +133,7 @@ export default async function BehindTheDataPage({
       </section>
 
       <section className="btd-section" aria-labelledby="btd-evidence-heading">
-        <p className="local-kicker">최근에 읽은 채점 기록 <span>: 최대 10분 동안 같은 기록을 보여줍니다</span></p>
+        <p className="local-kicker">최근에 읽은 채점 기록&nbsp;<span>: 최대 10분 동안 같은 기록을 보여줍니다</span></p>
         <h2 id="btd-evidence-heading">서비스별 채점 기록</h2>
         {view.providers.length === 0 ? (
           <p className="btd-empty">
@@ -230,7 +223,7 @@ export default async function BehindTheDataPage({
 
       {/* ── Layer 3: the mechanism ── */}
       <section className="btd-section" aria-labelledby="btd-cycle-heading">
-        <p className="local-kicker">채점 사이클 <span>: 하루 두 번 <span className="local-keep">06:10 · 18:10 KST</span> 예약</span></p>
+        <p className="local-kicker">채점 사이클&nbsp;<span>: 하루 두 번 <span className="local-keep">06:10 · 18:10 KST</span> 예약</span></p>
         <h2 id="btd-cycle-heading">내일 예보를 미리 저장합니다</h2>
         <p>
           활성 ASOS 관측소마다 각 서비스의 내일 강수확률과 강수량을 수집합니다.
@@ -368,7 +361,7 @@ export default async function BehindTheDataPage({
       </section>
 
       <section className="btd-section" aria-labelledby="btd-limits-heading">
-        <p className="local-kicker">한계 <span>: 알고 있는 약점</span></p>
+        <p className="local-kicker">한계&nbsp;<span>: 알고 있는 약점</span></p>
         <h2 id="btd-limits-heading">이 방법이 못 하는 것</h2>
         <ul className="btd-facts">
           <li>
@@ -394,7 +387,7 @@ export default async function BehindTheDataPage({
         </p>
         <p className="btd-foot-meta">
           <Link href="/">← 예보로 돌아가기</Link>
-          <span>읽은 시각 {seoulTimestamp(readAt)}</span>
+          <span>읽은 시각 {readStamp.date} {readStamp.time}</span>
         </p>
       </footer>
     </main>
