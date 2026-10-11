@@ -46,7 +46,7 @@ test("GPS naming and forecast retrieval start together and retain the resolved n
     body: JSON.stringify({ latitude: 37.5714, longitude: 126.9658 }),
   }));
   await new Promise<void>((resolve) => setImmediate(resolve));
-  try { assert.deepEqual(started.sort(), ["api.open-meteo.com", "dapi.kakao.com"]); }
+  try { assert.deepEqual(started.sort(), ["api.open-meteo.com", "api.open-meteo.com", "dapi.kakao.com"]); }
   finally { release(); await read; }
   const response = await read;
   assert.equal(response.status, 200);
