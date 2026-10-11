@@ -37,9 +37,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test dependency audit gate
+        run: npm run test:dependency-audit
+
       - name: Audit dependencies
-        # Check runtime and developer tooling; compatible advisory fixes exist.
-        run: npm audit --audit-level=high
+        # Complete audit, including tooling; one pinned exception expires October 25 UTC.
+        run: npm run audit:dependencies
 
       - name: Lint
         run: npm run lint
