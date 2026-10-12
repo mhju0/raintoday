@@ -147,3 +147,10 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Owner asked for current screenshots and an accurate README. The README screenshot is a new production capture taken after 2.1.6 (Seoul, 2026-10-12 about 02:26 KST, full view, dark). Dated figures re-read from the performance database read-only: 9,141 captures, 5,121 station-day observations, 97 stations. The Seoul sentence states what the live record showed that day (39 comparisons, weighted and equal blends both at mean Brier 0.074) instead of the unverified "first to move" claim.
 - Open, owner-only: the repository's GitHub social preview image lists four providers (no Visual Crossing); it is uploaded in repository settings and cannot be changed from the tree.
 - Release candidate: 2.1.7. Next: merge after checks, confirm main CI and the production merge SHA, then tag and publish the release.
+
+## 2026-10-12 — 2.1.7 released; timeline amounts are the ensemble mean
+
+- 2.1.7 (PR #200, `5b69fb2`): main CI passed, production serves the merge commit, annotated tag and GitHub release published. Portfolio site screenshot replaced with owner approval (mhju0.github.io PR #1). Owner had `origin/reliability-state` deleted (last commit `96c45b1`).
+- Owner still saw a high chance over 0 mm after 2.1.6. Cause: the chance is the share of ECMWF's 51 ensemble runs that are wet; 2.1.6 paired it with one run's amount, and one run can be dry. Measured at Jeju 19:00: published 66%, 31 of 51 runs wet, run mean 0.17 mm/h, single run 0.0.
+- Decision (owner): the timeline amount is the mean across those runs, from `ensemble-api.open-meteo.com`. A failed read leaves amounts missing. Daily values, blend and captures unchanged. Known cost: small non-zero amounts in mostly dry hours, flattened bursts, and a dependency on a second Open-Meteo host.
+- Release candidate: 2.1.8. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish; then retake the README screenshot (it shows 2.1.6 amounts). Open, owner-only: upload the new social preview image in repository settings.

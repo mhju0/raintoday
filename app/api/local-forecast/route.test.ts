@@ -35,7 +35,7 @@ test("GPS naming and forecast retrieval start together and retain the resolved n
       region_type: "H", region_1depth_name: "서울특별시", region_2depth_name: "종로구",
       region_3depth_name: "청운효자동",
     }] });
-    assert.equal(hostname, "api.open-meteo.com");
+    assert.match(hostname, /^(ensemble-)?api\.open-meteo\.com$/);
     return Response.json({
       current: { time: "2026-09-05T12:00", temperature_2m: 24, weather_code: 0 },
       hourly: { time: [] }, daily: { time: [] },
@@ -46,7 +46,7 @@ test("GPS naming and forecast retrieval start together and retain the resolved n
     body: JSON.stringify({ latitude: 37.5714, longitude: 126.9658 }),
   }));
   await new Promise<void>((resolve) => setImmediate(resolve));
-  try { assert.deepEqual(started.sort(), ["api.open-meteo.com", "api.open-meteo.com", "dapi.kakao.com"]); }
+  try { assert.deepEqual(started.sort(), ["api.open-meteo.com", "dapi.kakao.com", "ensemble-api.open-meteo.com"]); }
   finally { release(); await read; }
   const response = await read;
   assert.equal(response.status, 200);
