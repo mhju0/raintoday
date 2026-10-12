@@ -184,3 +184,10 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Observations for 2026-09-13 were 77 of 97; `npm run performance:observations` stored all 97, and both groups' 95 captures for that date now have an outcome.
 - Owner asked for the evening lateness to be fixed now. The evening cron fires at 12:40 KST and waits for 18:10; the monitor ages a collection from its finish; Open-Meteo retries one failed read. Reasons and limits: `docs/DECISIONS.md`, third 2026-10-12 entry.
 - Release candidate: 2.2.2. Next: merge, confirm, tag. Then check the October 13 evening run: when GitHub created it, how long `wait` slept, that captures began near 18:10 KST and target October 14, and whether Open-Meteo faults dropped.
+
+## 2026-10-12 — Vercel Web Analytics added (2.2.3 candidate)
+
+- Owner asked to count visitors and see Instagram profile-link traffic. Web Analytics was already enabled for the project in the Vercel dashboard (Hobby plan); the code side adds `@vercel/analytics` through `components/SiteAnalytics.tsx`, production only.
+- Decision: the reported address drops everything in the query except `utm_*`, because shared links carry coordinates and a place name. Reasons and limits: `docs/DECISIONS.md`, fourth 2026-10-12 entry.
+- Limit: the UTM panel needs Web Analytics Plus (paid). On Hobby, Instagram shows only in the Referrers panel.
+- Release candidate: 2.2.3. Next: merge, confirm main CI and the production merge SHA, tag and publish; then load the site once and confirm the Analytics tab shows the visit. Still open from the entry above: the October 13 evening-run check. This file is near 200 lines; condense the oldest entries next session.

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
+import { SiteAnalytics } from "@/components/SiteAnalytics";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -56,7 +57,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={`${geistSans.variable} ${notoSansKr.variable}`}>
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+      <body className="min-h-screen font-sans antialiased">
+        {children}
+        <SiteAnalytics />
+      </body>
     </html>
   );
 }

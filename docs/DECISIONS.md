@@ -1035,3 +1035,19 @@ before it captures. The Open-Meteo forecast read retries once on a failed connec
 a 429 or 5xx answer, inside the same 10-second budget; all 28 station faults in the
 previous 14 runs were a single failed Open-Meteo read. Whether those were fast failures
 or timeouts is not recorded, and a read that times out is not retried.
+
+## 2026-10-12 — Visits are counted with Vercel Web Analytics
+
+**Decision (owner).** The site counts visitors and page views with Vercel Web Analytics,
+so the owner can see how many people arrive and from where (for example the Instagram
+profile link). It loads in production only, from the site's own origin, so the content
+security policy is unchanged.
+
+**Boundary.** A shared forecast link carries `lat`, `lon` and `name` in its query. The
+reported address is reduced to the path plus any `utm_*` tags (`lib/analyticsUrl.ts`),
+so a chosen place does not reach the analytics store.
+
+**Limits.** The project is on the Hobby plan: the UTM panel is locked behind Web
+Analytics Plus, so Instagram traffic is read from the Referrers panel, which misses
+visits whose referrer the in-app browser drops and cannot tell the profile link from
+other Instagram links. "Unique" visitors are counted per day without a cookie.
