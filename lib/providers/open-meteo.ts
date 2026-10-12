@@ -59,30 +59,24 @@ interface Snapshot {
 
 const OPEN_METEO_MAX_BYTES = 2 * 1024 * 1024;
 const OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast";
+const OPEN_METEO_ENSEMBLE_URL = "https://ensemble-api.open-meteo.com/v1/ensemble";
 
 /**
  * Open-Meteo's default hourly `precipitation_probability` for Korea is the
- * ECMWF IFS 0.25° ensemble's, while its default hourly `precipitation` comes
- * from a different model, so one hour can read 74% over 0 mm. The hourly
- * amounts are requested from the probability's own model instead.
+ * share of ECMWF IFS 0.25° ensemble runs that are wet, while any single run's
+ * `precipitation` can be dry, so one hour can read 66% over 0 mm. The hourly
+ * amount is the mean of those same runs instead.
  */
 const HOURLY_AMOUNT_MODEL = "ecmwf_ifs025";
 
-interface HourlyAmountResponse {
-  hourly?: {
-    time?: string[];
-    precipitation?: (number | null)[];
-  };
-}
-
-/** Open-Meteo returns naive local timestamps ("2026-06-12T23:45") — pin them to KST. */
-function toKstIso(naive: string): string {
-  return `${naive}:00+09:00`.replace(/:00:00\+/, ":00+");
+interface EnsembleResponse {
+  hourly?: { time?: string[] } & Record<string, unknown>;
 }
 
 /**
- * Hourly amounts by naive local hour. A failed read leaves them missing rather
- * than pairing the probability with another model's amounts.
+ * Mean hourly amount across the ensemble runs, by naive local hour. An hour no
+ * run publishes is left out, and a failed read leaves every hour missing
+ * rather than pairing the probability with a single run's amounts.
  */
 async function fetchHourlyAmounts(location: ForecastLocation): Promise<Map<string, number>> {
   const amounts = new Map<string, number>();
@@ -95,7 +89,7 @@ async function fetchHourlyAmounts(location: ForecastLocation): Promise<Map<strin
       hourly: "precipitation",
       models: HOURLY_AMOUNT_MODEL,
     });
-    const res = await fetch(`${OPEN_METEO_URL}?${params}`, {
+    const res = await fetch(`${OPEN_METEO_ENSEMBLE_URL}?${params}`, {
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return amounts;
@@ -103,16 +97,27 @@ async function fetchHourlyAmounts(location: ForecastLocation): Promise<Map<strin
       maxBytes: OPEN_METEO_MAX_BYTES,
       contentType: "application/json",
     });
-    const data = JSON.parse(new TextDecoder().decode(bytes)) as HourlyAmountResponse;
-    const values = data.hourly?.precipitation;
-    data.hourly?.time?.forEach((time, i) => {
-      const value = values?.[i];
-      if (typeof value === "number") amounts.set(time, value);
+    const data = JSON.parse(new TextDecoder().decode(bytes)) as EnsembleResponse;
+    const hourly = data.hourly ?? {};
+    // `precipitation` is the control run; the rest are `precipitation_memberNN`.
+    const runs = Object.entries(hourly)
+      .filter(([key]) => key === "precipitation" || key.startsWith("precipitation_member"))
+      .map(([, series]) => (Array.isArray(series) ? (series as unknown[]) : []));
+    hourly.time?.forEach((time, i) => {
+      const values = runs.map((run) => run[i]).filter((v): v is number => typeof v === "number");
+      if (values.length === 0) return;
+      const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+      amounts.set(time, Math.round(mean * 100) / 100);
     });
   } catch {
     amounts.clear();
   }
   return amounts;
+}
+
+/** Open-Meteo returns naive local timestamps ("2026-06-12T23:45") — pin them to KST. */
+function toKstIso(naive: string): string {
+  return `${naive}:00+09:00`.replace(/:00:00\+/, ":00+");
 }
 
 async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {

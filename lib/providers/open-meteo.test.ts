@@ -44,12 +44,16 @@ const forecastBody = JSON.stringify({
   },
 });
 
-// The probability's own model, on a series that starts one hour later and
-// leaves the last hour unpublished.
-const probabilityModelBody = JSON.stringify({
+// The runs behind the probability, on a series that starts one hour later. The
+// control run is dry at 17:00 while the others are not; one run is unpublished
+// at 18:00 and every run is unpublished at 19:00.
+const ensembleBody = JSON.stringify({
   hourly: {
     time: ["2026-10-12T17:00", "2026-10-12T18:00", "2026-10-12T19:00"],
-    precipitation: [1.2, 0.9, null],
+    precipitation: [0, 0.3, null],
+    precipitation_member01: [0.6, 0.9, null],
+    precipitation_member02: [0.3, null, null],
+    temperature_2m_member01: [9, 9, 9],
   },
 });
 
@@ -57,8 +61,9 @@ function json(body: string): Response {
   return new Response(body, { status: 200, headers: { "Content-Type": "application/json" } });
 }
 
-function isProbabilityModelRequest(input: Parameters<typeof fetch>[0]): boolean {
-  return new URL(String(input)).searchParams.get("models") === "ecmwf_ifs025";
+function isEnsembleRequest(input: Parameters<typeof fetch>[0]): boolean {
+  const url = new URL(String(input));
+  return url.hostname === "ensemble-api.open-meteo.com" && url.searchParams.get("models") === "ecmwf_ifs025";
 }
 
 beforeEach(() => clearCache());
@@ -68,9 +73,9 @@ afterEach(() => {
   clearCache();
 });
 
-test("Open-Meteo hourly amounts come from the model behind its hourly probability", async () => {
+test("Open-Meteo hourly amounts are the mean of the runs behind its hourly probability", async () => {
   globalThis.fetch = (async (input) =>
-    json(isProbabilityModelRequest(input) ? probabilityModelBody : forecastBody)) as typeof fetch;
+    json(isEnsembleRequest(input) ? ensembleBody : forecastBody)) as typeof fetch;
 
   const snapshot = await openMeteoProvider.read();
 
@@ -78,8 +83,8 @@ test("Open-Meteo hourly amounts come from the model behind its hourly probabilit
   assert.deepEqual(
     snapshot.hourly.map((hour) => [hour.time, hour.precipitationProbability, hour.precipitationAmount]),
     [
-      ["2026-10-12T17:00+09:00", 74, 1.2],
-      ["2026-10-12T18:00+09:00", 73, 0.9],
+      ["2026-10-12T17:00+09:00", 74, 0.3],
+      ["2026-10-12T18:00+09:00", 73, 0.6],
       ["2026-10-12T19:00+09:00", 62, null],
     ],
   );
@@ -87,9 +92,9 @@ test("Open-Meteo hourly amounts come from the model behind its hourly probabilit
   assert.equal(snapshot.daily[0].precipitationAmount, 0.2);
 });
 
-test("Open-Meteo hourly amounts stay missing when the probability model's amounts cannot be read", async () => {
+test("Open-Meteo hourly amounts stay missing when the runs behind the probability cannot be read", async () => {
   globalThis.fetch = (async (input) =>
-    isProbabilityModelRequest(input)
+    isEnsembleRequest(input)
       ? new Response("unavailable", { status: 503 })
       : json(forecastBody)) as typeof fetch;
 
