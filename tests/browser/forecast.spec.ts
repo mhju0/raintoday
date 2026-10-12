@@ -134,16 +134,12 @@ for (const width of [320, 390, 768, 900, 901, 1024, 1440]) {
         expect(extraHeight, "footer paragraphs should not reserve empty vertical space").toBeLessThanOrEqual(1);
       }
       await expectContentWithinViewport(page);
-      await page.getByRole("button", { name: /전체 근거 보기/ }).click();
       await expect(page.locator(".local-evidence-section")).toBeVisible();
       await expect(page.locator(".local-amount-provider")).toHaveText(["(Visual Crossing)", "(WeatherAPI)"]);
       await expect(page.locator(".local-day-value")).toHaveText(["100%", "100%"]);
       await expectContentWithinViewport(page);
       await page.getByText("채점 원자료 자세히 보기", { exact: true }).click();
       await expect(page.locator(".local-score-table.is-raw")).toBeVisible();
-      await expectContentWithinViewport(page);
-      await page.getByRole("button", { name: "한눈에 보기" }).click();
-      await expect(page.locator(".local-stubs")).toBeVisible();
       await expectContentWithinViewport(page);
       await page.goto("/behind-the-data?station=none");
       await page.evaluate((size) => { document.documentElement.style.fontSize = size; }, fontSize);
@@ -256,7 +252,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
 
     await expect(page.getByRole("heading", { name: /오후 12시부터 밤 9시까지 비 예상/ })).toBeVisible();
     await expect(page.getByRole("main")).toHaveCount(1);
-    await expect(page.locator(".local-stubs")).toBeVisible();
+    await expect(page.locator(".local-evidence-section")).toBeVisible();
     const ribbon = page.locator(".local-ribbon-grid");
     await ribbon.focus();
     await expect(ribbon).toBeFocused();
@@ -264,15 +260,6 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
     await expect(page.locator(".local-ribbon-readout")).toContainText("지금 9–12시");
     await page.keyboard.press("ArrowRight");
     await expect(page.locator(".local-ribbon-readout")).toContainText("오후 12–15시");
-    const toggle = page.getByRole("button", { name: /전체 근거 보기/ });
-    await toggle.focus();
-    await expect(toggle).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(page.locator(".local-evidence-section")).toBeVisible();
-    await expect(page.getByRole("button", { name: "한눈에 보기" })).toBeVisible();
-    await page.keyboard.press("Enter");
-    await expect(page.locator(".local-stubs")).toBeVisible();
-    await expect(page.locator(".local-evidence-section")).toHaveCount(0);
   });
 }
 
@@ -379,7 +366,6 @@ test("a column with no published value keeps its caption on the shared line", as
 for (const width of [320, 641]) {
   test(`provider bars share one scale and the outlook leaves no day alone at ${width}px`, async ({ page }) => {
     await openForecast(page, width, expandedForecast());
-    await page.getByRole("button", { name: /전체 근거 보기/ }).click();
     const tracks = await page.locator(".local-meter").evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().width));
     expect(tracks).toHaveLength(5);
     expect(spreadOf(tracks)).toBeLessThanOrEqual(0.5);
@@ -454,7 +440,6 @@ for (const width of [390, 768, 1024]) {
 
 test("the record heading keeps whole words with text at 200%", async ({ page }) => {
   await enlargeText(page, 200);
-  await page.addInitScript(() => localStorage.setItem("raintoday.view-density.v1", "full"));
   await openForecast(page, 768, expandedForecast());
   const heading = await page.locator("#evidence-heading").evaluate((element) => {
     const size = Number.parseFloat(getComputedStyle(element).fontSize);

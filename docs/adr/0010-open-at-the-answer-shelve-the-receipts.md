@@ -4,6 +4,11 @@ status: accepted
 
 # Open at the answer, shelve the receipts
 
+> **Amended 2026-10-13.** The fold is removed: the density toggle, the first-visit 한눈에
+> default, the summary stubs and the stored preference no longer exist, and the evidence
+> always shows in full. The claim kickers and the receipts shelf below still hold. See
+> `docs/DECISIONS.md`, 2026-10-13.
+
 The chart-recorder redesign (ADR 0009) shipped and the owner's next review named its cost:
 the page is dense, its seven strata share one ground, one spacing, one type scale, and a
 first-time visitor cannot parse it in one pass. The owner's instinct was "more borders

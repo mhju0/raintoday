@@ -191,3 +191,9 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Decision: the reported address drops everything in the query except `utm_*`, because shared links carry coordinates and a place name. Reasons and limits: `docs/DECISIONS.md`, fourth 2026-10-12 entry.
 - Limit: the UTM panel needs Web Analytics Plus (paid). On Hobby, Instagram shows only in the Referrers panel.
 - Release candidate: 2.2.3. Next: merge, confirm main CI and the production merge SHA, tag and publish; then load the site once and confirm the Analytics tab shows the visit. Still open from the entry above: the October 13 evening-run check. This file is near 200 lines; condense the oldest entries next session.
+
+## 2026-10-13 — 2.2.3 released; density toggle removed (2.2.4 candidate)
+
+- 2.2.3 (PR #208, `6801678`): main CI passed, production serves the merge commit, tag and release published; the Analytics tab showed the first visit. Owner is leaving Instagram-specific tracking for later.
+- Owner asked to remove the 한눈에 보기 button and always show everything. Removed the toggle, the fold, the stubs and the stored preference; reasons and cost: `docs/DECISIONS.md`, 2026-10-13. ADR 0009 and 0010 carry amendment notes.
+- Release candidate: 2.2.4. Next: merge, confirm, tag; then the owner-requested antislop audit of the result (report findings, implement only what is approved). Open: the README screenshot still shows the button. This file is at about 200 lines; condense the oldest entries next session.

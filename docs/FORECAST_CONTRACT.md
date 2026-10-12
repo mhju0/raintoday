@@ -64,7 +64,7 @@ npm run performance:seed -- --start=2025-06-01 --end=2025-08-31
 4. Expand the provider comparison, longer outlook and scoring evidence if needed.
 5. Open the evidence-status link to the station's [`/behind-the-data`](https://raintoday.vercel.app/behind-the-data) record. Device-location links carry only the public station ID; area links carry the area's representative coordinate.
 
-A first visit opens the supporting evidence folded under 한눈에. A summary row or the pinned control expands it, and the device remembers the choice. Pointer movement or arrow keys inspect individual timeline blocks.
+The supporting evidence is always shown in full below the answer; there is no density control. Pointer movement or arrow keys inspect individual timeline blocks.
 
 ## Architecture
 
