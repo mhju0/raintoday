@@ -11,9 +11,9 @@
 
 The interface is in Korean. Open the app and choose **서울**, **부산**, **제주**, or **강릉** to try it without sharing your device location.
 
-![Seoul rain forecast with rain expected from 2 p.m., a 74% peak rain chance, and separate probability and rainfall bands](public/screenshots/forecast-rain.jpg)
+![Seoul rain forecast with rain expected from 1 p.m., an 86% peak rain chance, and separate probability and rainfall bands](public/screenshots/forecast-rain.jpg)
 
-*Seoul, early morning of October 12, 2026: real production forecast data with rain expected from 2 p.m. and a 74% peak rain chance between 5 and 8 p.m. The timeline is Open-Meteo’s forecast; the daily cards below it combine the responding providers. This is a dated screenshot, not current weather.*
+*Seoul, the morning of October 12, 2026: real production forecast data with rain expected from 1 p.m. and an 86% peak rain chance between 7 and 10 a.m. the next day. The timeline is Open-Meteo’s forecast; the daily cards below it combine the responding providers. This is a dated screenshot, not current weather.*
 
 ## What it does
 
@@ -24,7 +24,7 @@ The interface is in Korean. Open the app and choose **서울**, **부산**, **�
 
 ## Engineering highlights
 
-**Forecasts saved before outcomes.** A scheduled collector stores immutable next-day forecasts and later pairs them with completed KMA ASOS observations in PostgreSQL. Morning and evening capture groups are scored separately. As of October 12, 2026, it had stored 9,141 forecast captures and 5,121 station-day observations across 97 KMA stations, collected twice daily since August 19, 2026. Seoul's scoring record, read that day with 39 scored comparisons, was phasing in recent-evidence weighting; its weighted blend scored the same as equal weighting (mean Brier 0.074 each) rather than beating it.
+**Forecasts saved before outcomes.** A scheduled collector stores immutable next-day forecasts and later pairs them with completed KMA ASOS observations in PostgreSQL. Morning and evening capture groups are scored separately. As of October 12, 2026, it had stored 9,236 forecast captures and 5,218 station-day observations across 97 KMA stations, collected twice daily since August 19, 2026. Seoul's scoring record that day was phasing in recent-evidence weighting, and the weighted blend was level with equal weighting rather than clearly better: mean Brier 0.067 against 0.068 on the morning group's 48 scored comparisons, and 0.074 each on the evening group's 39.
 
 **Evidence controls the blend.** Recent-performance influence applies only to tomorrow and requires sufficient wet/dry samples and a prospective benchmark no worse than equal weighting. Eligible archive evidence can provide a limited adjustment while recent records accumulate; otherwise the app uses equal influence. Retrospective evidence never enters the prospective benchmark.
 

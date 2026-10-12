@@ -154,3 +154,10 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Owner still saw a high chance over 0 mm after 2.1.6. Cause: the chance is the share of ECMWF's 51 ensemble runs that are wet; 2.1.6 paired it with one run's amount, and one run can be dry. Measured at Jeju 19:00: published 66%, 31 of 51 runs wet, run mean 0.17 mm/h, single run 0.0.
 - Decision (owner): the timeline amount is the mean across those runs, from `ensemble-api.open-meteo.com`. A failed read leaves amounts missing. Daily values, blend and captures unchanged. Known cost: small non-zero amounts in mostly dry hours, flattened bursts, and a dependency on a second Open-Meteo host.
 - Release candidate: 2.1.8. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish; then retake the README screenshot (it shows 2.1.6 amounts). Open, owner-only: upload the new social preview image in repository settings.
+
+## 2026-10-12 — 2.1.8 released; README screenshot and figures refreshed again
+
+- 2.1.8 (PR #201, `c1a97c6`): main CI passed, production serves the merge commit, annotated tag and GitHub release published. Live read of the four example cities after deploy: no block at 40% or more shows 0 mm.
+- README screenshot retaken from production after 2.1.8 (Seoul, 2026-10-12 10:20 KST). Counts re-read read-only after the morning collection: 9,236 captures, 5,218 station-day observations, 97 stations.
+- Correction: the 2.1.7 README quoted only the evening capture group for Seoul (39 comparisons, 0.074 each), because the record page serves the group for the hour it is read. It now states both groups (morning: 48 comparisons, 0.067 weighted against 0.068 equal).
+- Release candidate: 2.1.9. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish. Open: portfolio screenshot shows 2.1.6 amounts and awaits owner approval for replacement; owner to upload the new social preview image.
