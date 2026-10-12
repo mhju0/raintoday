@@ -168,3 +168,11 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Owner asked for a more aggressive, more recent-weighted formula. Replayed alternatives on stored history, then the owner chose the moderate one: `halfLifeDays` 14 → 7, `scoreSharpness` 12 → 24. Evidence and limits are in `docs/DECISIONS.md` (2026-10-12). Gates, bounds and benchmark unchanged.
 - `lib/documentedPolicy.test.ts` now pins the documented half-life as well. The three-provider fixture in `performance.test.ts` was softened because at sharpness 24 the stronger provider reached the 60% cap.
 - Release candidate: 2.2.0. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish. Watch: the benchmark verdict per station over the following weeks; a regression suspends the weights on its own. The file is near 200 lines; condense the oldest entries next session.
+
+## 2026-10-12 — 2.2.0 released; sharpness stays at 24; documentation pass for a stable version
+
+- 2.2.0 (PR #203, `a0933a5`): main CI passed, production serves the merge commit, tag and release published.
+- Owner asked about 48 and values in between; replays showed no reliable gain and worse rainy-day scores, so it stays at 24 (`docs/DECISIONS.md`, second 2026-10-12 entry). Weighting being slightly worse than equal on rainy days is the open question if scoring is revisited.
+- Owner asked for a full accuracy pass before leaving the project alone for a while. Checked the live `/behind-the-data` page, README, contract, sources, glossary, operations, app metadata, repository description, portfolio and the six Instagram posts against code and the database. Fixed in the repository: ROADMAP (said v2.1.1), and the wording about sharper settings. Instagram figures are dated "as of Sep 28, 2026" and match the database for that date (6,565 captures).
+- Open, owner approval needed: the portfolio's Raintoday entry says "up to three fresh-runner attempts"; the collector has made five since PR #177.
+- Release candidate: 2.2.1. Next: merge, confirm, tag. Then nothing planned.
