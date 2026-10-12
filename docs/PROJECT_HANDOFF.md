@@ -96,34 +96,11 @@ Open (owner access only):
 
 Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, then closes #146 and #154.
 
-## 2026-10-11 — Probability ribbon baseline audit
+## 2026-10-11 — Summary: chart baseline, responsive fixes and audit 007 (2.1.3–2.1.4 candidates)
 
-- Report only, per owner request: [audit 006](audits/ui/audit-006-2026-10-11.md), with live production screenshots and Chromium/WebKit controlled-response measurements.
-- Confirmed independently sized column auto rows let wrapped captions shift probability bars and the 40% line above 900px. Normal phone/portrait-tablet checks did not reproduce the symptom; device-specific state remains unknown.
-- Recommendation: shared chart rows, preferably row subgrid, so captions cannot move plot origins. No application changes, commit, release or deployment. Next: owner reviews the report; implementation awaits an explicit request.
-
-## 2026-10-11 — Shared chart baseline and responsive layout fixes
-
-- Owner authorized implementation, then expanded the scope to service-wide wrapping, spacing and alignment fixes delivered to main. Kept the chart-recorder direction and forecast semantics; no provider, probability, amount or scoring rules changed.
-- Shared ribbon rows keep bar origins and the 40% line aligned despite varying captions. Narrow/enlarged-text layouts now reflow rainfall attribution, provider and evidence rows, outlook, search controls, metadata, footer links and fallback text. WebKit checks also caught an implicit minimum width in the scoring record's numbered rules. Intentional chart/raw-table scrolling remains.
-- Verification covers Chromium and WebKit, phone/tablet/desktop widths from 320–1440px, normal and 200% root text, long location names, 0/100% and missing values, large rainfall ranges, provider gaps, mature evidence, loading/error and fallback pages. Full lint/type/unit/route/build checks and browser regressions gate release; controlled responses are layout evidence, not live-weather validation.
-- Patched compatible Next/sharp/tooling dependencies for the release. The remaining development-only braces advisory has a narrowly pinned, independently reviewed audit exception expiring 2026-10-25 00:00 UTC; all other high/critical findings still block CI. See OPERATIONS for removal conditions.
-- Release candidate: 2.1.3. Next: merge after required checks, confirm main CI and the production merge SHA, exercise live forecast/record pages, then publish the annotated tag and GitHub release. Existing owner-only operations issues above remain open.
-
-## 2026-10-11 — Service-wide layout and typography audit (report only)
-
-- Owner asked for an independent second pass after 2.1.3: [audit 007](audits/ui/audit-007-2026-10-11.md). Chromium and WebKit, 16 widths from 320–1920px, 100/130/200% text, 20 controlled forecast states plus chooser, loading, error, record and 404 screens.
-- The 2.1.3 baseline fix holds in every state. Twelve numbered findings remain; two are HIGH (phone sticky bars overlap; chart readout clipped at the edges). Three are the same family as the original bug at smaller scale (caption row offset under `미발표`, provider meters on different scales in narrow cards, today/tomorrow rows not shared).
-- No application changes, commit, release or deployment. The report and its evidence folder are uncommitted in the working tree.
-- Next: owner approves finding numbers; fixes ship as 2.1.4 through a PR.
-
-## 2026-10-11 — Audit 007 findings 1–7 fixed
-
-- Owner approved findings 1–7. Phone sticky bars stack; the chart readout stays inside the chart and follows the keyboard; search messages no longer cover the shortcut chips; caption row, provider tracks, outlook columns and the two day cards each share one line or scale. CSS and one component only; no forecast, provider or scoring rules changed.
-- Decision: search messages moved into the flow, against the earlier "everything out of flow" rule, because they point the reader at the chips they were covering. The room is held while the field has text, so the iOS keyboard-walk bug stays fixed (browser test covers it).
-- Decision: when the two pinned bars would exceed 30% of the screen height, only the location strip stays pinned.
-- Port 3101 was held by another project's server on this machine, so the browser suite ran through an ignored `.scratch` config on 3111. CI is unaffected.
-- Release candidate: 2.1.4. Open: findings 8–12 of audit 007. Next: merge after checks, confirm main CI and the production merge SHA, then tag and publish the release.
+- [Audit 006](audits/ui/audit-006-2026-10-11.md) confirmed wrapped captions shifted probability bars above 900px. 2.1.3 fixed it with shared ribbon rows and service-wide reflow fixes; a development-only braces advisory has a pinned audit exception expiring 2026-10-25 00:00 UTC (removal conditions in OPERATIONS).
+- [Audit 007](audits/ui/audit-007-2026-10-11.md) found twelve further items; findings 1–7 shipped as 2.1.4. Decisions kept: search messages sit in the flow with their room held while the field has text; when the two pinned bars would exceed 30% of the screen height, only the location strip stays pinned.
+- Port 3101 can be held by another project's server on this machine; the browser suite then runs through an ignored `.scratch` config on 3111. CI is unaffected.
 
 ## 2026-10-12 — 2.1.4 released; audit 007 findings 8–12 fixed
 
@@ -197,3 +174,10 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - 2.2.3 (PR #208, `6801678`): main CI passed, production serves the merge commit, tag and release published; the Analytics tab showed the first visit. Owner is leaving Instagram-specific tracking for later.
 - Owner asked to remove the 한눈에 보기 button and always show everything. Removed the toggle, the fold, the stubs and the stored preference; reasons and cost: `docs/DECISIONS.md`, 2026-10-13. ADR 0009 and 0010 carry amendment notes.
 - Release candidate: 2.2.4. Next: merge, confirm, tag; then the owner-requested antislop audit of the result (report findings, implement only what is approved). Open: the README screenshot still shows the button. This file is at about 200 lines; condense the oldest entries next session.
+
+## 2026-10-13 — 2.2.4 released; layout sweep after the removal; README screenshot retaken (2.2.5 candidate)
+
+- 2.2.4 (PR #209, `5d72ecd`): main CI passed, production serves the merge commit, tag and release published. During the Vercel incident that night GitHub's deployments list did not record this deployment; the Vercel dashboard is the reliable check.
+- [Audit 008](audits/ui/audit-008-2026-10-13.md): three findings, none approved yet. Its follow-up records the sweep the owner asked for: eight forecast states, 16 widths, 100/130/200% text, Chromium and WebKit, at rest and pinned. Nothing overflows or misaligns in the mini-ribbon; at 200% text its sentence takes its own row at 641–901px. No code change was needed.
+- README screenshot retaken from production after 2.2.4 (Seoul, 2026-10-13 about 01:25 KST); it no longer shows the button.
+- Release candidate: 2.2.5. Next: merge, confirm, tag. Open: audit 008 findings 1–3 await the owner; the October 13 evening-run check (2.2.2 entry); Instagram-specific tracking deferred by the owner.
