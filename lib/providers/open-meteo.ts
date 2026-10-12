@@ -120,6 +120,23 @@ function toKstIso(naive: string): string {
   return `${naive}:00+09:00`.replace(/:00:00\+/, ":00+");
 }
 
+/**
+ * One forecast read, retried once when the connection fails or the server
+ * answers 429 or 5xx. Both tries share a single 10-second budget, so a read that
+ * runs out the clock is not retried and a caller never waits longer than before.
+ * The collector lost one to three stations a run to a single failed read here.
+ */
+async function fetchForecast(url: string): Promise<Response> {
+  const signal = AbortSignal.timeout(10_000);
+  try {
+    const res = await fetch(url, { signal });
+    if (res.status !== 429 && res.status < 500) return res;
+  } catch (error) {
+    if (signal.aborted) throw error;
+  }
+  return fetch(url, { signal });
+}
+
 async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
   const params = new URLSearchParams({
     latitude: String(location.latitude),
@@ -135,7 +152,7 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
   });
 
   const [res, hourlyAmounts] = await Promise.all([
-    fetch(`${OPEN_METEO_URL}?${params}`, { signal: AbortSignal.timeout(10_000) }),
+    fetchForecast(`${OPEN_METEO_URL}?${params}`),
     fetchHourlyAmounts(location),
   ]);
   if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);

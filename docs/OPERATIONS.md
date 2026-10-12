@@ -25,8 +25,10 @@ exception and verify a clean complete audit. A clean audit needs no exception.
 The `maintenance` workflow runs after collection/health runs and every six hours.
 It opens or updates one incident per failing workflow and closes it after a fresh
 successful monitored run. Collection monitoring uses scheduled runs only; service
-health monitoring also accepts manual read-only checks. It flags a missing completed collection after 18 hours
-and a missing health check after 10 hours, including disabled workflows. It also
+health monitoring also accepts manual read-only checks. It flags a missing completed collection after 18 hours,
+measured from when the last one finished, and a missing health check after 10 hours, including disabled workflows. The evening
+collection is triggered at 12:40 KST and shows as in progress, in its `wait` job, until
+18:10 KST; that is not a hang. The workflow also
 creates weekly and monthly review issues; an unfinished checklist remains open
 instead of being duplicated. Check off each task with evidence before closing it.
 

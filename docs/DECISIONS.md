@@ -998,3 +998,40 @@ with the fewest comparisons. The replay's 30-comparison variant treated a provid
 the bar as neutral and weighted the rest at full strength, so it overstates how far
 production weights have moved: on October 12 Seoul's providers were all within a point
 of 20%.
+
+---
+
+## 2026-10-12 — The evening collection fires early and waits for 18:10 KST
+
+**Status: ACTIVE (2.2.2)**
+
+**Decided.** The evening cron moves from 18:10 KST to 12:40 KST, and a `wait` job holds
+the run until 18:10 before the first attempt. The group label, the target-day rule and
+the morning cron are unchanged.
+
+**Why.** GitHub created the evening run 4.4 to 9.2 hours after its cron on all 22 runs
+from September 20 to October 11, and the delay grew over those weeks. A capture targets
+the day after it is taken, so a run that began after midnight forecast a day later than
+one that began before it. Twelve of the nineteen evening captures since September 22
+began after midnight: the group mixed lead times near 0 and near 24 hours, and each
+crossing left one target date without an evening capture. The morning run was 2.0 to 4.5
+hours late and never crossed a day boundary.
+
+**Why this and not the alternatives.** Deriving the target day from the slot instead of
+the clock would store forecasts for a day that had already begun. An external trigger
+would need a new credential outside the repository. Waiting inside the run needs
+neither, and the repository is public, so the idle runner time is not billed.
+
+**Limits.** The wait absorbs 5.5 hours of delay; GitHub ends a hosted job at six. How
+late GitHub starts a 12:40 KST cron is not yet measured: the October 13 run is the first
+evidence. A start after 18:10 captures at once, and one after midnight behaves as before.
+If the wait job fails, collection proceeds early instead of being lost. Stored evening
+captures are immutable, so the mixed lead times stay in the record until they leave the
+60-day window in mid-December.
+
+**Also changed.** The collection monitor measures the 18-hour limit from when the last
+run finished instead of when it was created, since the evening run is now created hours
+before it captures. The Open-Meteo forecast read retries once on a failed connection or
+a 429 or 5xx answer, inside the same 10-second budget; all 28 station faults in the
+previous 14 runs were a single failed Open-Meteo read. Whether those were fast failures
+or timeouts is not recorded, and a read that times out is not retried.

@@ -105,3 +105,54 @@ test("Open-Meteo hourly amounts stay missing when the runs behind the probabilit
   assert.deepEqual(snapshot.hourly.map((hour) => hour.precipitationAmount), [null, null, null]);
   assert.equal(snapshot.daily[0].precipitationAmount, 0.2);
 });
+
+test("Open-Meteo retries one failed forecast read before reporting an error", async () => {
+  let forecastReads = 0;
+  globalThis.fetch = (async (input) => {
+    if (isEnsembleRequest(input)) return json(ensembleBody);
+    forecastReads += 1;
+    return forecastReads === 1 ? new Response("unavailable", { status: 503 }) : json(forecastBody);
+  }) as typeof fetch;
+
+  const snapshot = await openMeteoProvider.read();
+
+  assert.equal(forecastReads, 2);
+  assert.equal(snapshot.status.availability, "ok");
+  assert.deepEqual(snapshot.hourly.map((hour) => hour.precipitationProbability), [74, 73, 62]);
+});
+
+test("Open-Meteo retries a forecast read that failed to connect", async () => {
+  let forecastReads = 0;
+  globalThis.fetch = (async (input) => {
+    if (isEnsembleRequest(input)) return json(ensembleBody);
+    forecastReads += 1;
+    if (forecastReads === 1) throw new TypeError("fetch failed");
+    return json(forecastBody);
+  }) as typeof fetch;
+
+  const snapshot = await openMeteoProvider.read();
+
+  assert.equal(forecastReads, 2);
+  assert.equal(snapshot.status.availability, "ok");
+});
+
+test("Open-Meteo stops after one retry and does not retry a rejected request", async () => {
+  let forecastReads = 0;
+  globalThis.fetch = (async (input) => {
+    if (isEnsembleRequest(input)) return json(ensembleBody);
+    forecastReads += 1;
+    return new Response("unavailable", { status: 503 });
+  }) as typeof fetch;
+  assert.equal((await openMeteoProvider.read()).status.availability, "error");
+  assert.equal(forecastReads, 2);
+
+  clearCache();
+  forecastReads = 0;
+  globalThis.fetch = (async (input) => {
+    if (isEnsembleRequest(input)) return json(ensembleBody);
+    forecastReads += 1;
+    return new Response("bad request", { status: 400 });
+  }) as typeof fetch;
+  assert.equal((await openMeteoProvider.read()).status.availability, "error");
+  assert.equal(forecastReads, 1);
+});

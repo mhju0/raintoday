@@ -12,8 +12,11 @@ on:
           - "06"
           - "18"
   schedule:
+    # 06:10 KST, and 12:40 KST for the 18:10 KST evening slot: GitHub starts
+    # schedules hours late, so the evening cron fires early and `wait` holds the
+    # run until its slot. See `SCHEDULE_SLOT_OPENS` in lib/performance/cli.ts.
     - cron: "10 21 * * *"
-    - cron: "10 9 * * *"
+    - cron: "40 3 * * *"
 
 concurrency:
   group: local-performance
@@ -53,7 +56,40 @@ permissions:
 # cohorts' spans (#118), and nothing here reruns a missed cohort, relabels one or
 # drops a required provider.
 jobs:
+  # Holds an evening run that started ahead of 18:10 KST until then. It prints 0
+  # for the morning cron, a manual dispatch, and a run already past its slot. The
+  # longest wait is 330 minutes, inside the six hours a hosted job may run. If
+  # this job fails, collection proceeds at once: an early capture is still a
+  # next-day forecast, and a lost one cannot be taken again.
+  wait:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        timeout-minutes: 1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        timeout-minutes: 2
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Wait for the capture slot to open
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+          COHORT: ${{ inputs.cohort }}
+        run: |
+          seconds="$(node scripts/performance-slot-wait.ts --cohort="$COHORT" --schedule="$SCHEDULE")"
+          echo "Waiting ${seconds}s for the capture slot."
+          sleep "$seconds"
+
   capture_1:
+    needs: wait
+    if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     continue-on-error: true

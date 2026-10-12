@@ -11,6 +11,8 @@ import {
   OUTAGE_SAFE_COHORT_LIMIT,
   resolveCaptureCohort,
   SCHEDULE_COHORTS,
+  SCHEDULE_SLOT_OPENS,
+  secondsUntilSlotOpens,
 } from "./cli.ts";
 import { FALLBACK_STATION_CATALOG } from "./stationCatalog.ts";
 
@@ -72,7 +74,7 @@ test("manual capture cohort takes precedence over schedule metadata", () => {
 
 test("scheduled cohort comes from the triggering cron, not the delayed start hour", () => {
   assert.equal(resolveCaptureCohort(["--cohort=", "--schedule=10 21 * * *"]), "06");
-  assert.equal(resolveCaptureCohort(["--cohort=", "--schedule=10 9 * * *"]), "18");
+  assert.equal(resolveCaptureCohort(["--cohort=", "--schedule=40 3 * * *"]), "18");
 });
 
 test("capture cohort rejects unknown or missing trigger metadata", () => {
@@ -176,7 +178,7 @@ test("the capture workflow makes five spaced fresh-runner attempts, identically 
   const jobNames = Array.from(jobsBody.matchAll(/^ {2}([a-z][\w-]*):$/gm), (m) => m[1]);
   assert.deepEqual(
     jobNames,
-    ["capture_1", "capture_2", "capture_3", "capture_4", "capture_5", "verdict"],
+    ["wait", "capture_1", "capture_2", "capture_3", "capture_4", "capture_5", "verdict"],
     "capture workflow jobs have drifted",
   );
 
@@ -476,7 +478,7 @@ test("a delayed scheduled run is never refused, however far it drifted", () => {
   // real captures to tidy a label.
   const at = (hour: number): Date => new Date(`2026-08-31T${String(hour).padStart(2, "0")}:20:00+09:00`);
   assert.equal(manualCohortHourMismatch(["--schedule=10 21 * * *"], at(14)), null);
-  assert.equal(manualCohortHourMismatch(["--schedule=10 9 * * *"], at(4)), null);
+  assert.equal(manualCohortHourMismatch(["--schedule=40 3 * * *"], at(4)), null);
 });
 
 test("a forced manual dispatch is allowed, so the guard is never a dead end", () => {
@@ -484,3 +486,61 @@ test("a forced manual dispatch is allowed, so the guard is never a dead end", ()
   assert.equal(manualCohortHourMismatch(["--cohort=06", "--force"], at), null);
 });
 
+
+test("an evening run that starts ahead of its slot waits for 18:10 KST", () => {
+  // The scheduler started the old 18:10 KST cron 4.4 to 9.2 hours late, so twelve
+  // of nineteen evening captures landed after midnight and targeted a day later
+  // than the rest. The cron now fires at 12:40 KST and the run waits out the gap.
+  const evening = ["--schedule=40 3 * * *"];
+  const at = (time: string): Date => new Date(`2026-10-12T${time}+09:00`);
+  assert.equal(secondsUntilSlotOpens(evening, at("12:40:00")), 5.5 * 3600);
+  assert.equal(secondsUntilSlotOpens(evening, at("16:55:30")), 74 * 60 + 30);
+  assert.equal(secondsUntilSlotOpens(evening, at("18:09:59")), 1);
+});
+
+test("a run that starts once its slot is open, or past midnight, does not wait", () => {
+  const evening = ["--schedule=40 3 * * *"];
+  const at = (time: string): Date => new Date(`2026-10-12T${time}+09:00`);
+  assert.equal(secondsUntilSlotOpens(evening, at("18:10:00")), 0);
+  assert.equal(secondsUntilSlotOpens(evening, at("21:40:00")), 0);
+  // Before the cron's own hour means the scheduler slipped past midnight: the
+  // slot opened yesterday, and waiting again would cost most of another day.
+  assert.equal(secondsUntilSlotOpens(evening, at("02:15:00")), 0);
+  assert.equal(secondsUntilSlotOpens(evening, at("12:39:59")), 0);
+});
+
+test("only a cron fired ahead of its slot waits; the morning run and a dispatch do not", () => {
+  const noon = new Date("2026-10-12T13:00:00+09:00");
+  assert.equal(secondsUntilSlotOpens(["--schedule=10 21 * * *"], noon), 0);
+  assert.equal(secondsUntilSlotOpens(["--schedule="], noon), 0);
+  assert.equal(secondsUntilSlotOpens(["--cohort=18", "--schedule=40 3 * * *"], noon), 0);
+  assert.equal(secondsUntilSlotOpens([], noon), 0);
+});
+
+test("every early-fired cron is a known capture cron and its wait fits one runner job", () => {
+  for (const [cron, opensAtKstMinute] of Object.entries(SCHEDULE_SLOT_OPENS)) {
+    assert.ok(cron in SCHEDULE_COHORTS, `${cron} waits for a slot but resolves to no cohort`);
+    const [minute, hour] = cron.split(" ").map(Number);
+    const firesAt = new Date(Date.UTC(2026, 9, 12, hour, minute));
+    const longest = secondsUntilSlotOpens([`--schedule=${cron}`], firesAt);
+    assert.equal(longest, (opensAtKstMinute - ((hour * 60 + minute + 540) % 1440)) * 60);
+    // GitHub ends a hosted job at six hours; the workflow's wait job allows 345 minutes.
+    assert.ok(longest > 0 && longest <= 330 * 60, `${cron} waits ${longest}s`);
+  }
+});
+
+test("the capture workflow holds its first attempt behind the slot wait without depending on it", () => {
+  const workflow = readFileSync(
+    join(import.meta.dirname, "..", "..", ".github", "workflows", "local-performance.yml"),
+    "utf8",
+  );
+  const wait = workflow.slice(workflow.indexOf("\n  wait:\n"), workflow.indexOf("\n  capture_1:\n"));
+  const first = workflow.slice(workflow.indexOf("\n  capture_1:\n"), workflow.indexOf("\n  capture_2:\n"));
+  assert.match(wait, /performance-slot-wait\.ts --cohort="\$COHORT" --schedule="\$SCHEDULE"/);
+  assert.match(wait, /SCHEDULE: \$\{\{ github\.event\.schedule \}\}/);
+  assert.match(wait, /continue-on-error: true/);
+  assert.match(wait, /timeout-minutes: 345/);
+  assert.match(first, /needs: wait/);
+  // A wait that failed or timed out must not cost the capture it was pacing.
+  assert.match(first, /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
+});

@@ -14,14 +14,14 @@ This reference contains the detailed behavior behind the [project overview](../R
 
 ## How recent performance works
 
-The [`local-performance`](../.github/workflows/local-performance.yml) workflow is scheduled at 06:10 and 18:10 KST. For each active KMA ASOS station it can read, a run:
+The [`local-performance`](../.github/workflows/local-performance.yml) workflow collects for a 06:10 and an 18:10 KST slot. GitHub starts schedules hours late, so the evening trigger fires at 12:40 KST and the run waits until 18:10 before it reads anything; the morning trigger fires at 06:10 and has started between 08:10 and 10:45. For each active KMA ASOS station it can read, a run:
 
 1. stores completed daily observations, using yesterday for the 18 KST group and two days back for the 06 KST group;
 2. captures provider forecasts for the next day;
 3. computes the adaptive and equal-weight forecasts before the outcome exists;
 4. stores the immutable forecasts and station-day observations in PostgreSQL.
 
-Morning and evening capture groups are scored separately. A group identifies the scheduled slot; collection may start late. The scoring record reports the measured time between collection and the target day. Providers within a capture share the collection time, but their different update schedules and forecast horizons can still affect the comparison. [Issue 118](https://github.com/mhju0/raintoday/issues/118) records the investigation and decision.
+Morning and evening capture groups are scored separately. A group identifies the scheduled slot; collection may start late. Evening captures taken before October 13, 2026 started between 22:00 and 04:00 KST, and those that began after midnight forecast a day later than the rest; they stay in the record unchanged and leave the 60-day window by mid-December. The scoring record reports the measured time between collection and the target day. Providers within a capture share the collection time, but their different update schedules and forecast horizons can still affect the comparison. [Issue 118](https://github.com/mhju0/raintoday/issues/118) records the investigation and decision.
 
 The morning group reads an older observation date because the previous day's ASOS summary may not yet be published. Observation request failures are faults, never missing observations or dry days. Transient failures receive bounded retries; rejected credentials are not retried.
 
