@@ -37,10 +37,10 @@ export const DEFAULT_PERFORMANCE_POLICY: PerformancePolicy = {
   // reorder providers — it only widens a gap that the evidence already shows.
   // Raised from 4: at 4 a real 3x difference in wet-day miss rate compressed to a
   // 1.18x weight spread, which read as "every service is the same". Raised again
-  // from 12 in 2.2.0: replayed over 39 days of stored captures, 24 scored
-  // slightly ahead of 12, while 48 and above leaned on one provider hard enough
-  // to lose that gain. The prospective benchmark still suspends the blend if
-  // sharpening makes it worse.
+  // from 12 in 2.2.0: replayed over stored captures, 24 scored slightly ahead
+  // of 12. Values up to 48 were not reliably better and were worse on days it
+  // rained; 96 and above fell behind. The prospective benchmark still suspends
+  // the blend if sharpening makes it worse.
   scoreSharpness: 24,
 };
 

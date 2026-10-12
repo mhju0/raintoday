@@ -970,3 +970,31 @@ station already has mature live evidence. The benchmark's own recency weighting 
 the 7-day half-life. A provider at the 60% cap hands its surplus to the others, which can
 lift an unmeasured provider slightly above its equal share; the three-provider test
 fixture was softened so it still checks the uncapped rule.
+
+---
+
+## 2026-10-12 — Sharpness stays at 24 after replaying 28 to 48
+
+**Status: ACTIVE (2.2.1, documentation only)**
+
+**Decided.** The owner asked whether 48, or a value between 24 and 48, would be better.
+It stays at 24.
+
+**Why.** Three replays of the same stored history, differing in how many comparisons a
+provider needs before it is weighted (10, 20 or 30), gave no consistent winner. Against
+equal weighting, every value from 24 to 48 landed within 0.2 points of the others on the
+two longer replays (39 and 28 dates). Only the 18-date replay with the production bar
+rose steadily, from 2.5% at 24 to 3.1% at 48. By station, 48 beat 24 at 42 of 97 on the
+longest replay and 58 of 97 on the shortest; regions flipped between replays.
+
+**Finding worth keeping.** Weighting earns its gain on dry days. On days it rained, the
+weighted blend was slightly worse than equal weighting at every setting (2.0% worse at
+24 and 3.1% worse at 48 on the longest replay), and the gap widened with each step up.
+Most days are dry, so a Brier-based weight favours providers that publish low numbers,
+and those under-call rain. This is a replay result, not a production measurement.
+
+**Also noted.** The ramp from equal to learned weights follows the eligible provider
+with the fewest comparisons. The replay's 30-comparison variant treated a provider under
+the bar as neutral and weighted the rest at full strength, so it overstates how far
+production weights have moved: on October 12 Seoul's providers were all within a point
+of 20%.

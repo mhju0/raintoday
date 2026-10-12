@@ -1,6 +1,6 @@
 # Roadmap
 
-Updated 2026-09-28. The project is in maintenance mode: correctness, security,
+Updated 2026-10-12. The project is in maintenance mode: correctness, security,
 provider compatibility and service operation. New product scope requires an owner decision.
 Source/tests and Git take precedence over this document.
 
@@ -11,12 +11,18 @@ it follows v1.1.0 with the September 26 audit fixes, accessibility work, the typ
 and the shorter README. The v1.0.0 tag remains unchanged on the SeoulSky source.
 
 Since then every merged change ships as its own release (the rule is in `AGENTS.md`).
-The current release is v2.1.1:
+The current release is v2.2.1, and no further change is planned for now. The
+[GitHub releases](https://github.com/mhju0/raintoday/releases) carry the full list; the
+ones that changed what a visitor sees are:
 
-- 2.0.1: provider names kept whole in the range line; new README screenshot.
 - 2.0.2: a plain rain headline ("앞으로 24시간 비 예상 없음", "오후 3시부터 저녁 7시까지 비 예상").
 - 2.1.0: the umbrella line answers for the rest of today (now until midnight KST).
-- 2.1.1: the search fields mark focus with their own border instead of a second ring.
+- 2.1.4–2.1.5: interface audit fixes (Korean read time, 404 page, enlarged-text reflow).
+- 2.1.6–2.1.8: the timeline's rain amount is the mean of the ensemble runs behind its
+  rain chance, so a high chance no longer sits over 0 mm.
+- 2.2.0: tomorrow's blend weights recent accuracy more sharply (7-day half-life,
+  `exp(-24 × Brier)`).
+- 2.2.1: documentation brought up to date; no behaviour change.
 
 ## Maintenance follow-ups
 
@@ -27,7 +33,7 @@ so that gateway is not a fallback until a matching 활용신청 is approved.
 
 | Work | Trigger and completion |
 | --- | --- |
-| Observe the seed-to-live transition | First observed September 27: station 108's 06 cohort is ramping on a passing 34-sample benchmark, with adaptive equal to equal weighting. Keep recording further stations and cohorts as they mature. No forced captures or promised dates. |
+| Observe the ramp to full learned weights | Station 108's 06 cohort first left seed mode on September 27. On October 12 every station and cohort had at least two providers past the 30-comparison bar, so none depends on seed evidence. The ramp follows the eligible provider with the fewest comparisons: Seoul's morning group had 48 comparisons but Visual Crossing only 31, so each provider's influence was still within a point of 20%. Full learned weights arrive when the slowest eligible provider reaches 60. No forced captures or promised dates. |
 | Watch provider coverage | Check scheduled capture and service-health failures; inspect provider-specific gaps even when the overall run passes. Visual Crossing quota has no verified remaining-usage endpoint. |
 | Review dependencies | Dependabot opens security-fix PRs only; patch/minor fixes may auto-merge after required CI, and majors stay manual. Review routine upgrades by hand, and revisit the TypeScript and ESLint compatibility holds using current package metadata. |
 | Renew credentials | The 활용기간 end dates are recorded in `CREDENTIAL_EXPIRIES` (`lib/maintenance.ts`); the maintenance workflow opens a renewal issue 30 days out and escalates at 7. It closes by hand, because a renewal happens in the portal and is not observable from CI. Keep the Actions and Vercel credential stores aligned by purpose. |
@@ -64,7 +70,10 @@ proof of the outage breaker during a real KMA outage is tracked in
 - Revisit grouping by measured forecast lead time when there is enough evidence.
   Shared collection time does not prove the absence of provider-specific timing bias.
 - Review cumulative eligibility versus recent-window scoring through an ADR.
-- Revisit weight-projection alternatives only with a defined evaluation.
+- Weighting alternatives were replayed on stored history on October 12 (see
+  `docs/DECISIONS.md`): sharpness stays at 24. Revisit only with more rainy days scored.
+  The open question from that replay is that weighting helps on dry days and is slightly
+  worse than equal weighting on days it rains.
 - Additional providers, archive proxies, elevation data and a mature-evidence
   presentation are ideas, not commitments.
 - Extend the fixture-backed browser CI only when another user journey needs regression coverage.
