@@ -1737,33 +1737,8 @@ html {
   white-space: normal;
 }
 
-.local-minibar-tgl {
-  font: inherit;
-  font-family: var(--local-mono);
-  word-spacing: var(--local-mono-gap);
-  font-size: var(--t-label);
-  color: var(--local-amber);
-  background: transparent;
-  border: 1px solid var(--local-amber-deep);
-  border-radius: 3px;
-  padding: 0.3rem 0.75rem;
-  min-height: 2.75rem;
-  cursor: pointer;
-  max-width: 100%;
-  white-space: normal;
-}
-
-.local-minibar-tgl:hover {
-  background: color-mix(in srgb, var(--local-amber) 12%, transparent);
-}
-
 @media (max-width: 640px) {
   .local-minibar-sum {
-    display: none;
-  }
-
-  /* The cargo names what the fold hides; on a phone the invitation alone fits. */
-  .local-minibar-tgl-cargo {
     display: none;
   }
 }
@@ -1821,70 +1796,6 @@ html {
 
 .local-receipts .local-evidence-section {
   border-top-color: var(--local-line-2);
-}
-
-.local-stubs {
-  display: grid;
-  gap: 0.7rem;
-}
-
-.local-stub {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  width: 100%;
-  padding: 0.85rem 1.1rem;
-  border: 0;
-  border-radius: 3px;
-  background: var(--local-panel-2);
-  color: var(--local-ink-2);
-  font: inherit;
-  font-size: 0.85rem;
-  text-align: left;
-  cursor: pointer;
-}
-
-.local-stub b {
-  color: var(--local-ink);
-  font-weight: 600;
-}
-
-.local-stub > span:first-child {
-  min-width: 0;
-}
-
-/* A row too narrow for "title: value" on one line stacks the two instead of
-   wrapping, which left the colon alone at the end of the first line. */
-.local-stub {
-  container-type: inline-size;
-}
-
-.local-stub-value {
-  display: inline-block;
-}
-
-@container (max-width: 24rem) {
-  .local-stub-sep {
-    display: none;
-  }
-
-  .local-stub-value {
-    display: block;
-  }
-}
-
-.local-stub:hover:not(:focus-visible) {
-  color: var(--local-ink);
-  outline: 1px solid var(--local-line-2);
-}
-
-.local-stub-go {
-  font-family: var(--local-mono);
-  word-spacing: var(--local-mono-gap);
-  font-size: var(--t-label);
-  color: var(--local-dim);
-  white-space: nowrap;
 }
 
 @media (max-width: 640px) {

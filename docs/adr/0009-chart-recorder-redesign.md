@@ -4,6 +4,10 @@ status: accepted
 
 # Redesign the page around the chart-recorder timeline
 
+> **Amended 2026-10-13.** The 한눈에 ⇄ 전체 근거 density toggle and its stored preference
+> described below were removed; the pinned mini-ribbon remains. See `docs/DECISIONS.md`,
+> 2026-10-13.
+
 The 2026-08 design pass began from the owner's brief: the shipped time-slot probability
 graph is the page's foundation and must not be displaced; the look stays graph/data/grid;
 and the amount of rain must be visible beside the probability, because 90% × 1mm and

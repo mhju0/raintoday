@@ -491,7 +491,7 @@ reading surface look like a form.
 
 ## 2026-08-30 — Open at the answer, shelve the receipts
 
-**Status: ACTIVE (ADR 0010, #109)**
+**Status: ACTIVE in part (ADR 0010, #109); the fold was removed on 2026-10-13, see that entry**
 
 **Decided.** A first visit opens at **한눈에** (glance), not at the full evidence. Each
 stratum carries a **claim kicker** naming whose number it holds (결론 / 오늘 · 내일 — 여러
@@ -1051,3 +1051,21 @@ so a chosen place does not reach the analytics store.
 Analytics Plus, so Instagram traffic is read from the Referrers panel, which misses
 visits whose referrer the in-app browser drops and cannot tell the profile link from
 other Instagram links. "Unique" visitors are counted per day without a cookie.
+
+## 2026-10-13 — The density toggle and the fold are removed
+
+**Decision (owner).** The page always shows the comparison, the outlook and the record in
+full. The 한눈에 ⇄ 전체 근거 button, the first-visit folded default, the three summary
+stubs and the `raintoday.view-density.v1` preference are gone.
+
+**Why.** In the full view the button read "한눈에 보기", which names a destination without
+saying that it hides three sections; it was the only amber-bordered control beside the
+headline, so a view preference outranked the forecast; and a first visit hid the
+comparison and the record, the parts that distinguish the site.
+
+**What stays from ADR 0010.** The claim kickers and the single receipts shelf. The verdict,
+timeline and day cards are still first, so the page still opens at the answer. The pinned
+mini-ribbon keeps its label, bars and summary.
+
+**Cost.** Every first visit is now the long page, most noticeably on a phone. A value
+left under the old storage key in a returning browser is ignored and not cleaned up.
