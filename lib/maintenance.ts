@@ -3,6 +3,7 @@ export type MaintenanceRun = {
   status: string;
   conclusion: string | null;
   created_at: string;
+  updated_at?: string;
   html_url: string;
 };
 
@@ -19,11 +20,18 @@ export type MaintenanceJob = {
   steps?: MaintenanceStep[];
 };
 
+/** When a run last changed, which for a completed run is when it finished. */
+function finishedAt(run: MaintenanceRun): number {
+  return Date.parse(run.updated_at ?? run.created_at);
+}
+
 export function assessRuns(runs: MaintenanceRun[], now: number, maxAgeHours: number) {
   const completed = runs.filter((run) => run.status === "completed")
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
-  if (!completed || !Number.isFinite(Date.parse(completed.created_at)) ||
-      now - Date.parse(completed.created_at) > maxAgeHours * 3_600_000) {
+  // Age runs from the finish: the evening collection is created hours before it
+  // captures, and measuring from creation would call the next morning overdue.
+  if (!completed || !Number.isFinite(finishedAt(completed)) ||
+      now - finishedAt(completed) > maxAgeHours * 3_600_000) {
     return { kind: "stale", detail: `No completed monitored run within ${maxAgeHours} hours.`, url: completed?.html_url, runId: completed?.id };
   }
   if (completed.conclusion !== "success") {

@@ -26,6 +26,13 @@ test("fresh recovery clears an incident; a stale success does not", () => {
   assert.equal(assessRuns([run], now, 18), null);
   assert.equal(assessRuns([run], now + 24 * 3600000, 18)?.kind, "stale");
 });
+test("a collection's age runs from when it finished, not when it was queued", () => {
+  // The evening run is created near midday and waits for its 18:10 KST slot, so
+  // the next morning's run can finish more than 18 hours after it was created.
+  const waited = { id: 5, status: "completed", conclusion: "success", created_at: "2026-09-06T03:40:00Z", updated_at: "2026-09-06T09:30:00Z", html_url: "evening" };
+  assert.equal(assessRuns([waited], Date.parse("2026-09-07T02:00:00Z"), 18), null);
+  assert.equal(assessRuns([waited], Date.parse("2026-09-07T03:31:00Z"), 18)?.kind, "stale");
+});
 test("missing quota headers are unknown, never zero", () => {
   for (const value of [null, "", " ", "NaN", "-1"]) assert.equal(parseQuotaHeader(value), null);
   assert.equal(parseQuotaHeader("0"), 0);

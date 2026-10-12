@@ -176,3 +176,11 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Owner asked for a full accuracy pass before leaving the project alone for a while. Checked the live `/behind-the-data` page, README, contract, sources, glossary, operations, app metadata, repository description, portfolio and the six Instagram posts against code and the database. Fixed in the repository: ROADMAP (said v2.1.1), and the wording about sharper settings. Instagram figures are dated "as of Sep 28, 2026" and match the database for that date (6,565 captures).
 - Open, owner approval needed: the portfolio's Raintoday entry says "up to three fresh-runner attempts"; the collector has made five since PR #177.
 - Release candidate: 2.2.1. Next: merge, confirm, tag. Then nothing planned.
+
+## 2026-10-12 — 2.2.1 released; issues cleared; evening collection timing fixed
+
+- 2.2.1 (PR #204, `2e68372`): main CI passed, production serves the merge commit, tag and release published. The portfolio's "three attempts" line was corrected to five in both languages (mhju0.github.io PR #3).
+- Issues #154, #146, #140 and #205 closed with evidence. Open on purpose: #175 (needs a real KMA outage) and monthly review #206 (owner-only items). Backup taken and restore-verified on 2026-10-12.
+- Observations for 2026-09-13 were 77 of 97; `npm run performance:observations` stored all 97, and both groups' 95 captures for that date now have an outcome.
+- Owner asked for the evening lateness to be fixed now. The evening cron fires at 12:40 KST and waits for 18:10; the monitor ages a collection from its finish; Open-Meteo retries one failed read. Reasons and limits: `docs/DECISIONS.md`, third 2026-10-12 entry.
+- Release candidate: 2.2.2. Next: merge, confirm, tag. Then check the October 13 evening run: when GitHub created it, how long `wait` slept, that captures began near 18:10 KST and target October 14, and whether Open-Meteo faults dropped.

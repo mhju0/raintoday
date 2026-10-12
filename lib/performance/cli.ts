@@ -113,8 +113,46 @@ export function manualCohortHourMismatch(
  */
 export const SCHEDULE_COHORTS: Readonly<Record<string, CaptureCohort>> = {
   "10 21 * * *": "06",
-  "10 9 * * *": "18",
+  "40 3 * * *": "18",
 };
+
+/**
+ * Crons fired ahead of their slot, with the KST minute of the day the slot opens.
+ *
+ * GitHub started the evening cron 4.4 to 9.2 hours after its 18:10 KST slot on
+ * every run from 2026-09-20 to 2026-10-11. A capture targets the day after it is
+ * taken, so a run that crossed midnight forecast a day later than one that did
+ * not: twelve of nineteen did, the group mixed lead times near 0 and near 24
+ * hours, and each crossing left one target date with no evening capture. The
+ * cron now fires at 12:40 KST and the run waits here until 18:10, which absorbs
+ * 5.5 hours of scheduler delay and leaves a longer one landing before midnight.
+ * The morning cron's 2 to 4.5 hours never crosses a day boundary, so it does not wait.
+ */
+export const SCHEDULE_SLOT_OPENS: Readonly<Record<string, number>> = {
+  "40 3 * * *": 18 * 60 + 10,
+};
+
+function koreanSecondOfDay(date: Date): number {
+  return Math.floor((date.getTime() + 9 * 3_600_000) / 1000) % 86_400;
+}
+
+/**
+ * Seconds a scheduled run should wait before capturing, or 0.
+ *
+ * Only a start between the cron's own time and its slot waits. A start before
+ * the cron's time of day means the scheduler slipped past midnight, where the
+ * slot opened yesterday; it captures at once, as every late run always has.
+ */
+export function secondsUntilSlotOpens(argv: readonly string[], now: Date): number {
+  if (option(argv, "cohort")) return 0;
+  const schedule = option(argv, "schedule");
+  const opensAtMinute = schedule === undefined ? undefined : SCHEDULE_SLOT_OPENS[schedule];
+  if (schedule === undefined || opensAtMinute === undefined) return 0;
+  const [minute, hour] = schedule.split(" ").map(Number);
+  const firesAt = ((hour * 60 + minute + 9 * 60) % 1440) * 60;
+  const second = koreanSecondOfDay(now);
+  return second >= firesAt && second < opensAtMinute * 60 ? opensAtMinute * 60 - second : 0;
+}
 
 function option(argv: readonly string[], name: string): string | undefined {
   const prefix = `--${name}=`;
