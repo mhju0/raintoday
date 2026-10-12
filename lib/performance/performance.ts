@@ -20,9 +20,12 @@ export const DEFAULT_PERFORMANCE_POLICY: PerformancePolicy = {
   // benchmark out of reach for another 30 days, and at the observed run-failure
   // rate it was never reachable at all. Widening costs nothing in recency, because
   // the half-life below is what enforces that: a 60-day-old comparison already
-  // carries about 5% of a fresh one's weight. The bar itself is untouched.
+  // carries well under 1% of a fresh one's weight. The bar itself is untouched.
   windowDays: 60,
-  halfLifeDays: 14,
+  // Halved from 14 in 2.2.0 together with the sharpness below. On its own the
+  // shorter memory changed a replay of stored captures by a rounding error;
+  // below about five days it made the blend worse.
+  halfLifeDays: 7,
   reportDays: 7,
   minimumSamples: 30,
   fullInfluenceSamples: 60,
@@ -33,9 +36,12 @@ export const DEFAULT_PERFORMANCE_POLICY: PerformancePolicy = {
   // Exponential contrast between provider scores. Monotonic, so it can never
   // reorder providers — it only widens a gap that the evidence already shows.
   // Raised from 4: at 4 a real 3x difference in wet-day miss rate compressed to a
-  // 1.18x weight spread, which read as "every service is the same". The
-  // prospective benchmark still suspends the blend if sharpening makes it worse.
-  scoreSharpness: 12,
+  // 1.18x weight spread, which read as "every service is the same". Raised again
+  // from 12 in 2.2.0: replayed over 39 days of stored captures, 24 scored
+  // slightly ahead of 12, while 48 and above leaned on one provider hard enough
+  // to lose that gain. The prospective benchmark still suspends the blend if
+  // sharpening makes it worse.
+  scoreSharpness: 24,
 };
 
 interface CompletedCapture {

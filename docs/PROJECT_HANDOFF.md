@@ -161,3 +161,10 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - README screenshot retaken from production after 2.1.8 (Seoul, 2026-10-12 10:20 KST). Counts re-read read-only after the morning collection: 9,236 captures, 5,218 station-day observations, 97 stations.
 - Correction: the 2.1.7 README quoted only the evening capture group for Seoul (39 comparisons, 0.074 each), because the record page serves the group for the hour it is read. It now states both groups (morning: 48 comparisons, 0.067 weighted against 0.068 equal).
 - Release candidate: 2.1.9. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish. Open: portfolio screenshot shows 2.1.6 amounts and awaits owner approval for replacement; owner to upload the new social preview image.
+
+## 2026-10-12 — 2.1.9 released; weighting made sharper on recent accuracy
+
+- 2.1.9 (PR #202, `f66c30b`): main CI passed, production serves the merge commit, tag and release published. The portfolio screenshot (mhju0.github.io PR #2) and the five-provider social preview are both done; nothing is open from the earlier entries above.
+- Owner asked for a more aggressive, more recent-weighted formula. Replayed alternatives on stored history, then the owner chose the moderate one: `halfLifeDays` 14 → 7, `scoreSharpness` 12 → 24. Evidence and limits are in `docs/DECISIONS.md` (2026-10-12). Gates, bounds and benchmark unchanged.
+- `lib/documentedPolicy.test.ts` now pins the documented half-life as well. The three-provider fixture in `performance.test.ts` was softened because at sharpness 24 the stronger provider reached the 60% cap.
+- Release candidate: 2.2.0. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish. Watch: the benchmark verdict per station over the following weeks; a regression suspends the weights on its own. The file is near 200 lines; condense the oldest entries next session.

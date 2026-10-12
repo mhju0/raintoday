@@ -27,6 +27,11 @@ const PINS: { label: string; pattern: RegExp; expected: string }[] = [
     expected: String(policy.scoreSharpness),
   },
   {
+    label: "recency half-life",
+    pattern: /(\d+)-day half-life/g,
+    expected: String(policy.halfLifeDays),
+  },
+  {
     label: "influence ramp",
     pattern: /(?:through|to-)(\d+)[ -]captures?|influence ramping through (\d+)/g,
     expected: String(policy.fullInfluenceSamples),

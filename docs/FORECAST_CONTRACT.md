@@ -29,7 +29,7 @@ The station catalog is the collector's only KMA apihub request. If catalog retri
 
 A compared provider's read fault prevents that capture from being stored. A retry cannot fill in an immutable capture later. The run tolerates a limited share of failed captures and allows up to five fresh-runner attempts, targeting 0, 10, 25, 40 and 55 minutes from the first attempt. The authoritative verdict fails if no attempt succeeds. An outage breaker can abandon an already-failing pass after sustained transport faults; abandoned work cannot make a cohort pass. See [operations](OPERATIONS.md) for recovery details.
 
-Probability scores use completed days, including dry days, within a 60-day operating window and a 14-day half-life. The page reports Brier scores, misses, false alarms, rainy-day amount MAE, and a separate seven-day Brier slice.
+Probability scores use completed days, including dry days, within a 60-day operating window and a 7-day half-life. The page reports Brier scores, misses, false alarms, rainy-day amount MAE, and a separate seven-day Brier slice.
 
 Learned influence requires at least 30 comparable captures per provider, with both wet and dry evidence. It increases gradually through 60 captures and uses provider floors and caps. A provider without sufficient history keeps a neutral share. Serving renormalizes influence across providers that supplied the requested value.
 
@@ -115,7 +115,7 @@ The served surface is `/`, `/behind-the-data`, `/api/local-forecast`, `/api/loca
 - South Korea and precipitation only.
 - Service-area admission uses official SGIS 시도 geometry simplified to a 10 m tolerance. Decisions within roughly 25 m of the coastline may differ from the unsimplified geometry. Manual search is country-filtered to Korea.
 - ASOS is the observation network. AWS adoption remains outside the current scope.
-- Scoring policy defaults are: rain at 0.1 mm; miss/false-alarm decisions at 50%; at least 30 comparable captures with both wet and dry evidence; influence ramping through 60 captures; provider influence bounded to 5–60%; and an `exp(-12 × Brier)` score transform. A test checks these documented values against the policy object.
+- Scoring policy defaults are: rain at 0.1 mm; miss/false-alarm decisions at 50%; at least 30 comparable captures with both wet and dry evidence; influence ramping through 60 captures; provider influence bounded to 5–60%; and an `exp(-24 × Brier)` score transform. A test checks these documented values against the policy object.
 - Station eligibility requires distance at most 100 km and elevation difference at most 400 m. The coverage study's 36 administrative centres had a maximum nearest-station distance of 30.2 km; this is not a measurement of every inhabited location. See [ADR 0005](adr/0005-station-proximity-is-language-not-eligibility.md), [ADR 0006](adr/0006-the-elevation-gate-is-non-binding.md), and the [coverage study](research/nationwide-verification-coverage.md).
 - A location can have forecasts but no eligible observation station.
 - Provider availability and horizon vary. Missing values are omitted, never treated as zero.

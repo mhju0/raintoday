@@ -36,7 +36,7 @@ Two ordering rules are load-bearing:
 - Seed **cannot rescue a suspension.** A benchmark regression is a live verdict that the adaptive blend is currently worse than equal weighting; retrospective archive evidence is not grounds to overrule it.
 - Mature live evidence **supersedes the seed entirely.** Learned weights are identical whether or not seed evidence is present.
 
-Two different bars decide those rows, and conflating them is what #89 was filed on. A provider becomes **eligible** on a cumulative count — every completed comparison it has, of any age. The **benchmark** counts only comparisons inside the operating window. A cohort completes at most one comparison a day, so the window has to be wider than the bar or the first row of the table is unreachable: pairing a 30-day window with a 30-comparison bar demanded a flawless month, and one missed run pushed `learned` out of reach for another thirty days. The window is 60 days; recency is enforced by the 14-day half-life, not by the edge of the window. See ADR 0011.
+Two different bars decide those rows, and conflating them is what #89 was filed on. A provider becomes **eligible** on a cumulative count — every completed comparison it has, of any age. The **benchmark** counts only comparisons inside the operating window. A cohort completes at most one comparison a day, so the window has to be wider than the bar or the first row of the table is unreachable: pairing a 30-day window with a 30-comparison bar demanded a flawless month, and one missed run pushed `learned` out of reach for another thirty days. The window is 60 days; recency is enforced by the 7-day half-life, not by the edge of the window. See ADR 0011.
 
 ## Live cohorts
 
