@@ -1127,14 +1127,14 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
   // The strip is one or two rows depending on the place name, so its height is
   // published for the summary to sit beneath it. With enlarged text the two
   // together can take most of a small screen; past 30% of it the summary
-  // scrolls away and the strip alone stays.
+  // stays hidden and the strip alone is pinned.
   const dashboardRef = useRef<HTMLElement | null>(null);
   const stripRef = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     const dashboard = dashboardRef.current;
     const strip = stripRef.current;
     if (!dashboard || !strip || typeof ResizeObserver === "undefined") return;
-    const summary = dashboard.querySelector<HTMLElement>(".local-minibar");
+    const summary = dashboard.querySelector<HTMLElement>(".local-minibar-in");
     const publish = () => {
       dashboard.style.setProperty("--local-strip-h", `${strip.offsetHeight}px`);
       const pinned = strip.offsetHeight + (summary?.offsetHeight ?? 0);
@@ -1149,6 +1149,22 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
       observer.disconnect();
       window.removeEventListener("resize", publish);
     };
+  }, []);
+
+  // The mini-ribbon repeats the headline and the timeline, so it shows only
+  // once the timeline has scrolled off the top (audit 008, finding 1).
+  useEffect(() => {
+    const dashboard = dashboardRef.current;
+    const ribbon = dashboard?.querySelector(".local-ribbon");
+    if (!dashboard || !ribbon || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => {
+      dashboard.toggleAttribute(
+        "data-ribbon-passed",
+        !entry.isIntersecting && entry.boundingClientRect.bottom <= 0,
+      );
+    });
+    observer.observe(ribbon);
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -1231,7 +1247,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
       </section>
 
       {/* The graph is the nav (D-09): a miniature of the ribbon pins to the top
-          while the page scrolls. */}
+          once the ribbon itself has scrolled away. */}
       {timeline && (
         <div className="local-minibar">
           <div className="local-minibar-in">

@@ -181,3 +181,10 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - [Audit 008](audits/ui/audit-008-2026-10-13.md): three findings, none approved yet. Its follow-up records the sweep the owner asked for: eight forecast states, 16 widths, 100/130/200% text, Chromium and WebKit, at rest and pinned. Nothing overflows or misaligns in the mini-ribbon; at 200% text its sentence takes its own row at 641–901px. No code change was needed.
 - README screenshot retaken from production after 2.2.4 (Seoul, 2026-10-13 about 01:25 KST); it no longer shows the button.
 - Release candidate: 2.2.5. Next: merge, confirm, tag. Open: audit 008 findings 1–3 await the owner; the October 13 evening-run check (2.2.2 entry); Instagram-specific tracking deferred by the owner.
+
+## 2026-10-13 — 2.2.5 released; audit 008 findings 1–3 fixed (2.2.6 candidate)
+
+- 2.2.5 (PR #210, `1564dce`): main CI passed, production serves the merge commit (Vercel dashboard), tag and release published.
+- Owner approved all three audit 008 findings: the mini-ribbon appears only after the timeline scrolls away, its rain-window bars are amber, analytics loads only on Vercel. Reasons and costs: `docs/DECISIONS.md`, second 2026-10-13 entry.
+- Found while checking the schedule: no evening collection ran on 2026-10-12. The 2.2.2 merge (15:45 KST) removed the 18:10 cron after that day's new 12:40 cron had already passed. The evening group has no captures targeting 2026-10-13; not recoverable, and no manual run was made.
+- Release candidate: 2.2.6. Next: merge, confirm, tag; load the live site and confirm the Analytics tab still records the visit; retake the README screenshot only if the owner asks (the bar was not in the top-of-page capture's subject, but the capture shows it). Open: the October 13 evening-run check (2.2.2 entry).

@@ -1069,3 +1069,22 @@ mini-ribbon keeps its label, bars and summary.
 
 **Cost.** Every first visit is now the long page, most noticeably on a phone. A value
 left under the old storage key in a returning browser is ignored and not cleaned up.
+
+## 2026-10-13 — The mini-ribbon shows only after the timeline scrolls away
+
+**Status: ACTIVE.** Owner approved audit 008 findings 1 (option A), 2 and 3.
+
+**Decision.** The pinned mini-ribbon is hidden at the top of the page and appears once the
+timeline has scrolled off the top. It hangs from a zero-height sticky anchor, so showing it
+moves nothing. Its rain-window bars are amber, as in the timeline. Analytics loads only
+when the build runs on Vercel (`VERCEL=1`, read in `app/layout.tsx`).
+
+**Why.** With the toggle gone, the bar at rest only repeated the headline above it and the
+timeline below it. Amber already means the rain window everywhere else (ADR 0009). Off
+Vercel the analytics script does not exist, so every page load logged two console errors.
+
+**Cost.** For the height of the phone's pinned location strip, neither the timeline nor the
+bar is visible while scrolling. With enlarged text, where the two pinned bars would exceed
+30% of the screen, the bar stays hidden instead of scrolling with the page. If Vercel ever
+stops exposing `VERCEL`, visits stop being counted without an error; check the Analytics
+tab after any change to that setting.
