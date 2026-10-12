@@ -1662,16 +1662,22 @@ html {
   margin-right: 0.45rem;
 }
 
-/* ---- chart recorder: the pinned mini-ribbon and its density toggle ---- */
+/* ---- chart recorder: the pinned mini-ribbon ---- */
 
+/* A zero-height sticky anchor: the bar hangs from it over the page, so showing
+   it once the ribbon has scrolled away moves nothing. */
 .local-minibar {
   position: sticky;
   top: 0.55rem;
   z-index: 40;
-  margin: 0.5rem 0 0.75rem;
+  height: 0;
 }
 
 .local-minibar-in {
+  position: absolute;
+  inset: 0 0 auto;
+  visibility: hidden;
+  opacity: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1681,6 +1687,17 @@ html {
   background: color-mix(in srgb, var(--local-bg) 88%, transparent);
   backdrop-filter: blur(8px);
   padding: 0.45rem 0.8rem;
+}
+
+.local-dashboard[data-ribbon-passed] .local-minibar-in {
+  visibility: visible;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .local-minibar-in {
+    transition: opacity 0.15s, visibility 0.15s;
+  }
 }
 
 .local-minibar-k {
@@ -1713,7 +1730,9 @@ html {
   opacity: 0.5;
 }
 
+/* Amber marks the rain window here as it does in the ribbon. */
 .local-minibar-spark i.is-wet {
+  background: var(--local-amber);
   opacity: 1;
 }
 
@@ -2304,8 +2323,9 @@ html {
     top: var(--local-strip-h, 0px);
   }
 
-  .local-dashboard[data-crowded-top] .local-minibar {
-    position: static;
+  .local-dashboard[data-crowded-top] .local-minibar-in {
+    visibility: hidden;
+    opacity: 0;
   }
 
   /* The strip is sticky across the whole scroll, so the provenance line is

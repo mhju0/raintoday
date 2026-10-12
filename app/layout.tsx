@@ -59,7 +59,8 @@ export default function RootLayout({
     <html lang="ko" className={`${geistSans.variable} ${notoSansKr.variable}`}>
       <body className="min-h-screen font-sans antialiased">
         {children}
-        <SiteAnalytics />
+        {/* Only Vercel serves the analytics script; elsewhere the request fails. */}
+        {process.env.VERCEL === "1" && <SiteAnalytics />}
       </body>
     </html>
   );

@@ -304,8 +304,37 @@ for (const width of [320, 390]) {
     expect(bars.stripTop, "the strip is pinned").toBeLessThanOrEqual(1);
     expect(bars.summaryTop, "the summary is pinned").toBeLessThan(200);
     expect(bars.summaryTop).toBeGreaterThanOrEqual(bars.stripBottom - 1);
+    await expect(page.locator(".local-minibar-in")).toBeVisible();
   });
 }
+
+// Audit 008.
+for (const width of [390, 768, 1440]) {
+  test(`the mini-ribbon appears only after the timeline scrolls away at ${width}px`, async ({ page }) => {
+    await openForecast(page, width, expandedForecast());
+    const bar = page.locator(".local-minibar-in");
+    await expect(bar).toBeHidden();
+    const gap = () => page.evaluate(() =>
+      document.querySelector(".local-ribbon")!.getBoundingClientRect().top + window.scrollY);
+    const ribbonTop = await gap();
+
+    await page.evaluate(() => window.scrollTo({ top: 1600, behavior: "instant" }));
+    await expect(bar).toBeVisible();
+    expect(await gap(), "showing the bar moves nothing").toBe(ribbonTop);
+    await expect(bar.locator("i.is-wet").first()).toHaveCSS("background-color", "rgb(242, 180, 65)");
+
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    await expect(bar).toBeHidden();
+  });
+}
+
+test("a build served off Vercel does not ask for the analytics script", async ({ page }) => {
+  const asked: string[] = [];
+  page.on("request", (request) => { if (request.url().includes("/_vercel/")) asked.push(request.url()); });
+  await openForecast(page, 1024, expandedForecast());
+  await page.waitForLoadState("networkidle");
+  expect(asked).toEqual([]);
+});
 
 for (const width of [390, 768, 1440]) {
   test(`the scrub readout stays inside the chart at ${width}px`, async ({ page }) => {

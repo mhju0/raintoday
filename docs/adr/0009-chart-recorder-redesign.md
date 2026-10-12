@@ -7,6 +7,8 @@ status: accepted
 > **Amended 2026-10-13.** The 한눈에 ⇄ 전체 근거 density toggle and its stored preference
 > described below were removed; the pinned mini-ribbon remains. See `docs/DECISIONS.md`,
 > 2026-10-13.
+> Later the same day the mini-ribbon was changed to appear only after the timeline scrolls
+> away, with amber rain-window bars (second 2026-10-13 entry).
 
 The 2026-08 design pass began from the owner's brief: the shipped time-slot probability
 graph is the page's foundation and must not be displaced; the look stays graph/data/grid;
