@@ -257,8 +257,8 @@ test("the published policy figures come from the policy object, not the prose", 
   const view = buildBehindTheDataView(evidence());
   assert.equal(view.policy.windowDays, 60);
   assert.equal(view.policy.minimumSamples, 30);
-  assert.equal(view.policy.halfLifeDays, 14);
-  assert.equal(view.policy.scoreSharpness, 12);
+  assert.equal(view.policy.halfLifeDays, 7);
+  assert.equal(view.policy.scoreSharpness, 24);
   assert.equal(view.policy.weightFloorPercent, 5);
   assert.equal(view.policy.weightCapPercent, 60);
 });

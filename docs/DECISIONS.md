@@ -940,3 +940,33 @@ The headline states the rain window in plain words from the named hourly provide
 The umbrella line answers for now until midnight KST: today's remaining blocks decide,
 and a blended day total of 10 mm or more also counts before noon, because a day total
 carries no timing. The noon cutoff is a rule of thumb, not a measured threshold.
+
+---
+
+## 2026-10-12 — Sharper weighting on recent accuracy: half-life 14 → 7 days, sharpness 12 → 24
+
+**Status: ACTIVE (2.2.0)**
+
+**Decided.** `halfLifeDays` becomes 7 and `scoreSharpness` becomes 24. The window, the
+30-comparison bar, the 30-to-60 ramp, the 5–60% bounds and the prospective benchmark are
+unchanged.
+
+**Why.** The owner asked for a service that has been right recently to carry more of
+tomorrow's blend. Alternatives were replayed over the stored captures and observations
+(all 97 stations, target dates through 2026-10-10), rebuilding weights from what was
+known at each capture and scoring the blend against the observation. With a 10-comparison
+bar (6,391 forecasts, 39 dates) the previous setting beat equal weighting by 1.8% in mean
+Brier and this one by 2.1%; with the production 30-comparison bar (2,547 forecasts, 18
+dates) the figures were 1.4% and 2.5%. Shorter memory alone changed almost nothing and
+below about five days was worse. Sharpness did the work: on the longer replay 48 was no
+better than 24 and 96 or more fell behind, and using only the last seven days was
+unstable.
+
+**Limits.** The differences between the good settings are within noise for this much
+data, and only about 12% of the scored days were wet. The replay applied weights at full
+strength: no ramp, no benchmark gate, no seed mode. The seed path shares
+`scoreSharpness`, so seed weights sharpen too; that was not replayed, and every catalogued
+station already has mature live evidence. The benchmark's own recency weighting now uses
+the 7-day half-life. A provider at the 60% cap hands its surplus to the others, which can
+lift an unmeasured provider slightly above its equal share; the three-provider test
+fixture was softened so it still checks the uncapped rule.

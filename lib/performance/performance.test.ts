@@ -92,7 +92,7 @@ test("probability performance includes completed dry days", () => {
   assert.ok((provider?.brierScore ?? 0) > 0);
 });
 
-test("operating performance uses a 60-day window with a 14-day recency half-life", () => {
+test("operating performance uses a 60-day window with a 7-day recency half-life", () => {
   const data = series({
     days: 90,
     probability: (provider, daysAgo, wet) => {
@@ -172,7 +172,10 @@ function threeProviderSeries(days: number): {
   for (let daysAgo = days; daysAgo >= 1; daysAgo--) {
     const targetDate = dateDaysAgo(daysAgo);
     const wet = daysAgo % 2 === 0;
-    const called = (well: boolean) => (well ? (wet ? 90 : 10) : (wet ? 55 : 45));
+    // The weaker provider is clearly worse but not a coin flip: at 55/45 the
+    // stronger one reaches the 60% cap, and the capped surplus is shared out
+    // among the rest, which lifts an unmeasured provider just above 1/n.
+    const called = (well: boolean) => (well ? (wet ? 90 : 10) : (wet ? 65 : 35));
     captures.push({
       stationId: "108",
       targetDate,
@@ -615,8 +618,8 @@ test("seed rows for a provider no longer compared are not scored or shown", () =
  * most one a day. Pairing a 30-day window with a 30-sample bar therefore demanded a
  * flawless month: a single missed run — a KMA outage, a runner that could not reach
  * Korea, a day ASOS never published — put `learned` out of reach for another month.
- * The window is 60 days because the 14-day half-life is what enforces recency: a
- * 60-day-old comparison already carries about 5% of a fresh one's weight.
+ * The window is 60 days because the 7-day half-life is what enforces recency: a
+ * 60-day-old comparison already carries well under 1% of a fresh one's weight.
  */
 test("a month with missed runs still reaches the benchmark", () => {
   const data = series({
