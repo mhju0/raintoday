@@ -169,3 +169,13 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Abuse protection: nothing changed. The firewall's Dynamic request volume rule (`/api/`, 150 requests per IP per 60 s) still only logs, and logged nothing in the past day. Switching it to answer 429 awaits the owner.
 - Error reporting: not started. The owner's Sentry organisation has one project, `javascript-nextjs`; whether raintoday may use it is unanswered.
 - Release candidate: 2.2.8. Next: merge, confirm, tag; after real visits, read the Speed Insights tab; diagnose the phone score as a read-only audit. Open: the October 13 evening-run check (2.2.2 entry).
+
+## 2026-10-13 — 2.2.8 released; functions moved to Seoul (2.2.9 candidate)
+
+- 2.2.8 (PR #215, `05c3de8`): main CI passed, production serves the merge commit, tag and release published; the Speed Insights script loads on the live site.
+- Functions ran in `iad1` while visitors enter at `icn1`. `vercel.json` now sets `regions: ["icn1"]`; measurements and limits are in `docs/DECISIONS.md` (fourth 2026-10-13 entry). Production at the time blended three providers (no Open-Meteo, no KMA); the Seoul preview blended four or five.
+- Evening collection on 2026-10-13: GitHub started the 12:40 KST schedule at 20:06 KST, so the wait step held nothing and the capture is 1 h 56 min late; 95 of 97 stations stored, two Open-Meteo connection faults. The morning run started at 11:31 KST. The 2.2.2 early-start did not hold the slot that day; nothing changed yet.
+- Firewall: the owner approved switching the Dynamic request volume rule from Log to 429, but the agent's browser session was not permitted to change it. The owner does it in the dashboard.
+- Sentry: project `raintoday` created in the owner's organisation `michael-ju-46`; no code yet. Plan: browser errors only, loaded after the page is idle, address stripped of the place, no session recording.
+- Release candidate: 2.2.9. Next: merge, confirm `x-vercel-id` shows `icn1::icn1` on production and the provider count, tag; then Sentry as its own release. Open: phone-speed items not yet addressed (about 25 font files per visit; the home button's label mismatch).
+

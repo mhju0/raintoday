@@ -264,6 +264,10 @@ Its suite truncates tables. Never use the production or recovery database for th
 
 ## Deployment and rollback
 
+Server functions run in Seoul (`regions` in `vercel.json`); the Hobby plan allows one
+region. The `x-vercel-id` response header names the entry and function regions, for
+example `icn1::icn1`.
+
 Dependabot opens security-fix PRs only. Routine npm and GitHub Actions version
 updates are disabled with `open-pull-requests-limit: 0`; the required schedule
 entries do not enable routine PRs while that limit is zero. Keep vulnerability
