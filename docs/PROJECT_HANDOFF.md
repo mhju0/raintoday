@@ -188,3 +188,10 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Owner approved all three audit 008 findings: the mini-ribbon appears only after the timeline scrolls away, its rain-window bars are amber, analytics loads only on Vercel. Reasons and costs: `docs/DECISIONS.md`, second 2026-10-13 entry.
 - Found while checking the schedule: no evening collection ran on 2026-10-12. The 2.2.2 merge (15:45 KST) removed the 18:10 cron after that day's new 12:40 cron had already passed. The evening group has no captures targeting 2026-10-13; not recoverable, and no manual run was made.
 - Release candidate: 2.2.6. Next: merge, confirm, tag; load the live site and confirm the Analytics tab still records the visit; retake the README screenshot only if the owner asks (the bar was not in the top-of-page capture's subject, but the capture shows it). Open: the October 13 evening-run check (2.2.2 entry).
+
+## 2026-10-13 — 2.2.6 released; mini-ribbon removed and README screenshot retaken (2.2.7 candidate)
+
+- 2.2.6 (PR #211, `042bb39`): main CI passed, production serves the merge commit, tag and release published; the live site still sent its analytics script and page view.
+- Owner then chose to remove the 24H bar entirely. Deleted with its stacking, enlarged-text and scroll rules; `docs/DECISIONS.md`, third 2026-10-13 entry. Audit 008 has no open findings.
+- README screenshot is a production capture of Jeju (2026-10-13 about 15:13 KST), because Seoul was dry at the time. The top of the page is the same before and after this change.
+- Release candidate: 2.2.7. Next: merge, confirm, tag. Open: the October 13 evening-run check (2.2.2 entry); the skipped October 12 evening collection stays recorded above. This file is near 200 lines; condense the oldest entries next session.

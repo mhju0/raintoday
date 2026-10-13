@@ -1662,106 +1662,6 @@ html {
   margin-right: 0.45rem;
 }
 
-/* ---- chart recorder: the pinned mini-ribbon ---- */
-
-/* A zero-height sticky anchor: the bar hangs from it over the page, so showing
-   it once the ribbon has scrolled away moves nothing. */
-.local-minibar {
-  position: sticky;
-  top: 0.55rem;
-  z-index: 40;
-  height: 0;
-}
-
-.local-minibar-in {
-  position: absolute;
-  inset: 0 0 auto;
-  visibility: hidden;
-  opacity: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.9rem;
-  border: 1px solid var(--local-line-2);
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--local-bg) 88%, transparent);
-  backdrop-filter: blur(8px);
-  padding: 0.45rem 0.8rem;
-}
-
-.local-dashboard[data-ribbon-passed] .local-minibar-in {
-  visibility: visible;
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .local-minibar-in {
-    transition: opacity 0.15s, visibility 0.15s;
-  }
-}
-
-.local-minibar-k {
-  font-family: var(--local-mono);
-  word-spacing: var(--local-mono-gap);
-  font-size: var(--t-label);
-  color: var(--local-dim);
-  letter-spacing: 0.1em;
-}
-
-.local-minibar-spark {
-  flex: 1 1 5rem;
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 44px;
-  min-width: 5rem;
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-}
-
-.local-minibar-spark i {
-  flex: 1;
-  height: calc(var(--h) / 2);
-  margin-bottom: 11px;
-  background: var(--local-accent);
-  border-radius: 1px;
-  opacity: 0.5;
-}
-
-/* Amber marks the rain window here as it does in the ribbon. */
-.local-minibar-spark i.is-wet {
-  background: var(--local-amber);
-  opacity: 1;
-}
-
-/* An unpublished block stays a hatched slot even at minimap scale. */
-.local-minibar-spark i.is-na {
-  height: 22px;
-  background: repeating-linear-gradient(
-    135deg,
-    transparent 0 4px,
-    var(--local-line) 4px 6px
-  );
-  opacity: 1;
-}
-
-.local-minibar-sum {
-  font-family: var(--local-mono);
-  word-spacing: var(--local-mono-gap);
-  font-size: var(--t-label);
-  color: var(--local-ink-2);
-  min-width: 0;
-  white-space: normal;
-}
-
-@media (max-width: 640px) {
-  .local-minibar-sum {
-    display: none;
-  }
-}
-
 /* ---- D-11: claim kickers — a hairline rule and a mono label naming whose
    number the stratum below carries. All separators stay achromatic; blue,
    teal, and amber keep their monopoly on meaning. ---- */
@@ -2316,16 +2216,6 @@ html {
     padding-inline: 1rem;
     background: color-mix(in srgb, var(--local-bg) 88%, transparent);
     backdrop-filter: blur(14px);
-  }
-
-  /* Beneath the strip, not on top of it. */
-  .local-minibar {
-    top: var(--local-strip-h, 0px);
-  }
-
-  .local-dashboard[data-crowded-top] .local-minibar-in {
-    visibility: hidden;
-    opacity: 0;
   }
 
   /* The strip is sticky across the whole scroll, so the provenance line is

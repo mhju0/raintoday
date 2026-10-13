@@ -9,6 +9,8 @@ status: accepted
 > 2026-10-13.
 > Later the same day the mini-ribbon was changed to appear only after the timeline scrolls
 > away, with amber rain-window bars (second 2026-10-13 entry).
+> It was then removed altogether, retiring "the graph is the navigation" (third 2026-10-13
+> entry).
 
 The 2026-08 design pass began from the owner's brief: the shipped time-slot probability
 graph is the page's foundation and must not be displaced; the look stays graph/data/grid;
