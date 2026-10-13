@@ -1125,3 +1125,24 @@ the US route were a passing fault was not established. KMA was still absent for 
 four cities from Seoul. The Hobby plan allows one region, so there is no failover region.
 The database stays in Singapore.
 
+## 2026-10-13 — Browser errors are reported to Sentry
+
+**Status: ACTIVE.** Owner request: learn about a visitor's crash without the visitor
+reporting it.
+
+**Decision.** On `raintoday.vercel.app` only, an uncaught browser error or rejected
+promise is sent to the owner's Sentry project `raintoday`. The SDK loads when the page is
+idle; errors thrown before that are held and sent once it arrives. The page address and
+referrer lose the chosen place (`scrubErrorReport`), user fields are dropped, and cookies,
+request bodies and query parameters are not collected. No session recording, tracing or
+breadcrumbs. The content security policy allows that one ingest origin.
+
+**Why not the full Next.js SDK.** It adds to every page's first script and to the server's
+start time, which this release cycle was reducing.
+
+**Cost and limits.** Server-side errors are not reported; they remain in Vercel's logs.
+Stack traces are minified, since no source maps are uploaded (that needs a secret token).
+An error caught by a React error boundary is not seen. Browser extensions that block
+Sentry suppress the report. The DSN is in the source: it is a public, write-only address.
+Sentry receives the visitor's IP address in transit; storing it is a project setting.
+

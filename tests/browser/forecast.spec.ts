@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
+import { ERROR_REPORT_ORIGIN } from "../../lib/errorReport.ts";
+
 const rainForecast = JSON.parse(readFileSync(new URL("./fixtures/rain-forecast.json", import.meta.url), "utf8"));
 
 const candidate = {
@@ -310,6 +312,15 @@ test("a build served off Vercel does not ask for the analytics script", async ({
   page.on("request", (request) => { if (request.url().includes("/_vercel/")) asked.push(request.url()); });
   await openForecast(page, 1024, expandedForecast());
   await page.waitForLoadState("networkidle");
+  expect(asked).toEqual([]);
+});
+
+test("an error on a build served off the production host is reported nowhere", async ({ page }) => {
+  const asked: string[] = [];
+  page.on("request", (request) => { if (new URL(request.url()).origin === ERROR_REPORT_ORIGIN) asked.push(request.url()); });
+  await openForecast(page, 1024, expandedForecast());
+  await page.evaluate(() => { setTimeout(() => { throw new Error("browser test error"); }); });
+  await page.waitForTimeout(3000);
   expect(asked).toEqual([]);
 });
 

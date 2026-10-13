@@ -179,3 +179,10 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Sentry: project `raintoday` created in the owner's organisation `michael-ju-46`; no code yet. Plan: browser errors only, loaded after the page is idle, address stripped of the place, no session recording.
 - Release candidate: 2.2.9. Next: merge, confirm `x-vercel-id` shows `icn1::icn1` on production and the provider count, tag; then Sentry as its own release. Open: phone-speed items not yet addressed (about 25 font files per visit; the home button's label mismatch).
 
+## 2026-10-13 — 2.2.9 released; browser error reporting (2.2.10 candidate)
+
+- 2.2.9 (PR #216, `edf9ba2`): main CI passed, production serves the merge commit and answers `icn1::icn1`; five forecast reads took 0.35–0.76 s after a 2.2 s first read; Open-Meteo is back in the blend. KMA was absent from the three cities read after deploy; cause not established.
+- Browser errors on the production host go to Sentry project `raintoday` (`instrumentation-client.ts`, `lib/errorReport.ts`). Scope, privacy treatment and limits: `docs/DECISIONS.md`, fifth 2026-10-13 entry.
+- While proving the browser test fails with the host check opened, one event ("browser test error", from 127.0.0.1) reached the Sentry project. It is test noise.
+- Release candidate: 2.2.10. Next: merge, confirm, tag; throw one error on the live site and read the stored event for the address and IP fields. Open: owner switches the firewall rule to 429; KMA absence after the region move; font count and the home button's label.
+
