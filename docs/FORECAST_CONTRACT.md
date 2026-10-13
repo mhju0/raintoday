@@ -14,7 +14,7 @@ This reference contains the detailed behavior behind the [project overview](../R
 
 ## How recent performance works
 
-The [`local-performance`](../.github/workflows/local-performance.yml) workflow collects for a 06:10 and an 18:10 KST slot. GitHub starts schedules hours late, so the evening trigger fires at 12:40 KST and the run waits until 18:10 before it reads anything; the morning trigger fires at 06:10 and has started between 08:10 and 10:45. For each active KMA ASOS station it can read, a run:
+The [`local-performance`](../.github/workflows/local-performance.yml) workflow collects for a 06:10 and an 18:10 KST slot. GitHub starts schedules hours late, so the evening trigger fires at 12:40 KST and the run waits until 18:10 before it reads anything; the morning trigger fires at 06:10 and has started between 08:10 and 11:31. The early trigger does not guarantee the slot: on October 13, 2026 GitHub started the evening run at 20:06 KST, so it captured about two hours late. For each active KMA ASOS station it can read, a run:
 
 1. stores completed daily observations, using yesterday for the 18 KST group and two days back for the 06 KST group;
 2. captures provider forecasts for the next day;
@@ -61,7 +61,7 @@ npm run performance:seed -- --start=2025-06-01 --end=2025-08-31
 2. Read the expected rain window and next 24 hours from the named hourly provider, for example "오후 3시부터 저녁 7시까지 비 예상". The rain-window threshold is 40% or higher. Lower values do not mean rain is impossible; unpublished values remain labelled as missing, and a length such as "앞으로 24시간" is stated only when every block is published and the blocks are contiguous. Without an hourly series, the headline shows the blended day probability instead.
    The umbrella line covers the rest of today (now until midnight KST). Rain at or above the threshold in today's remaining blocks means take an umbrella. Before noon, a blended day total of 10 mm or more also does, because a day total carries no timing. Rain only after midnight reads as no umbrella today.
 3. Compare today and tomorrow, each labelled with its calculation method. Rainfall amount has its own provider count.
-4. Expand the provider comparison, longer outlook and scoring evidence if needed.
+4. Read the provider comparison, longer outlook and scoring evidence below; only the raw scoring table is folded and expands on request.
 5. Open the evidence-status link to the station's [`/behind-the-data`](https://raintoday.vercel.app/behind-the-data) record. Device-location links carry only the public station ID; area links carry the area's representative coordinate.
 
 The supporting evidence is always shown in full below the answer; there is no density control. Pointer movement or arrow keys inspect individual timeline blocks.

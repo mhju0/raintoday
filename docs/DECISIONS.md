@@ -1125,6 +1125,13 @@ the US route were a passing fault was not established. KMA was still absent for 
 four cities from Seoul. The Hobby plan allows one region, so there is no failover region.
 The database stays in Singapore.
 
+**Follow-up, same night.** KMA's absence was not caused by the region. From about 23:00 KST
+KMA's 20:00 short-term issue answered `NO_DATA` for some requests and normally for others,
+grid by grid and minute by minute, while the 17:00 issue answered normally every time
+(called directly, outside Vercel). The provider treats `NO_DATA` as an empty, successful
+read, so KMA drops out of that forecast and the empty read is cached for five minutes. No
+fallback to the previous issue exists; none was added.
+
 ## 2026-10-13 — Browser errors are reported to Sentry
 
 **Status: ACTIVE.** Owner request: learn about a visitor's crash without the visitor

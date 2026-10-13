@@ -52,7 +52,7 @@ Open `http://localhost:3100` at desktop and 390px mobile widths. Check:
   contain device coordinates; the record link contains only the matched public station id.
 - Area record links preserve shareable coordinates. Station-only records do not claim a
   distance from the visitor. Missing station matches show no evidence, not Seoul's record.
-- The ribbon responds to arrow keys, and evidence can fold/unfold without horizontal overflow.
+- The ribbon responds to arrow keys, and the raw scoring table can fold/unfold without horizontal overflow.
 - Browser console has no hydration or runtime errors.
 
 A pinned Playwright regression suite uses fixed forecast and search responses,

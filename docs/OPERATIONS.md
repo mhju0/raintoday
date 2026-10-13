@@ -28,7 +28,8 @@ successful monitored run. Collection monitoring uses scheduled runs only; servic
 health monitoring also accepts manual read-only checks. It flags a missing completed collection after 18 hours,
 measured from when the last one finished, and a missing health check after 10 hours, including disabled workflows. The evening
 collection is triggered at 12:40 KST and shows as in progress, in its `wait` job, until
-18:10 KST; that is not a hang. The workflow also
+18:10 KST; that is not a hang. When GitHub starts it after 18:10 the wait is zero and the
+capture is late (October 13, 2026: started 20:06 KST). The workflow also
 creates weekly and monthly review issues; an unfinished checklist remains open
 instead of being duplicated. Check off each task with evidence before closing it.
 
@@ -49,6 +50,17 @@ while this check is red. A collection failure still refuses faulted forecast cap
 GitHub Actions notifications depend on the owner's account settings. Watch this repository
 for workflow failures and verify delivery in GitHub notification settings. These are
 best-effort checks, not an on-call service or an uptime guarantee.
+
+Three services outside GitHub watch the live site. They live in the owner's accounts and
+are not configured from this repository:
+
+- UptimeRobot requests the home page every 5 minutes and emails the owner when it stops
+  answering. It cannot see a provider or database failure behind a normal page; that is
+  `service-health`'s job.
+- Sentry project `raintoday` receives uncaught browser errors from `raintoday.vercel.app`
+  only (`instrumentation-client.ts`). Server errors stay in Vercel's logs. A browser with a
+  tracker blocker sends nothing.
+- Vercel Web Analytics and Speed Insights report visits and page speed from real visitors.
 
 GitHub can disable scheduled workflows in public repositories after 60 days without
 repository activity. A monitor on GitHub cannot report a platform-wide outage or its
@@ -224,8 +236,9 @@ changed the result. Treat the apihub forecast fallback as unavailable until a
 corresponding 활용신청 is approved.
 
 Application limits are process-local. The Vercel firewall's **Dynamic request volume**
-rule observes `/api/` traffic above 150 requests per IP per 60 seconds; it initially
-logs rather than blocks. Inspect the [firewall traffic](https://vercel.com/mhju0s-projects/raintoday/firewall)
+rule observes `/api/` traffic above 150 requests per IP per 60 seconds. On October 13,
+2026 it still logged rather than blocked and had logged nothing in the past day. On the
+Hobby plan the 429 action requires Pro; the dashboard offers Deny (403) without it. Inspect the [firewall traffic](https://vercel.com/mhju0s-projects/raintoday/firewall)
 before changing enforcement. Test a restrictive rule in preview before production.
 Vercel counters are regional; neither these rules nor caches guarantee a provider budget.
 
