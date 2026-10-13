@@ -1106,3 +1106,22 @@ read it. It was also the most conditional layout on the page.
 
 **Cost.** Deep in the page the rain answer is no longer visible, and there is no shortcut
 back to the timeline; the reader scrolls up. No back-to-top link was added.
+
+## 2026-10-13 — Server functions run in Seoul
+
+**Status: ACTIVE.** Owner approved after a preview measurement.
+
+**Decision.** `vercel.json` sets `regions` to `icn1`. Until now the functions ran in
+Vercel's default, `iad1` (Washington DC), while visitors entered at Seoul.
+
+**Why.** Measured from a browser in Korea on 2026-10-13, about 21:50 KST, eight cities
+each. Forecast request, repeat reads: about 0.26 s from the Seoul preview against about
+1.15 s from production; first reads about 1.2 s against 5–11 s. In the same minutes
+production's blend held three providers, with Open-Meteo and KMA both absent, while the
+Seoul preview held four or five, always including Open-Meteo.
+
+**Cost and limits.** One evening's sample, not a trend; whether the missing providers on
+the US route were a passing fault was not established. KMA was still absent for two of
+four cities from Seoul. The Hobby plan allows one region, so there is no failover region.
+The database stays in Singapore.
+
