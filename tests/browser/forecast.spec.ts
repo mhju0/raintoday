@@ -313,6 +313,15 @@ test("a build served off Vercel does not ask for the analytics script", async ({
   expect(asked).toEqual([]);
 });
 
+test("an error on a build served off the production host is reported nowhere", async ({ page }) => {
+  const asked: string[] = [];
+  page.on("request", (request) => { if (request.url().includes("sentry.io")) asked.push(request.url()); });
+  await openForecast(page, 1024, expandedForecast());
+  await page.evaluate(() => { setTimeout(() => { throw new Error("browser test error"); }); });
+  await page.waitForTimeout(3000);
+  expect(asked).toEqual([]);
+});
+
 for (const width of [390, 768, 1440]) {
   test(`the scrub readout stays inside the chart at ${width}px`, async ({ page }) => {
     await openForecast(page, width, mixedRibbonForecast(true));

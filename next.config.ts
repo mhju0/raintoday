@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+import { ERROR_REPORT_ORIGIN } from "./lib/errorReport.ts";
+
 const isProduction = process.env.NODE_ENV === "production";
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -11,7 +13,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self' data:",
-  `connect-src 'self'${isProduction ? "" : " ws: wss:"}`,
+  `connect-src 'self' ${ERROR_REPORT_ORIGIN}${isProduction ? "" : " ws: wss:"}`,
   ...(isProduction ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
