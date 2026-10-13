@@ -4,5 +4,8 @@
     "deploymentEnabled": {
       "reliability-state": false
     }
-  }
+  },
+  "regions": [
+    "icn1"
+  ]
 }
