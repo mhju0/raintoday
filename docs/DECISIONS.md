@@ -1072,7 +1072,8 @@ left under the old storage key in a returning browser is ignored and not cleaned
 
 ## 2026-10-13 — The mini-ribbon shows only after the timeline scrolls away
 
-**Status: ACTIVE.** Owner approved audit 008 findings 1 (option A), 2 and 3.
+**Status: SUPERSEDED in part** by the next entry: the mini-ribbon is removed. The analytics
+rule (Vercel only) stands. Owner approved audit 008 findings 1 (option A), 2 and 3.
 
 **Decision.** The pinned mini-ribbon is hidden at the top of the page and appears once the
 timeline has scrolled off the top. It hangs from a zero-height sticky anchor, so showing it
@@ -1088,3 +1089,20 @@ bar is visible while scrolling. With enlarged text, where the two pinned bars wo
 30% of the screen, the bar stays hidden instead of scrolling with the page. If Vercel ever
 stops exposing `VERCEL`, visits stop being counted without an error; check the Analytics
 tab after any change to that setting.
+
+## 2026-10-13 — The mini-ribbon is removed
+
+**Status: ACTIVE.** Owner decision after seeing 2.2.6 live: nothing should float over the
+page while scrolling.
+
+**Decision.** The pinned 24H mini-ribbon is deleted, with its summary sentence, the rule
+that stacked it under the phone's location strip, the enlarged-text rule and the scroll
+observer. ADR 0009's "the graph is the navigation" (D-09) is retired. On phones the
+location strip stays pinned; on wider screens nothing is pinned.
+
+**Why.** The bar carried the density toggle and repeated the answer during scrolling. The
+toggle is gone and the page opens at the answer, so a reader in the evidence has already
+read it. It was also the most conditional layout on the page.
+
+**Cost.** Deep in the page the rain answer is no longer visible, and there is no shortcut
+back to the timeline; the reader scrolls up. No back-to-top link was added.

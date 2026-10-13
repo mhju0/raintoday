@@ -1871,20 +1871,13 @@ test("a first visit shows the evidence in full, with no density control", async 
   assert.ok(view.container.querySelector(".local-evidence-cards"), "the blend evidence is open");
   assert.ok(view.container.querySelector(".local-evidence-section"), "the score section is open");
   assert.ok(!view.container.querySelector(".local-stubs"), "nothing is folded into a summary row");
-  const minibar = view.container.querySelector(".local-minibar");
-  assert.ok(minibar, "the pinned mini-ribbon stays");
-  assert.equal(
-    minibar.querySelectorAll("button").length,
-    1,
-    "its only control is the jump back to the timeline",
-  );
+  assert.ok(!view.container.querySelector(".local-minibar"), "nothing floats over the page");
   await view.cleanup();
 });
 
 test("without a timeline the evidence still shows", async () => {
   window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
   const view = await mountExperience(async () => Response.json(forecastPayload()));
-  assert.ok(!view.container.querySelector(".local-minibar"));
   assert.ok(view.container.querySelector(".local-evidence-cards"));
   await view.cleanup();
 });
@@ -1920,31 +1913,6 @@ test("the receipts shelf holds the evidence cards and the record, not the day ca
     !days.closest(".local-receipts"),
     "the day cards are the answer, not a receipt — they stay off the shelf",
   );
-  await view.cleanup();
-});
-
-test("the minibar miniatures the ribbon and answers at a glance", async () => {
-  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
-  const view = await mountExperience(async () =>
-    Response.json(forecastPayload({ timeline: timeline() })),
-  );
-  const spark = view.container.querySelector(".local-minibar-spark");
-  assert.ok(spark, "the sparkline is the nav");
-  assert.equal(spark.querySelectorAll("i").length, 3, "one bar per ribbon block — it is that graph's miniature");
-  assert.match(
-    view.container.querySelector(".local-minibar-sum")?.textContent ?? "",
-    /^오후 12시부터 밤 9시까지 비 예상\u00a0· 최대 75%$/,
-    "the pinned bar keeps the answer readable while the evidence scrolls",
-  );
-  await view.cleanup();
-});
-
-test("without an hourly series there is no minibar to pin", async () => {
-  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
-  const view = await mountExperience(async () =>
-    Response.json(forecastPayload()),
-  );
-  assert.equal(view.container.querySelector(".local-minibar"), null);
   await view.cleanup();
 });
 

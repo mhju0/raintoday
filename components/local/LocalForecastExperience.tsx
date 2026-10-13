@@ -1050,18 +1050,8 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
     ? Math.max(2, Math.ceil(Math.max(...laneAmounts.filter((a): a is number => a !== null))))
     : 0;
 
-  // What the pinned bar says while the big graph is off screen: the run's own
-  // numbers, already derived — never a new claim.
-  // The same words as the headline, compact enough for the bar.
   const hours = publishedHours(blocks);
   const runEndsTomorrow = run !== null && dayOffsets[run.endIndex] > 0;
-  const minibarSummary = !peak
-    ? "시간대별 강수확률 미발표"
-    : !run
-      ? `${hours === null ? "발표된 시간대" : `${hours}시간`} 비 예상 없음`
-      : `${!run.endsWithinWindow && run.startIndex === 0 && hours !== null
-        ? `${hours}시간 내내`
-        : Object.values(windowWords(run, runEndsTomorrow)).filter(Boolean).join(" ")} 비 예상\u00a0· 최대 ${Math.round(run.peakProbability)}%`;
 
   const amountRange = forecast.tomorrowAmountRange ?? null;
 
@@ -1123,53 +1113,9 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
     headingRef.current?.focus({ preventScroll: true });
   }, []);
 
-  // On a phone both the location strip and the pinned summary stick to the top.
-  // The strip is one or two rows depending on the place name, so its height is
-  // published for the summary to sit beneath it. With enlarged text the two
-  // together can take most of a small screen; past 30% of it the summary
-  // stays hidden and the strip alone is pinned.
-  const dashboardRef = useRef<HTMLElement | null>(null);
-  const stripRef = useRef<HTMLDivElement | null>(null);
-  useLayoutEffect(() => {
-    const dashboard = dashboardRef.current;
-    const strip = stripRef.current;
-    if (!dashboard || !strip || typeof ResizeObserver === "undefined") return;
-    const summary = dashboard.querySelector<HTMLElement>(".local-minibar-in");
-    const publish = () => {
-      dashboard.style.setProperty("--local-strip-h", `${strip.offsetHeight}px`);
-      const pinned = strip.offsetHeight + (summary?.offsetHeight ?? 0);
-      dashboard.toggleAttribute("data-crowded-top", pinned > window.innerHeight * 0.3);
-    };
-    publish();
-    const observer = new ResizeObserver(publish);
-    observer.observe(strip);
-    if (summary) observer.observe(summary);
-    window.addEventListener("resize", publish);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", publish);
-    };
-  }, []);
-
-  // The mini-ribbon repeats the headline and the timeline, so it shows only
-  // once the timeline has scrolled off the top (audit 008, finding 1).
-  useEffect(() => {
-    const dashboard = dashboardRef.current;
-    const ribbon = dashboard?.querySelector(".local-ribbon");
-    if (!dashboard || !ribbon || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(([entry]) => {
-      dashboard.toggleAttribute(
-        "data-ribbon-passed",
-        !entry.isIntersecting && entry.boundingClientRect.bottom <= 0,
-      );
-    });
-    observer.observe(ribbon);
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <main className="local-dashboard" ref={dashboardRef}>
-      <div className="local-strip" ref={stripRef}>
+    <main className="local-dashboard">
+      <div className="local-strip">
         <div className="local-strip-place">
           <span className="local-strip-pin" aria-hidden><LocationMark /></span>
           <b>{forecast.locationName}</b>
@@ -1245,33 +1191,6 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
           )}
         </p>
       </section>
-
-      {/* The graph is the nav (D-09): a miniature of the ribbon pins to the top
-          once the ribbon itself has scrolled away. */}
-      {timeline && (
-        <div className="local-minibar">
-          <div className="local-minibar-in">
-            <span className="local-minibar-k" aria-hidden>24H</span>
-            <button
-              type="button"
-              className="local-minibar-spark"
-              aria-label="맨 위 타임라인으로 이동"
-              onClick={() => headingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            >
-              {blocks.map((block) => block.precipMax === null
-                ? <i key={block.rangeLabel} className="is-na" />
-                : (
-                  <i
-                    key={block.rangeLabel}
-                    className={block.wet ? "is-wet" : undefined}
-                    style={{ "--h": `${Math.max(8, Math.round(block.precipMax))}%` } as CSSProperties}
-                  />
-                ))}
-            </button>
-            <span className="local-minibar-sum">{minibarSummary}</span>
-          </div>
-        </div>
-      )}
 
       {timeline && (
         <section className="local-ribbon" aria-labelledby="ribbon-heading">

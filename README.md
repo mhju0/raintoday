@@ -11,9 +11,9 @@
 
 The interface is in Korean. Open the app and choose **서울**, **부산**, **제주**, or **강릉** to try it without sharing your device location.
 
-![Seoul rain forecast with rain expected until 4 p.m., an 86% peak rain chance, and separate probability and rainfall bands](public/screenshots/forecast-rain.jpg)
+![Jeju rain forecast with rain expected from 9 p.m. until 6 a.m. the next day, a 100% peak rain chance, and separate probability and rainfall bands](public/screenshots/forecast-rain.jpg)
 
-*Seoul, shortly after 1 a.m. on October 13, 2026: real production forecast data with rain expected from now until 4 p.m. and an 86% peak rain chance between 7 and 10 a.m. The timeline is Open-Meteo’s forecast; the daily cards below it combine the responding providers. This is a dated screenshot, not current weather.*
+*Jeju, shortly after 3 p.m. on October 13, 2026: real production forecast data with rain expected from 9 p.m. until 6 a.m. the next day and a 100% peak rain chance between midnight and 3 a.m. The timeline is Open-Meteo’s forecast; the daily cards below it combine the responding providers. This is a dated screenshot, not current weather.*
 
 ## What it does
 

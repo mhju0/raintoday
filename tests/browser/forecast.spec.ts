@@ -293,38 +293,15 @@ const tops = (locator: import("@playwright/test").Locator) =>
   locator.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
 const spreadOf = (values: number[]) => Math.max(...values) - Math.min(...values);
 
-for (const width of [320, 390]) {
-  test(`the pinned summary sits below the location strip at ${width}px`, async ({ page }) => {
+for (const width of [390, 1440]) {
+  test(`nothing but the phone's location strip stays pinned while scrolling at ${width}px`, async ({ page }) => {
     await openForecast(page, width, expandedForecast(), 800);
+    await expect(page.locator(".local-minibar")).toHaveCount(0);
     await page.evaluate(() => window.scrollTo({ top: 1400, behavior: "instant" }));
-    const bars = await page.evaluate(() => {
-      const strip = document.querySelector(".local-strip")!.getBoundingClientRect();
-      return { stripTop: strip.top, stripBottom: strip.bottom, summaryTop: document.querySelector(".local-minibar")!.getBoundingClientRect().top };
-    });
-    expect(bars.stripTop, "the strip is pinned").toBeLessThanOrEqual(1);
-    expect(bars.summaryTop, "the summary is pinned").toBeLessThan(200);
-    expect(bars.summaryTop).toBeGreaterThanOrEqual(bars.stripBottom - 1);
-    await expect(page.locator(".local-minibar-in")).toBeVisible();
-  });
-}
-
-// Audit 008.
-for (const width of [390, 768, 1440]) {
-  test(`the mini-ribbon appears only after the timeline scrolls away at ${width}px`, async ({ page }) => {
-    await openForecast(page, width, expandedForecast());
-    const bar = page.locator(".local-minibar-in");
-    await expect(bar).toBeHidden();
-    const gap = () => page.evaluate(() =>
-      document.querySelector(".local-ribbon")!.getBoundingClientRect().top + window.scrollY);
-    const ribbonTop = await gap();
-
-    await page.evaluate(() => window.scrollTo({ top: 1600, behavior: "instant" }));
-    await expect(bar).toBeVisible();
-    expect(await gap(), "showing the bar moves nothing").toBe(ribbonTop);
-    await expect(bar.locator("i.is-wet").first()).toHaveCSS("background-color", "rgb(242, 180, 65)");
-
-    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
-    await expect(bar).toBeHidden();
+    const pinned = await page.evaluate(() => [...document.querySelectorAll(".local-dashboard *")]
+      .filter((element) => ["sticky", "fixed"].includes(getComputedStyle(element).position))
+      .map((element) => element.className));
+    expect(pinned).toEqual(width <= 640 ? ["local-strip"] : []);
   });
 }
 
