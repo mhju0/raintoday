@@ -11,7 +11,7 @@ it follows v1.1.0 with the September 26 audit fixes, accessibility work, the typ
 and the shorter README. The v1.0.0 tag remains unchanged on the SeoulSky source.
 
 Since then every merged change ships as its own release (the rule is in `AGENTS.md`).
-The current release is v2.2.7, and no further change is planned for now. The
+The current release is v2.2.8, and no further change is planned for now. The
 [GitHub releases](https://github.com/mhju0/raintoday/releases) carry the full list; the
 ones that changed what a visitor sees are:
 
@@ -29,6 +29,7 @@ ones that changed what a visitor sees are:
 - 2.2.5: README screenshot retaken; no behaviour change.
 - 2.2.6: the small 24H bar appears only after the timeline scrolls away, and marks the rain window in amber.
 - 2.2.7: the 24H bar is removed; nothing floats over the page while scrolling. README screenshot retaken.
+- 2.2.8: page speed on visitors' devices is measured with Vercel Speed Insights; the place in a shared link is not sent.
 
 ## Maintenance follow-ups
 

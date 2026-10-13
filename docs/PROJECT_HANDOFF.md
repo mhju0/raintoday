@@ -102,49 +102,13 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - [Audit 007](audits/ui/audit-007-2026-10-11.md) found twelve further items; findings 1–7 shipped as 2.1.4. Decisions kept: search messages sit in the flow with their room held while the field has text; when the two pinned bars would exceed 30% of the screen height, only the location strip stays pinned.
 - Port 3101 can be held by another project's server on this machine; the browser suite then runs through an ignored `.scratch` config on 3111. CI is unaffected.
 
-## 2026-10-12 — 2.1.4 released; audit 007 findings 8–12 fixed
+## 2026-10-12 — Summary: releases 2.1.4–2.1.9
 
-- 2.1.4 (PR #197, `c2f815e`): main CI passed, production serves the merge commit, annotated tag and GitHub release published.
-- Owner approved findings 8–12 in full. Read time built explicitly in Korean; 404 page on the site ground; small alignment and touch-height items; Hangul in mono labels now Noto Sans KR; separators and units bound to their words; ribbon and record heading reflow with enlarged text. No forecast, provider or scoring rules changed.
-- Decision: the ribbon's minimum width is in rem, so at enlarged text it scrolls sideways at any viewport instead of overlapping its labels. At normal text size its layout is unchanged.
-- Decision: the 200% mid-word break at 320px and short last lines in long record paragraphs at 130% stay as they are; reasons in the audit follow-up.
-- Release candidate: 2.1.5. Audit 007 has no open findings. Next: merge after checks, confirm main CI and the production merge SHA, then tag and publish the release.
-
-## 2026-10-12 — 2.1.5 released; timeline amounts use the probability's model
-
-- 2.1.5 (PR #198, `a9c2a8f`): main CI passed, production serves the merge commit, annotated tag and GitHub release published.
-- Owner reported timeline blocks reading 75% over 0 mm. Cause is in the source: Open-Meteo's default hourly probability for Korea equals its ECMWF IFS 0.25° series (checked at six locations), while its default hourly amount comes from another model. Block arithmetic was correct.
-- Decision (owner chose "timeline only"): hourly amounts are a second Open-Meteo request with `models=ecmwf_ifs025`. Daily probability and amount, the blend and stored captures are unchanged. If the second request fails, hourly amounts stay missing; no fallback to the mismatched default.
-- Open-Meteo requests per forecast read double (serving and capture share `read()`); it has no key or metered quota here.
-- Release candidate: 2.1.6. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish; then retake the README screenshot and refresh its dated figures as 2.1.7 (work stashed as `readme-refresh-216`). Open, owner-only: the repository's GitHub social preview image lists four providers; the portfolio's Raintoday screenshot awaits owner approval.
-
-## 2026-10-12 — 2.1.6 released; README screenshot and dated figures refreshed
-
-- 2.1.6 (PR #199, `ec590fb`): main CI passed, production serves the merge commit, annotated tag and GitHub release published. Live Seoul read after deploy: every block above 40% carries a non-zero amount.
-- Owner asked for current screenshots and an accurate README. The README screenshot is a new production capture taken after 2.1.6 (Seoul, 2026-10-12 about 02:26 KST, full view, dark). Dated figures re-read from the performance database read-only: 9,141 captures, 5,121 station-day observations, 97 stations. The Seoul sentence states what the live record showed that day (39 comparisons, weighted and equal blends both at mean Brier 0.074) instead of the unverified "first to move" claim.
-- Open, owner-only: the repository's GitHub social preview image lists four providers (no Visual Crossing); it is uploaded in repository settings and cannot be changed from the tree.
-- Release candidate: 2.1.7. Next: merge after checks, confirm main CI and the production merge SHA, then tag and publish the release.
-
-## 2026-10-12 — 2.1.7 released; timeline amounts are the ensemble mean
-
-- 2.1.7 (PR #200, `5b69fb2`): main CI passed, production serves the merge commit, annotated tag and GitHub release published. Portfolio site screenshot replaced with owner approval (mhju0.github.io PR #1). Owner had `origin/reliability-state` deleted (last commit `96c45b1`).
-- Owner still saw a high chance over 0 mm after 2.1.6. Cause: the chance is the share of ECMWF's 51 ensemble runs that are wet; 2.1.6 paired it with one run's amount, and one run can be dry. Measured at Jeju 19:00: published 66%, 31 of 51 runs wet, run mean 0.17 mm/h, single run 0.0.
-- Decision (owner): the timeline amount is the mean across those runs, from `ensemble-api.open-meteo.com`. A failed read leaves amounts missing. Daily values, blend and captures unchanged. Known cost: small non-zero amounts in mostly dry hours, flattened bursts, and a dependency on a second Open-Meteo host.
-- Release candidate: 2.1.8. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish; then retake the README screenshot (it shows 2.1.6 amounts). Open, owner-only: upload the new social preview image in repository settings.
-
-## 2026-10-12 — 2.1.8 released; README screenshot and figures refreshed again
-
-- 2.1.8 (PR #201, `c1a97c6`): main CI passed, production serves the merge commit, annotated tag and GitHub release published. Live read of the four example cities after deploy: no block at 40% or more shows 0 mm.
-- README screenshot retaken from production after 2.1.8 (Seoul, 2026-10-12 10:20 KST). Counts re-read read-only after the morning collection: 9,236 captures, 5,218 station-day observations, 97 stations.
-- Correction: the 2.1.7 README quoted only the evening capture group for Seoul (39 comparisons, 0.074 each), because the record page serves the group for the hour it is read. It now states both groups (morning: 48 comparisons, 0.067 weighted against 0.068 equal).
-- Release candidate: 2.1.9. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish. Open: portfolio screenshot shows 2.1.6 amounts and awaits owner approval for replacement; owner to upload the new social preview image.
-
-## 2026-10-12 — 2.1.9 released; weighting made sharper on recent accuracy
-
-- 2.1.9 (PR #202, `f66c30b`): main CI passed, production serves the merge commit, tag and release published. The portfolio screenshot (mhju0.github.io PR #2) and the five-provider social preview are both done; nothing is open from the earlier entries above.
-- Owner asked for a more aggressive, more recent-weighted formula. Replayed alternatives on stored history, then the owner chose the moderate one: `halfLifeDays` 14 → 7, `scoreSharpness` 12 → 24. Evidence and limits are in `docs/DECISIONS.md` (2026-10-12). Gates, bounds and benchmark unchanged.
-- `lib/documentedPolicy.test.ts` now pins the documented half-life as well. The three-provider fixture in `performance.test.ts` was softened because at sharpness 24 the stronger provider reached the 60% cap.
-- Release candidate: 2.2.0. Next: merge after checks, confirm main CI and the production merge SHA, tag and publish. Watch: the benchmark verdict per station over the following weeks; a regression suspends the weights on its own. The file is near 200 lines; condense the oldest entries next session.
+- 2.1.4–2.1.5 (PRs #197, #198): audit 007 findings 8–12 fixed; audit 007 has no open findings. Kept by decision: the ribbon's minimum width is in rem, so at enlarged text it scrolls sideways instead of overlapping its labels; the 200% mid-word break at 320px stays (reasons in the audit follow-up).
+- 2.1.5–2.1.7 (PRs #198–#200): timeline amounts. Open-Meteo's hourly chance is the share of ECMWF's 51 ensemble runs that are wet, so the amount is now the mean of those runs from `ensemble-api.open-meteo.com`. A failed read leaves amounts missing, with no fallback. Daily values, blend and captures unchanged. Cost: small non-zero amounts in mostly dry hours, and a second Open-Meteo host.
+- 2.1.6, 2.1.8 (PRs #199, #201): README screenshot and dated counts refreshed. The record page serves the capture group for the hour it is read, so a quoted Seoul figure must name its group.
+- 2.1.9 (PR #202): `halfLifeDays` 14 → 7, `scoreSharpness` 12 → 24, chosen by the owner after a replay on stored history (`docs/DECISIONS.md`, 2026-10-12). `lib/documentedPolicy.test.ts` pins the documented half-life. Watch the per-station benchmark verdict; a regression suspends the weights on its own.
+- Portfolio screenshot and five-provider social preview are done; nothing is open from these releases.
 
 ## 2026-10-12 — 2.2.0 released; sharpness stays at 24; documentation pass for a stable version
 
@@ -195,3 +159,13 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Owner then chose to remove the 24H bar entirely. Deleted with its stacking, enlarged-text and scroll rules; `docs/DECISIONS.md`, third 2026-10-13 entry. Audit 008 has no open findings.
 - README screenshot is a production capture of Jeju (2026-10-13 about 15:13 KST), because Seoul was dry at the time. The top of the page is the same before and after this change.
 - Release candidate: 2.2.7. Next: merge, confirm, tag. Open: the October 13 evening-run check (2.2.2 entry); the skipped October 12 evening collection stays recorded above. This file is near 200 lines; condense the oldest entries next session.
+
+## 2026-10-13 — 2.2.7 released; outage alerts and Speed Insights (2.2.8 candidate)
+
+- 2.2.7 (PR #213, `42689e5`): main CI passed, production serves the merge commit, tag and release published.
+- Owner asked for four launch gaps to be closed: error reporting, outage alerts, measured speed, abuse protection.
+- Outage alerts: UptimeRobot monitor 804257727 checks `https://raintoday.vercel.app/` every 5 minutes and emails the owner's Outlook address. It checks the home page only, so a provider or database failure behind a 200 response is still left to `service:health`.
+- Measured speed: `@vercel/speed-insights` renders beside Analytics on Vercel only, with the same address stripping. It was already enabled in the Vercel project. One Lighthouse lab run on 2.2.7 (Seoul): desktop 100, simulated phone 65 (LCP 3.0 s, blocking time about 1 s); cause not diagnosed yet.
+- Abuse protection: nothing changed. The firewall's Dynamic request volume rule (`/api/`, 150 requests per IP per 60 s) still only logs, and logged nothing in the past day. Switching it to answer 429 awaits the owner.
+- Error reporting: not started. The owner's Sentry organisation has one project, `javascript-nextjs`; whether raintoday may use it is unanswered.
+- Release candidate: 2.2.8. Next: merge, confirm, tag; after real visits, read the Speed Insights tab; diagnose the phone score as a read-only audit. Open: the October 13 evening-run check (2.2.2 entry).
