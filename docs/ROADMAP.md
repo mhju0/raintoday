@@ -11,7 +11,7 @@ it follows v1.1.0 with the September 26 audit fixes, accessibility work, the typ
 and the shorter README. The v1.0.0 tag remains unchanged on the SeoulSky source.
 
 Since then every merged change ships as its own release (the rule is in `AGENTS.md`).
-The current release is v2.2.10, and no further change is planned for now. The
+The current release is v2.2.11, and no further change is planned for now. The
 [GitHub releases](https://github.com/mhju0/raintoday/releases) carry the full list; the
 ones that changed what a visitor sees are:
 
@@ -23,7 +23,7 @@ ones that changed what a visitor sees are:
 - 2.2.0: tomorrow's blend weights recent accuracy more sharply (7-day half-life,
   `exp(-24 × Brier)`).
 - 2.2.1: documentation brought up to date; no behaviour change.
-- 2.2.2: the evening collection waits for its 18:10 KST slot instead of starting hours late, and a failed Open-Meteo read is retried once.
+- 2.2.2: the evening collection is triggered early and waits for its 18:10 KST slot, and a failed Open-Meteo read is retried once. GitHub can still start it after the slot, as it did on October 13 (20:06 KST).
 - 2.2.3: visits are counted with Vercel Web Analytics; the place in a shared link is not sent.
 - 2.2.4: the 한눈에 보기 button is gone and the evidence below the answer always shows in full.
 - 2.2.5: README screenshot retaken; no behaviour change.
@@ -32,6 +32,7 @@ ones that changed what a visitor sees are:
 - 2.2.8: page speed on visitors' devices is measured with Vercel Speed Insights; the place in a shared link is not sent.
 - 2.2.9: the server runs in Seoul instead of the United States, so the forecast arrives sooner.
 - 2.2.10: a browser error on the live site is reported to Sentry, without the place or a session recording.
+- 2.2.11: documentation corrected; no behaviour change.
 
 ## Maintenance follow-ups
 

@@ -1,6 +1,6 @@
 # 오늘비 project handoff
 
-Updated September 28, 2026 for v2.1.1. The project is in maintenance mode.
+Updated October 13, 2026 for v2.2.11. The project is in maintenance mode.
 The previous archaeology report remains in Git history.
 
 ## Start here
@@ -37,9 +37,10 @@ weighting; a broad accuracy advantage has not been established.
 
 ## Current state
 
-v2.1.1 is live and tagged. Every merged change ships as a release (`AGENTS.md` → Releases).
-Scheduled collection has been green since #177; 97 stations, 6,565 captures and 3,860
-observations as of September 28. Station 108 cohort 06 made the first observed
+v2.2.10 was live and tagged on October 13; the newest dated entry below is the current
+state. Every merged change ships as a release (`AGENTS.md` → Releases).
+Scheduled collection has been green since #177; 97 stations, 9,236 captures and 5,218
+observations as of October 12. Station 108 cohort 06 made the first observed
 seed-to-live switch (ramping, passing 34-sample benchmark, adaptive = equal).
 New providers, a mature-evidence redesign, component splitting and alternate weighting
 policies are deferred. There is no outstanding approved product feature.
@@ -185,4 +186,12 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Browser errors on the production host go to Sentry project `raintoday` (`instrumentation-client.ts`, `lib/errorReport.ts`). Scope, privacy treatment and limits: `docs/DECISIONS.md`, fifth 2026-10-13 entry.
 - While proving the browser test fails with the host check opened, one event ("browser test error", from 127.0.0.1) reached the Sentry project. It is test noise.
 - Release candidate: 2.2.10. Next: merge, confirm, tag; throw one error on the live site and read the stored event for the address and IP fields. Open: owner switches the firewall rule to 429; KMA absence after the region move; font count and the home button's label.
+
+## 2026-10-13 — 2.2.10 released; documentation corrected (2.2.11 candidate)
+
+- 2.2.10 (PR #217, `2eeb91c`): main CI passed, production serves the merge commit, tag and release published. A deliberate error on the live site, sent from a clean headless browser, reached Sentry with the place stripped and no user counted. The owner's own Chrome blocks Sentry requests.
+- Firewall: the 429 action needs the Pro plan and the owner declined to pay. The rule still logs. Deny (403) is offered on Hobby; the owner may save it.
+- KMA absence explained: KMA's 20:00 issue intermittently answered `NO_DATA` that night while the 17:00 issue was fine; not related to the region move (`docs/DECISIONS.md`, follow-up on the region entry). Possible fix, not approved: fall back to the previous issue when the chosen one is empty.
+- Documentation sweep at the owner's request: README names Sentry's approximate city; OPERATIONS lists the three outside monitors and the firewall's real state; the forecast contract, roadmap and operations notes say the evening run can still start after its slot; this file's header and current state were stale at v2.1.1.
+- Release candidate: 2.2.11. Open: evening slot punctuality (needs a trigger other than GitHub's scheduler; owner decision); KMA fallback; the owner's five-person test. Deferred by the owner: font count and the home button's label (phone speed is acceptable for now).
 
