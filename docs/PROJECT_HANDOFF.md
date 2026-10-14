@@ -1,6 +1,6 @@
 # 오늘비 project handoff
 
-Updated October 13, 2026 for v2.2.11. The project is in maintenance mode.
+Updated October 14, 2026 for v2.2.12. The project is in maintenance mode.
 The previous archaeology report remains in Git history.
 
 ## Start here
@@ -37,7 +37,7 @@ weighting; a broad accuracy advantage has not been established.
 
 ## Current state
 
-v2.2.10 was live and tagged on October 13; the newest dated entry below is the current
+v2.2.11 was live and tagged on October 13; the newest dated entry below is the current
 state. Every merged change ships as a release (`AGENTS.md` → Releases).
 Scheduled collection has been green since #177; 97 stations, 9,236 captures and 5,218
 observations as of October 12. Station 108 cohort 06 made the first observed
@@ -127,39 +127,15 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Owner asked for the evening lateness to be fixed now. The evening cron fires at 12:40 KST and waits for 18:10; the monitor ages a collection from its finish; Open-Meteo retries one failed read. Reasons and limits: `docs/DECISIONS.md`, third 2026-10-12 entry.
 - Release candidate: 2.2.2. Next: merge, confirm, tag. Then check the October 13 evening run: when GitHub created it, how long `wait` slept, that captures began near 18:10 KST and target October 14, and whether Open-Meteo faults dropped.
 
-## 2026-10-12 — Vercel Web Analytics added (2.2.3 candidate)
+## 2026-10-13 — Summary: releases 2.2.3–2.2.7
 
-- Owner asked to count visitors and see Instagram profile-link traffic. Web Analytics was already enabled for the project in the Vercel dashboard (Hobby plan); the code side adds `@vercel/analytics` through `components/SiteAnalytics.tsx`, production only.
-- Decision: the reported address drops everything in the query except `utm_*`, because shared links carry coordinates and a place name. Reasons and limits: `docs/DECISIONS.md`, fourth 2026-10-12 entry.
-- Limit: the UTM panel needs Web Analytics Plus (paid). On Hobby, Instagram shows only in the Referrers panel.
-- Release candidate: 2.2.3. Next: merge, confirm main CI and the production merge SHA, tag and publish; then load the site once and confirm the Analytics tab shows the visit. Still open from the entry above: the October 13 evening-run check. This file is near 200 lines; condense the oldest entries next session.
-
-## 2026-10-13 — 2.2.3 released; density toggle removed (2.2.4 candidate)
-
-- 2.2.3 (PR #208, `6801678`): main CI passed, production serves the merge commit, tag and release published; the Analytics tab showed the first visit. Owner is leaving Instagram-specific tracking for later.
-- Owner asked to remove the 한눈에 보기 button and always show everything. Removed the toggle, the fold, the stubs and the stored preference; reasons and cost: `docs/DECISIONS.md`, 2026-10-13. ADR 0009 and 0010 carry amendment notes.
-- Release candidate: 2.2.4. Next: merge, confirm, tag; then the owner-requested antislop audit of the result (report findings, implement only what is approved). Open: the README screenshot still shows the button. This file is at about 200 lines; condense the oldest entries next session.
-
-## 2026-10-13 — 2.2.4 released; layout sweep after the removal; README screenshot retaken (2.2.5 candidate)
-
-- 2.2.4 (PR #209, `5d72ecd`): main CI passed, production serves the merge commit, tag and release published. During the Vercel incident that night GitHub's deployments list did not record this deployment; the Vercel dashboard is the reliable check.
-- [Audit 008](audits/ui/audit-008-2026-10-13.md): three findings, none approved yet. Its follow-up records the sweep the owner asked for: eight forecast states, 16 widths, 100/130/200% text, Chromium and WebKit, at rest and pinned. Nothing overflows or misaligns in the mini-ribbon; at 200% text its sentence takes its own row at 641–901px. No code change was needed.
-- README screenshot retaken from production after 2.2.4 (Seoul, 2026-10-13 about 01:25 KST); it no longer shows the button.
-- Release candidate: 2.2.5. Next: merge, confirm, tag. Open: audit 008 findings 1–3 await the owner; the October 13 evening-run check (2.2.2 entry); Instagram-specific tracking deferred by the owner.
-
-## 2026-10-13 — 2.2.5 released; audit 008 findings 1–3 fixed (2.2.6 candidate)
-
-- 2.2.5 (PR #210, `1564dce`): main CI passed, production serves the merge commit (Vercel dashboard), tag and release published.
-- Owner approved all three audit 008 findings: the mini-ribbon appears only after the timeline scrolls away, its rain-window bars are amber, analytics loads only on Vercel. Reasons and costs: `docs/DECISIONS.md`, second 2026-10-13 entry.
-- Found while checking the schedule: no evening collection ran on 2026-10-12. The 2.2.2 merge (15:45 KST) removed the 18:10 cron after that day's new 12:40 cron had already passed. The evening group has no captures targeting 2026-10-13; not recoverable, and no manual run was made.
-- Release candidate: 2.2.6. Next: merge, confirm, tag; load the live site and confirm the Analytics tab still records the visit; retake the README screenshot only if the owner asks (the bar was not in the top-of-page capture's subject, but the capture shows it). Open: the October 13 evening-run check (2.2.2 entry).
-
-## 2026-10-13 — 2.2.6 released; mini-ribbon removed and README screenshot retaken (2.2.7 candidate)
-
-- 2.2.6 (PR #211, `042bb39`): main CI passed, production serves the merge commit, tag and release published; the live site still sent its analytics script and page view.
-- Owner then chose to remove the 24H bar entirely. Deleted with its stacking, enlarged-text and scroll rules; `docs/DECISIONS.md`, third 2026-10-13 entry. Audit 008 has no open findings.
-- README screenshot is a production capture of Jeju (2026-10-13 about 15:13 KST), because Seoul was dry at the time. The top of the page is the same before and after this change.
-- Release candidate: 2.2.7. Next: merge, confirm, tag. Open: the October 13 evening-run check (2.2.2 entry); the skipped October 12 evening collection stays recorded above. This file is near 200 lines; condense the oldest entries next session.
+- 2.2.3 (PR #208, `6801678`): Vercel Web Analytics through `components/SiteAnalytics.tsx`; the reported address keeps only `utm_*` from the query. The UTM panel needs the paid plan; Instagram-specific tracking is deferred by the owner.
+- 2.2.4 (PR #209, `5d72ecd`): the 한눈에 보기 button and the fold removed. GitHub's deployments list missed this deployment during a Vercel incident; the Vercel dashboard is the reliable check.
+- 2.2.5 (PR #210, `1564dce`): README screenshot retaken. [Audit 008](audits/ui/audit-008-2026-10-13.md) and its layout sweep found nothing that overflows or misaligns.
+- 2.2.6 (PR #211, `042bb39`): audit 008 findings 1–3 fixed; analytics loads only on Vercel.
+- 2.2.7 (PR #213, `42689e5`): the 24H mini-ribbon removed entirely; README screenshot is a production capture of Jeju. Audit 008 has no open findings.
+- No evening collection ran on 2026-10-12: the 2.2.2 merge removed the 18:10 cron after that day's 12:40 cron had passed. The evening group has no captures targeting 2026-10-13; not recoverable.
+- Decisions and costs for all five: `docs/DECISIONS.md`, 2026-10-12 and 2026-10-13 entries.
 
 ## 2026-10-13 — 2.2.7 released; outage alerts and Speed Insights (2.2.8 candidate)
 
@@ -195,3 +171,10 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Documentation sweep at the owner's request: README names Sentry's approximate city; OPERATIONS lists the three outside monitors and the firewall's real state; the forecast contract, roadmap and operations notes say the evening run can still start after its slot; this file's header and current state were stale at v2.1.1.
 - Release candidate: 2.2.11. Open: evening slot punctuality (needs a trigger other than GitHub's scheduler; owner decision); KMA fallback; the owner's five-person test. Deferred by the owner: font count and the home button's label (phone speed is acceptable for now).
 
+## 2026-10-14 — 2.2.11 released; KMA falls back to the previous issue (2.2.12 candidate)
+
+- 2.2.11 (PR #218, `f67a86d`): main CI passed, production serves the merge commit, tag and release published.
+- KMA was still absent from the live forecast at 23:20 KST on October 13 and `service-health` failed at 22:53 KST (#214). Twenty direct requests for Seoul's 20:00 issue returned `NO_DATA` fourteen times; ten for the 17:00 issue returned data every time.
+- Owner approved a fix. `lib/providers/kma.ts` steps back up to three issues (nine hours) when an issue is empty; by 09:48 KST on October 14 the two newest issues were mostly empty, so one step back was not enough. Decision, cost and limits: `docs/DECISIONS.md`, 2026-10-14.
+- Firewall: the Rules page still showed Log at 23:20 KST. The owner intends to save Deny; `docs/OPERATIONS.md` needs one sentence corrected once it is saved.
+- Release candidate: 2.2.12. Next: merge, confirm, tag; read the live forecast for KMA and watch the next `service-health` run close #214. Open: evening slot punctuality (owner decision); the owner's five-person test. Deferred by the owner: font count and the home button's label.

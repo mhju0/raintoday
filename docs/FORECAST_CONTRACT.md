@@ -121,6 +121,7 @@ The served surface is `/`, `/behind-the-data`, `/api/local-forecast`, `/api/loca
 - Provider availability and horizon vary. Missing values are omitted, never treated as zero.
 - Prospective evidence takes time to accumulate. A station uses eligible archive evidence while recent evidence is immature, and equal influence otherwise.
 - Seed evidence uses underlying models, such as GFS for Pirate Weather and KMA's model for KMA, as proxies for the provider's published product.
+- KMA publishes a short-term issue every three hours. When the newest one returns no data, an earlier issue is used, up to three issues back, so the KMA forecast can be up to nine hours older than usual; the page does not mark this.
 - Offline backfill falls back to the committed station catalog when KMA apihub `stn_inf` is unavailable. Regenerate it with `npm run performance:catalog` before nationwide seeding.
 - Weather information is not suitable for safety-critical decisions.
 

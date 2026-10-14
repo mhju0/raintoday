@@ -11,7 +11,7 @@ it follows v1.1.0 with the September 26 audit fixes, accessibility work, the typ
 and the shorter README. The v1.0.0 tag remains unchanged on the SeoulSky source.
 
 Since then every merged change ships as its own release (the rule is in `AGENTS.md`).
-The current release is v2.2.11, and no further change is planned for now. The
+The current release is v2.2.12, and no further change is planned for now. The
 [GitHub releases](https://github.com/mhju0/raintoday/releases) carry the full list; the
 ones that changed what a visitor sees are:
 
@@ -33,6 +33,7 @@ ones that changed what a visitor sees are:
 - 2.2.9: the server runs in Seoul instead of the United States, so the forecast arrives sooner.
 - 2.2.10: a browser error on the live site is reported to Sentry, without the place or a session recording.
 - 2.2.11: documentation corrected; no behaviour change.
+- 2.2.12: when KMA's newest forecast issue comes back empty, an earlier issue (up to nine hours older) is used, so KMA stays in the forecast.
 
 ## Maintenance follow-ups
 

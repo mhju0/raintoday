@@ -201,3 +201,74 @@ test("no status or response contains the key value", async () => {
   assert.ok(!haystack.includes(SHORT_TERM_KEY), "short-term key leaked");
   assert.ok(!haystack.includes("serviceKey"), "raw serviceKey param leaked");
 });
+
+// ── Newest 단기예보 issue answering NO_DATA ──────────────────────────────────
+
+/** One forecast hour dated tomorrow (KST), so the provider's past-hour filter keeps it. */
+function tomorrowForecastItems(): unknown[] {
+  const kst = new Date(Date.now() + 9 * 3600_000 + 86_400_000);
+  const fcstDate = kst.toISOString().slice(0, 10).replaceAll("-", "");
+  return [
+    { category: "TMP", fcstDate, fcstTime: "1500", fcstValue: "22" },
+    { category: "POP", fcstDate, fcstTime: "1500", fcstValue: "20" },
+  ];
+}
+
+/** Serves 실황 normally and answers each 단기예보 request through `forecastBody`. */
+function installIssueFetch(forecastBody: (requestIndex: number) => string): URL[] {
+  const forecastRequests: URL[] = [];
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = new URL(String(input instanceof Request ? input.url : input));
+    if (url.pathname.endsWith("/getUltraSrtNcst")) return new Response(okJson(NCST_ITEMS), { status: 200 });
+    forecastRequests.push(url);
+    return new Response(forecastBody(forecastRequests.length - 1), { status: 200 });
+  }) as typeof fetch;
+  return forecastRequests;
+}
+
+function issueTimeMs(url: URL): number {
+  const date = url.searchParams.get("base_date") ?? "";
+  const time = url.searchParams.get("base_time") ?? "";
+  return Date.UTC(
+    Number(date.slice(0, 4)),
+    Number(date.slice(4, 6)) - 1,
+    Number(date.slice(6, 8)),
+    Number(time.slice(0, 2)),
+  );
+}
+
+const NO_DATA = JSON.stringify({ response: { header: { resultCode: "03", resultMsg: "NO_DATA" } } });
+
+test("an issue answering NO_DATA falls back to the one three hours earlier, newest first", async () => {
+  process.env.KMA_SHORT_TERM_API_KEY = SHORT_TERM_KEY;
+  const requests = installIssueFetch((index) => (index < 2 ? NO_DATA : okJson(tomorrowForecastItems())));
+
+  const { hourly } = await kmaProvider.read();
+
+  assert.equal(requests.length, 3);
+  assert.equal(issueTimeMs(requests[0]) - issueTimeMs(requests[1]), 3 * 3600_000);
+  assert.equal(issueTimeMs(requests[1]) - issueTimeMs(requests[2]), 3 * 3600_000);
+  assert.equal(hourly.length, 1);
+  assert.equal(hourly[0].precipitationProbability, 20);
+});
+
+test("NO_DATA on every issue stops after three earlier issues and leaves the forecast empty", async () => {
+  process.env.KMA_SHORT_TERM_API_KEY = SHORT_TERM_KEY;
+  const requests = installIssueFetch(() => NO_DATA);
+
+  const { hourly, status } = await kmaProvider.read();
+
+  assert.equal(requests.length, 4);
+  assert.equal(hourly.length, 0);
+  assert.equal(status.availability, "ok");
+});
+
+test("a newest issue with data is not followed by a second forecast request", async () => {
+  process.env.KMA_SHORT_TERM_API_KEY = SHORT_TERM_KEY;
+  const requests = installIssueFetch(() => okJson(tomorrowForecastItems()));
+
+  const { hourly } = await kmaProvider.read();
+
+  assert.equal(requests.length, 1);
+  assert.equal(hourly.length, 1);
+});
