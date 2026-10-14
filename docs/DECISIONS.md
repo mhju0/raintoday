@@ -1130,7 +1130,8 @@ KMA's 20:00 short-term issue answered `NO_DATA` for some requests and normally f
 grid by grid and minute by minute, while the 17:00 issue answered normally every time
 (called directly, outside Vercel). The provider treats `NO_DATA` as an empty, successful
 read, so KMA drops out of that forecast and the empty read is cached for five minutes. No
-fallback to the previous issue exists; none was added.
+fallback to an earlier issue existed that night; one was added on October 14 (entry
+below).
 
 ## 2026-10-13 — Browser errors are reported to Sentry
 
@@ -1153,3 +1154,42 @@ An error caught by a React error boundary is not seen. Browser extensions that b
 Sentry suppress the report. The DSN is in the source: it is a public, write-only address.
 Sentry receives the visitor's IP address in transit; storing it is a project setting.
 
+## 2026-10-14 — An empty KMA issue is read from an earlier issue
+
+**Observed.** On the night of October 13 KMA's newest 단기예보 issue answered `NO_DATA` for
+most requests, hours after it was published. At 23:20 KST twenty requests for Seoul's 20:00
+issue returned `NO_DATA` fourteen times, with 5 rows and with 1,000 rows requested; ten
+requests for the 17:00 issue returned data every time. The forecast was served from four
+providers for more than three hours and `service-health` failed.
+
+The next morning it was worse. At 09:48 KST the 08:00 issue returned data 4 times in 12,
+the 05:00 issue 0 times in 12, and the 02:00 issue and three older ones 12 times in 12. The
+current-conditions endpoint answered every time. A first version of this change, which
+stepped back one issue only, read 서울, 부산 and 제주 three times each and got a forecast
+twice in nine.
+
+**Decision.** When an issue returns no rows, the provider reads the one three hours
+earlier, newest first, up to three earlier issues (nine hours). `NO_DATA` on all four
+leaves KMA out of the forecast as before. Errors (authorization, rate limit, transport) are
+unchanged and are not retried against an older issue.
+
+**Why not retry the same issue.** The answer flips between consecutive requests, but most
+fail; several retries would be needed for a reliable read and each one spends a request
+against the daily allowance. An older issue answers every time.
+
+**Cost.** A forecast read during such a spell uses a KMA forecast up to nine hours older
+than the newest one, and nothing on the page says so. It costs up to three extra requests
+per read, made one after another; the nine live reads below took about 1.2 s each. Captures
+share the provider read, so a capture taken during a spell stores the older issue's
+numbers.
+
+**Also changed.** The newest issue is now chosen 70 minutes after its issue time at every
+hour. Between 00:00 and 00:09 KST the old rule chose the 23:00 issue 60–69 minutes after
+it, against its own margin.
+
+**Checked.** With the change, 서울, 부산 and 제주 read three times each against KMA at about
+09:55 KST returned a 24-hour forecast nine times in nine, each from the 02:00 issue after
+two empty answers.
+
+**Limits.** Why KMA answers this way is not known, nor whether it will last. If more than
+three issues in a row are empty, KMA is still absent.

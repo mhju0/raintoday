@@ -166,17 +166,16 @@ function ncstBase(): { baseDate: string; baseTime: string } {
   return { baseDate: ymd(t), baseTime: `${pad(t.getUTCHours())}00` };
 }
 
-/** 단기예보 is issued at 02,05,…,23 KST; allow a 70-minute publication margin. */
-function vilageBase(): { baseDate: string; baseTime: string } {
+/**
+ * 단기예보 is issued at 02,05,…,23 KST; allow a 70-minute publication margin.
+ * `issuesBack` steps to an earlier issue, three hours apart.
+ */
+function vilageBase(issuesBack = 0): { baseDate: string; baseTime: string } {
   const t = kstNow();
-  const minutes = t.getUTCHours() * 60 + t.getUTCMinutes();
-  const issueHours = [23, 20, 17, 14, 11, 8, 5, 2];
-  const hour = issueHours.find((h) => minutes >= h * 60 + 70);
-  if (hour === undefined) {
-    t.setUTCDate(t.getUTCDate() - 1);
-    return { baseDate: ymd(t), baseTime: "2300" };
-  }
-  return { baseDate: ymd(t), baseTime: `${pad(hour)}00` };
+  t.setUTCMinutes(t.getUTCMinutes() - 70);
+  const sinceIssue = (((t.getUTCHours() - 2) % 3) + 3) % 3;
+  t.setUTCHours(t.getUTCHours() - sinceIssue - 3 * issuesBack);
+  return { baseDate: ymd(t), baseTime: `${pad(t.getUTCHours())}00` };
 }
 
 interface KmaItem {
@@ -219,6 +218,22 @@ async function callShortTerm(
   throw new KmaError(c.class, `KMA short-term ${endpoint}: ${c.detail}`);
 }
 
+/** Earlier 단기예보 issues tried when the newest returns no rows: three, nine hours back. */
+const EARLIER_ISSUES_TRIED = 3;
+
+/**
+ * KMA can answer NO_DATA for its newest issues long after the publication margin
+ * while older ones are served normally, so an empty issue is read again from the
+ * one before it, newest first.
+ */
+async function callVilageForecast(location: ForecastLocation): Promise<KmaItem[]> {
+  for (let issuesBack = 0; issuesBack <= EARLIER_ISSUES_TRIED; issuesBack += 1) {
+    const items = await callShortTerm("getVilageFcst", vilageBase(issuesBack), location);
+    if (items.length > 0) return items;
+  }
+  return [];
+}
+
 function kstIso(yyyymmdd: string, hhmm: string): string {
   return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}T${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}:00+09:00`;
 }
@@ -237,7 +252,7 @@ const num = (v: string | undefined): number | null => {
 async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
   const [ncstItems, fcstItems] = await Promise.all([
     callShortTerm("getUltraSrtNcst", ncstBase(), location),
-    callShortTerm("getVilageFcst", vilageBase(), location),
+    callVilageForecast(location),
   ]);
 
   // --- hourly from 단기예보: pivot category rows into per-hour records ---
