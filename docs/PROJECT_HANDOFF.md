@@ -193,3 +193,9 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Owner requested push, merge and local/remote main synchronization. Publish the verified recovery record as a documentation-only patch; forecast behavior, providers, capture logic and dependencies are unchanged.
 - Before publication, the signed-in Vercel dashboard confirmed the production alias was Ready on `371086d`; this readback was available despite the connector's HTTP 403.
 - Remaining owner decisions and real-outage verification above stay open. No production evidence collection is part of this publication.
+
+## 2026-10-15 — Approved Raintoday public claims publication (v2.2.14)
+
+- Owner scoped the factual refresh to Raintoday across the repository README, portfolio and GitHub profile. README now dates the read-only production snapshot (9,712 captures, 5,529 observations, 97 stations), distinguishes scheduled from completed collection, and describes up to eight timeline blocks.
+- The dated Seoul morning benchmark displays Brier 0.088 for both blends over 52 comparisons; this is rounded local evidence, not an overall accuracy claim. Analytics privacy wording is narrowed to the supported cookie-free Web Analytics claim.
+- Owner approved the prepared updates and requested publication plus local/remote synchronization. The repository patch contains documentation and version metadata only; portfolio/profile publication is handled separately. The release procedure requires main CI and an exact production Git SHA readback before tagging. No new production collection is part of this work. Existing recovery/owner issues above remain open.
