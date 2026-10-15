@@ -1,6 +1,6 @@
 # 오늘비 project handoff
 
-Updated October 14, 2026 for v2.2.12. The project is in maintenance mode.
+Updated October 15, 2026 for v2.2.13. The project is in maintenance mode.
 The previous archaeology report remains in Git history.
 
 ## Start here
@@ -178,3 +178,18 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Owner approved a fix. `lib/providers/kma.ts` steps back up to three issues (nine hours) when an issue is empty; by 09:48 KST on October 14 the two newest issues were mostly empty, so one step back was not enough. Decision, cost and limits: `docs/DECISIONS.md`, 2026-10-14.
 - Firewall: the Rules page still showed Log at 23:20 KST. The owner intends to save Deny; `docs/OPERATIONS.md` needs one sentence corrected once it is saved.
 - Release candidate: 2.2.12. Next: merge, confirm, tag; read the live forecast for KMA and watch the next `service-health` run close #214. Open: evening slot punctuality (owner decision); the owner's five-person test. Deferred by the owner: font count and the home button's label.
+
+## 2026-10-15 — KMA recovery verified
+
+- v2.2.12 is released (PR #219, `371086d`); main CI `38492638080` passed. The earlier KMA failure notifications predate this fallback fix. Incident #214 is closed.
+- Fresh production `service:health` passed 4/4: HTTP 200, all five forecast providers, 강남 search and Pirate Weather quota runway (7,105/10,000 remaining). Hosted health `38640365533` and subsequent maintenance runs also passed.
+- Scheduled collection `38539352976`, cohort 18, stored 97 observations and 97 captures: zero failed/faulted/abandoned records, two captures recovered. No extra production collection was dispatched for verification.
+- The reviewed Sentry email was deliberate diagnostic noise; the three diagnostic issues were resolved earlier in this session.
+- GitHub records a successful production deployment at `371086d`. A fresh Vercel metadata read was denied with HTTP 403 for the connected account; no deployment or credentials were changed.
+- No new code fix is needed for the reviewed Raintoday alerts. Open: #175's real-outage recovery proof, monthly review #206, evening slot punctuality (owner decision), and the owner's five-person test. Font count and the home button's label remain deferred.
+
+## 2026-10-15 — Recovery handoff publication (v2.2.13)
+
+- Owner requested push, merge and local/remote main synchronization. Publish the verified recovery record as a documentation-only patch; forecast behavior, providers, capture logic and dependencies are unchanged.
+- Before publication, the signed-in Vercel dashboard confirmed the production alias was Ready on `371086d`; this readback was available despite the connector's HTTP 403.
+- Remaining owner decisions and real-outage verification above stay open. No production evidence collection is part of this publication.
