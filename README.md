@@ -5,7 +5,7 @@
 
 **Rain forecasts for South Korea, with the evidence behind tomorrow’s forecast.**
 
-오늘비 helps people check when rain is expected and compare forecasts from five weather services. It pairs a 24-hour timeline from one named provider with daily comparisons and a tomorrow forecast that can use performance evidence from nearby KMA observation stations.
+오늘비 helps people check when rain is expected and compare forecasts from five weather services. It pairs a timeline covering up to 24 hours from one named provider with daily comparisons and a tomorrow forecast that can use performance evidence from KMA observation stations.
 
 [Live app](https://raintoday.vercel.app) · [How forecasts are evaluated](https://raintoday.vercel.app/behind-the-data) · [Architecture decisions](docs/adr)
 
@@ -17,18 +17,18 @@ The interface is in Korean. Open the app and choose **서울**, **부산**, **�
 
 ## What it does
 
-- Shows rain probability and rainfall amount on separate scales across eight three-hour blocks.
+- Shows rain probability and rainfall amount on separate scales across up to eight three-hour blocks.
 - Compares Open-Meteo, KMA, Pirate Weather, WeatherAPI, and Visual Crossing when available.
 - Supports Korean area search, example locations, and opt-in device location.
 - Explains provider influence, sample counts, and benchmark results in a station scoring record.
 
 ## Engineering highlights
 
-**Forecasts saved before outcomes.** A scheduled collector stores immutable next-day forecasts and later pairs them with completed KMA ASOS observations in PostgreSQL. Morning and evening capture groups are scored separately. As of October 12, 2026, it had stored 9,236 forecast captures and 5,218 station-day observations across 97 KMA stations, collected twice daily since August 19, 2026. Seoul's scoring record that day was phasing in recent-evidence weighting, and the weighted blend was level with equal weighting rather than clearly better: mean Brier 0.067 against 0.068 on the morning group's 48 scored comparisons, and 0.074 each on the evening group's 39.
+**Forecasts saved before outcomes.** A scheduled collector stores immutable next-day forecasts and later pairs them with completed KMA ASOS observations in PostgreSQL. Morning and evening capture groups are scheduled and scored separately; GitHub Actions can start late or miss a run. A read-only database snapshot on October 15, 2026 found 9,712 forecast captures and 5,529 station-day observations across 97 KMA stations. These totals exclude retrospective seed comparisons. Seoul’s morning scoring record that day was phasing in recent-evidence weighting: the weighted and equal blends both displayed mean Brier 0.088 over 52 benchmark comparisons. This dated, rounded result is not evidence of an overall accuracy advantage.
 
 **Evidence controls the blend.** Recent-performance influence applies only to tomorrow and requires sufficient wet/dry samples and a prospective benchmark no worse than equal weighting. Eligible archive evidence can provide a limited adjustment while recent records accumulate; otherwise the app uses equal influence. Retrospective evidence never enters the prospective benchmark.
 
-**Explicit failure and privacy boundaries.** The server validates South Korea service-area coverage before contacting providers. Missing forecast values stay missing, unavailable providers are omitted, and an unavailable evidence store falls back to equal weighting. Device coordinates are sent for forecasts but are not written to the performance database; the browser remembers the selected location at reduced precision. Visits are counted with Vercel Web Analytics and page speed is measured with Vercel Speed Insights; neither sets a cookie, and the place carried in a shared link is removed from the address before either reports. A browser error on the live site is reported to Sentry with the same address treatment and without session recording; Sentry records an approximate city derived from the sender's IP address.
+**Explicit failure and privacy boundaries.** The server validates South Korea service-area coverage before contacting providers. Missing forecast values stay missing, unavailable providers are omitted, and an unavailable evidence store falls back to equal weighting. Device coordinates are sent for forecasts but are not written to the performance database; the browser remembers the selected location at reduced precision. Visits are counted with cookie-free Vercel Web Analytics and page speed is measured with Vercel Speed Insights. The place carried in a shared link is removed from the address before either reports. A browser error on the live site is reported to Sentry with the same address treatment and without session recording; Sentry records an approximate city derived from the sender's IP address.
 
 These mechanisms do **not** establish that the app is more accurate overall across locations and seasons.
 
