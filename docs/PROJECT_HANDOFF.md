@@ -1,6 +1,6 @@
 # 오늘비 project handoff
 
-Updated October 14, 2026 for v2.2.12. The project is in maintenance mode.
+Updated October 15, 2026 for v2.2.13. The project is in maintenance mode.
 The previous archaeology report remains in Git history.
 
 ## Start here
@@ -191,4 +191,5 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 ## 2026-10-15 — Recovery handoff publication (v2.2.13)
 
 - Owner requested push, merge and local/remote main synchronization. Publish the verified recovery record as a documentation-only patch; forecast behavior, providers, capture logic and dependencies are unchanged.
+- Before publication, the signed-in Vercel dashboard confirmed the production alias was Ready on `371086d`; this readback was available despite the connector's HTTP 403.
 - Remaining owner decisions and real-outage verification above stay open. No production evidence collection is part of this publication.
