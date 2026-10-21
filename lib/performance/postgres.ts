@@ -5,6 +5,7 @@ import type {
   CaptureCohort,
   CompletedComparison,
   ForecastCapture,
+  HourlyPrecipObservation,
   MorningCapture,
   ObservationStation,
   PrecipObservation,
@@ -149,6 +150,7 @@ type RecoverablePostgresOperation =
   | "saveObservation"
   | "saveCapture"
   | "saveMorningCapture"
+  | "saveHourlyObservation"
   | "loadCompletedComparisons";
 
 export interface PostgresStatementRecoveryOptions {
@@ -321,6 +323,19 @@ export class PostgresPerformanceStore implements PerformanceStore {
           primary key (station_id, target_date)
         )
       `;
+      // Hourly rainfall for grading Morning Captures: one row per station and KMA
+      // day, its 24 hours ending 01:00 through 24:00. A null hour is one ASOS
+      // published no row for. Re-reads replace the row, as daily observations do.
+      await this.#sql`
+        create table if not exists performance_hourly_observations (
+          station_id text not null references performance_stations(id),
+          date date not null,
+          hours jsonb not null check (jsonb_typeof(hours) = 'array' and jsonb_array_length(hours) = 24),
+          observed_at timestamptz not null,
+          source text not null check (source = 'kma-asos'),
+          primary key (station_id, date)
+        )
+      `;
       // Retrospective seed evidence. Deliberately a separate table from
       // performance_captures: it has no cohort and no frozen blend, so it cannot be
       // read back as a prospective Capture even by a mistaken join.
@@ -463,6 +478,28 @@ export class PostgresPerformanceStore implements PerformanceStore {
         )
         on conflict (station_id, date) do update set
           observed_mm = excluded.observed_mm,
+          observed_at = excluded.observed_at,
+          source = excluded.source
+      `;
+    }, this.#statementRecovery);
+  }
+
+  async saveHourlyObservation(observation: HourlyPrecipObservation): Promise<void> {
+    const stationId = observation.stationId;
+    const date = observation.date;
+    const hours = structuredClone(observation.hours);
+    const observedAt = observation.observedAt;
+    const source = observation.source;
+    await runPostgresStatementWithRecovery("saveHourlyObservation", async () => {
+      await this.#sql`
+        insert into performance_hourly_observations (
+          station_id, date, hours, observed_at, source
+        ) values (
+          ${stationId}, ${date}, ${this.#sql.json(hours as unknown as postgres.JSONValue)},
+          ${observedAt}, ${source}
+        )
+        on conflict (station_id, date) do update set
+          hours = excluded.hours,
           observed_at = excluded.observed_at,
           source = excluded.source
       `;

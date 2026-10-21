@@ -3,6 +3,7 @@ import type {
   CaptureCohort,
   CompletedComparison,
   ForecastCapture,
+  HourlyPrecipObservation,
   MorningCapture,
   ObservationStation,
   PrecipObservation,
@@ -54,6 +55,8 @@ export interface PerformanceStore {
   /** Insert one Morning Capture; an existing one for the station and date is kept. */
   saveMorningCapture(capture: MorningCapture): Promise<CaptureWriteResult>;
   saveObservation(observation: PrecipObservation): Promise<void>;
+  /** Store one station-day of hourly rainfall, replacing an earlier read of it. */
+  saveHourlyObservation(observation: HourlyPrecipObservation): Promise<void>;
   loadCompletedComparisons(
     stationId: string,
     cohort: CaptureCohort,
@@ -73,6 +76,7 @@ export class InMemoryPerformanceStore implements PerformanceStore {
   readonly #stations = new Map<string, ObservationStation>();
   readonly #captures = new Map<string, ForecastCapture>();
   readonly #morningCaptures = new Map<string, MorningCapture>();
+  readonly #hourlyObservations = new Map<string, HourlyPrecipObservation>();
   readonly #observations = new Map<string, PrecipObservation>();
   readonly #seedComparisons = new Map<string, SeedComparison>();
 
@@ -139,6 +143,17 @@ export class InMemoryPerformanceStore implements PerformanceStore {
 
   async saveObservation(observation: PrecipObservation): Promise<void> {
     this.#observations.set(`${observation.stationId}:${observation.date}`, clone(observation));
+  }
+
+  async saveHourlyObservation(observation: HourlyPrecipObservation): Promise<void> {
+    this.#hourlyObservations.set(`${observation.stationId}:${observation.date}`, clone(observation));
+  }
+
+  async loadHourlyObservations(stationId: string): Promise<HourlyPrecipObservation[]> {
+    return Array.from(this.#hourlyObservations.values())
+      .filter((observation) => observation.stationId === stationId)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(clone);
   }
 
   async loadCaptures(stationId: string, cohort: CaptureCohort): Promise<ForecastCapture[]> {

@@ -3,7 +3,7 @@ import test from "node:test";
 import type { ProviderSnapshot } from "../types.ts";
 import { OUTAGE_EVIDENCE_THRESHOLD, runPerformanceBatch } from "./batch.ts";
 import { InMemoryPerformanceStore } from "./store.ts";
-import type { ObservationStation } from "./types.ts";
+import type { HourlyPrecipObservation, ObservationStation } from "./types.ts";
 
 const stations: ObservationStation[] = [
   {
@@ -705,31 +705,106 @@ function morningSnapshot(probability: number): ProviderSnapshot {
   };
 }
 
-test("the Morning Slot captures today for every station and reads no observation", async () => {
+const SEVEN_AM = new Date("2026-10-22T07:00:00+09:00");
+
+function hourlyDay(stationId: string, date: string): HourlyPrecipObservation {
+  return {
+    stationId,
+    date,
+    hours: Array.from({ length: 24 }, () => ({ mm: 0, qcFlag: null })),
+    observedAt: SEVEN_AM.toISOString(),
+    source: "kma-asos",
+  };
+}
+
+test("the Morning Slot captures every station before reading two published days of hourly rain", async () => {
   const store = new InMemoryPerformanceStore();
-  let observationCalls = 0;
+  const events: string[] = [];
+  let dailyCalls = 0;
   const result = await runPerformanceBatch({
     morning: true,
-    now: new Date("2026-10-22T07:00:00+09:00"),
+    now: SEVEN_AM,
     store,
     fetchStations: async () => stations,
     fetchObservation: async () => {
-      observationCalls += 1;
+      dailyCalls += 1;
       return { status: "absent" };
     },
-    readForecasts: async () => [morningSnapshot(40)],
+    fetchHourlyObservations: async (stationId, startDate, endDate) => {
+      events.push(`hourly ${stationId} ${startDate}..${endDate}`);
+      return {
+        status: "observed",
+        observations: [hourlyDay(stationId, startDate), hourlyDay(stationId, endDate)],
+      };
+    },
+    readForecasts: async (location) => {
+      events.push(`capture ${location.name}`);
+      return [morningSnapshot(40)];
+    },
     concurrency: 2,
   });
 
-  assert.equal(observationCalls, 0);
+  assert.equal(dailyCalls, 0, "the daily total is a cohort's ground truth, not the morning's");
   assert.equal(result.capturesInserted, 2);
-  assert.equal(result.observationsStored + result.observationsAbsent + result.observationsFailed, 0);
-  assert.equal(result.observationsAbandoned, 0);
+  assert.equal(result.observationsStored, 2);
   assert.deepEqual(result.failures, []);
+  const firstHourly = events.findIndex((event) => event.startsWith("hourly"));
+  assert.ok(
+    events.slice(firstHourly).every((event) => event.startsWith("hourly")),
+    `every capture must land before the first hourly read: ${events.join(", ")}`,
+  );
+  assert.ok(events.includes("hourly 159 2026-10-19..2026-10-20"));
+  assert.deepEqual(
+    (await store.loadHourlyObservations("159")).map((observation) => observation.date),
+    ["2026-10-19", "2026-10-20"],
+  );
   const [captured] = await store.loadMorningCaptures("159");
   assert.equal(captured.targetDate, "2026-10-22");
   assert.deepEqual(await store.loadCaptures("159", "06"), []);
   assert.deepEqual(await store.loadCaptures("159", "18"), []);
+});
+
+test("a failed hourly read fails the morning run but never costs its capture", async () => {
+  const store = new InMemoryPerformanceStore();
+  const result = await runPerformanceBatch({
+    morning: true,
+    now: SEVEN_AM,
+    store,
+    fetchStations: async () => stations,
+    fetchHourlyObservations: async (stationId) => stationId === "159"
+      ? { status: "failed", reason: "forbidden — resultCode 30", retryable: false }
+      : { status: "observed", observations: [] },
+    readForecasts: async () => [morningSnapshot(40)],
+  });
+
+  assert.equal(result.capturesInserted, 2);
+  assert.equal(result.observationsFailed, 1);
+  assert.equal(result.observationsAbsent, 1, "a station with no hourly rows is an absence");
+  assert.deepEqual(result.failures.map((failure) => [failure.stationId, failure.phase]), [["159", "observation"]]);
+  assert.deepEqual(await store.loadHourlyObservations("159"), []);
+});
+
+test("a proven-down hourly service is abandoned after every capture has landed", async () => {
+  const all = manyStations(40);
+  let hourlyCalls = 0;
+  const result = await runPerformanceBatch({
+    morning: true,
+    now: SEVEN_AM,
+    store: new InMemoryPerformanceStore(),
+    fetchStations: async () => all,
+    fetchHourlyObservations: async () => {
+      hourlyCalls += 1;
+      return { status: "failed", reason: "network request failed", retryable: true };
+    },
+    readForecasts: async () => [morningSnapshot(40)],
+    concurrency: 1,
+    retryDelay: async () => {},
+  });
+
+  assert.equal(result.capturesInserted, all.length);
+  assert.equal(hourlyCalls, OUTAGE_EVIDENCE_THRESHOLD);
+  assert.equal(result.observationsAbandoned, all.length - OUTAGE_EVIDENCE_THRESHOLD);
+  assert.match(result.abandonedReason ?? "", /observation/);
 });
 
 test("the Morning Slot stops reading a provider proven down, like a cohort does", async () => {
@@ -740,6 +815,7 @@ test("the Morning Slot stops reading a provider proven down, like a cohort does"
     now: new Date("2026-10-22T07:00:00+09:00"),
     store: new InMemoryPerformanceStore(),
     fetchStations: async () => all,
+    fetchHourlyObservations: async () => ({ status: "observed", observations: [] }),
     readForecasts: async () => {
       forecastCalls += 1;
       return [faultSnapshot()];

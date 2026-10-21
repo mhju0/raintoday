@@ -1,12 +1,14 @@
 import { classifyKmaResponse } from "../providers/kma.ts";
 import { readResponseBytes } from "../httpResponse.ts";
 import { transportFailure } from "../maintenance.ts";
-import { parseAsosRows } from "./asosRows.ts";
-import type { ObservationStation, PrecipObservation } from "./types.ts";
+import { parseAsosHourlyRows, parseAsosRows } from "./asosRows.ts";
+import type { HourlyPrecipObservation, ObservationStation, PrecipObservation } from "./types.ts";
 
 const STATION_CATALOG_URL = "https://apihub.kma.go.kr/api/typ01/url/stn_inf.php";
 const ASOS_DAILY_URL =
   "https://apis.data.go.kr/1360000/AsosDalyInfoService/getWthrDataList";
+const ASOS_HOURLY_URL =
+  "https://apis.data.go.kr/1360000/AsosHourlyInfoService/getWthrDataList";
 const MAX_STATION_CATALOG_BYTES = 1024 * 1024;
 const STATION_CATALOG_ATTEMPTS = 3;
 const STATION_CATALOG_RETRY_BASE_MS = 3_000;
@@ -19,6 +21,8 @@ const ASOS_OBSERVATION_RETRY_BASE_MS = 750;
 /** One window is one request, so it is bounded by what a single response can carry. */
 export const MAX_OBSERVATION_WINDOW_DAYS = 31;
 const MAX_ASOS_WINDOW_BYTES = 1024 * 1024;
+/** Hourly rows carry every surface element, so a window stays a few days long. */
+export const MAX_HOURLY_WINDOW_DAYS = 3;
 const DAY_MS = 86_400_000;
 
 function koreanDate(date: Date): string {
@@ -387,4 +391,98 @@ export async function fetchAsosObservationWindow(
     return { status: "observed", observations };
   }
   return { status: "failed", reason };
+}
+
+export type AsosHourlyRead =
+  | { status: "observed"; observations: HourlyPrecipObservation[]; reason?: undefined; retryable?: undefined }
+  | {
+      status: "failed";
+      observations?: undefined;
+      reason: string;
+      /** True only when the final internal attempt failed before an HTTP response. */
+      retryable?: boolean;
+    };
+
+/**
+ * Read one station's hourly rainfall for whole KMA days, oldest first.
+ *
+ * The service publishes up to yesterday only and answers anything later with an
+ * error, and a KMA day ends with the next date's `00:00` row, so a day is readable
+ * two calendar days after it. Days ASOS has no rows for are left out; hours it has
+ * no row for stay null inside their day. A refused or malformed read is a fault,
+ * never a day of no rain.
+ */
+export async function fetchAsosHourlyObservations(
+  stationId: string,
+  startDate: string,
+  endDate: string,
+  now: Date,
+  fetchImpl: typeof fetch = fetch,
+  delay: RetryDelay = sleep,
+): Promise<AsosHourlyRead> {
+  const days = assertObservationWindowSpan(startDate, endDate);
+  if (days > MAX_HOURLY_WINDOW_DAYS) {
+    throw new RangeError(`an hourly window of ${days} days exceeds ${MAX_HOURLY_WINDOW_DAYS}`);
+  }
+  const key = serviceKey(process.env.KMA_OBSERVATION_API_KEY ?? process.env.KMA_SHORT_TERM_API_KEY);
+  if (!key) {
+    return { status: "failed", reason: "KMA_OBSERVATION_API_KEY is not configured", retryable: false };
+  }
+  const dayAfter = new Date(parseIsoDate(endDate) + DAY_MS).toISOString().slice(0, 10);
+  const params = new URLSearchParams({
+    serviceKey: key,
+    dataType: "JSON",
+    dataCd: "ASOS",
+    dateCd: "HR",
+    startDt: startDate.replace(/-/g, ""),
+    startHh: "01",
+    endDt: dayAfter.replace(/-/g, ""),
+    endHh: "00",
+    stnIds: stationId,
+    numOfRows: String(days * 24 + 1),
+    pageNo: "1",
+  });
+
+  let reason = "hourly observation request failed";
+  let retryable = false;
+  for (let attempt = 0; attempt < ASOS_OBSERVATION_ATTEMPTS; attempt += 1) {
+    if (attempt > 0) await delay(ASOS_OBSERVATION_RETRY_BASE_MS * 2 ** (attempt - 1));
+    let response: Response;
+    try {
+      response = await fetchImpl(`${ASOS_HOURLY_URL}?${params}`, {
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch (error) {
+      reason = transportReason(error);
+      retryable = true;
+      continue;
+    }
+    const bytes = await readResponseBytes(response, { maxBytes: MAX_ASOS_WINDOW_BYTES });
+    const classified = classifyKmaResponse(response.status, new TextDecoder().decode(bytes));
+    if (classified.class === "empty") return { status: "observed", observations: [] };
+    if (classified.class === "forbidden") {
+      return { status: "failed", reason: `forbidden — ${classified.detail}`, retryable: false };
+    }
+    if (classified.class !== "ok") {
+      reason = `${classified.class} — ${classified.detail}`;
+      retryable = false;
+      continue;
+    }
+    let grouped: Map<string, (HourlyPrecipObservation["hours"][number])[]>;
+    try {
+      grouped = parseAsosHourlyRows(classified.json, stationId, startDate, endDate);
+    } catch (error) {
+      return {
+        status: "failed",
+        reason: error instanceof Error ? error.message : "ASOS response is malformed",
+        retryable: false,
+      };
+    }
+    const observedAt = now.toISOString();
+    const observations = Array.from(grouped)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([date, hours]) => ({ stationId, date, hours, observedAt, source: "kma-asos" as const }));
+    return { status: "observed", observations };
+  }
+  return { status: "failed", reason, retryable };
 }

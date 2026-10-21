@@ -31,7 +31,9 @@ collection is triggered at 12:40 KST and shows as in progress, in its `wait` job
 18:10 KST; that is not a hang. When GitHub starts it after 18:10 the wait is zero and the
 capture is late (October 13, 2026: started 20:06 KST). `morning-forecast` is triggered at
 01:30 KST and waits in the same way until 07:00 KST; it is flagged after 30 hours without a
-completed scheduled run. The workflow also
+completed scheduled run. After every station's Morning Capture it reads ASOS hourly
+rainfall for the two newest complete days, so an ASOS failure fails the run without
+delaying a capture. The workflow also
 creates weekly and monthly review issues; an unfinished checklist remains open
 instead of being duplicated. Check off each task with evidence before closing it.
 
@@ -207,8 +209,8 @@ incident-response procedure take precedence.
 
 Vercel production and preview use `raintoday_web`, a SELECT-only PostgreSQL role with
 access to the four performance tables. It has no grant on
-`performance_morning_captures`, which nothing served reads yet; grant SELECT when the
-scoring record starts reading it. The serving adapter also requests read-only
+`performance_morning_captures` or `performance_hourly_observations`, which nothing served
+reads yet; grant SELECT when the scoring record starts reading them. The serving adapter also requests read-only
 sessions, a 15-second statement timeout and a 10-second idle transaction timeout.
 GitHub Actions retains the separate collector credential. Only scheduled collection needs
 `KMA_APIHUB_KEY` and `KMA_OBSERVATION_API_KEY`; they do not belong in Vercel.
@@ -223,6 +225,7 @@ renewal issue 30 days out and escalates it at 7. Read from the portals 2026-09-0
 | --- | --- | --- | --- |
 | `KMA_SHORT_TERM_API_KEY` | 기상청_단기예보 조회서비스 | data.go.kr | 2028-03-27 |
 | `KMA_OBSERVATION_API_KEY` | 기상청_지상(종관, ASOS) 일자료 조회서비스 | data.go.kr | 2028-06-18 |
+| `KMA_OBSERVATION_API_KEY` | 기상청_지상(종관, ASOS) 시간자료 조회서비스 (read 2026-10-21) | data.go.kr | 2028-10-21 |
 | `KMA_APIHUB_KEY` | 지상관측 지점정보 조회 (`stn_inf`) | apihub.kma.go.kr | 2028-08-19 |
 
 Renewal is a person's job in the portal and is invisible from CI, so the issue closes

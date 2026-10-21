@@ -182,3 +182,10 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Built: `morning-forecast.yml` fires at 01:30 KST and waits to 07:00 (GitHub's morning cron ran 110–183 min late), then freezes each station's hourly chances from 07:00 to midnight in `performance_morning_captures`. Not graded yet. Verify, the real-Postgres contract (31/31) and a live five-provider dry run passed.
 - Owner decision: Pirate Weather is left out of the Morning Slot. A third daily run would exceed its 10,000/month free tier, and a 429 faults every capture. Morning Captures compare four providers.
 - Next: Part 2, hourly ASOS rainfall. It needs the owner's 활용신청 for 기상청_지상(종관, ASOS) 시간자료 조회서비스; the current key answers `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`. Part 3: grade by moment, exclude late captures, show calibration on /behind-the-data, and grant `raintoday_web` SELECT on the new table.
+
+## 2026-10-21 — 2.3.0 released; hourly ASOS rainfall (2.3.1 candidate, branch `feat/hourly-observations`)
+
+- 2.3.0 (PR #223, `067b343`): main CI passed, production serves the merge commit, tag and release published. First scheduled Morning Capture is 2026-10-22, unverified.
+- The owner's 시간자료 활용신청 was approved (expires 2028-10-21). The morning run now reads hourly rainfall for the two newest complete days after all captures. Evidence for the hour convention, the one-day publication lag and flag 9: `docs/DECISIONS.md`, third 2026-10-21 entry.
+- Firewall: shown the owner where the Dynamic request volume rule is (Firewall → Rules → Project rules); still Log until the owner saves Deny.
+- Next: merge and release 2.3.1; verify the 10-22 morning run (captures at 07:00, hourly rows for 10-19..10-20); part 3 grading.

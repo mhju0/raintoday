@@ -16,9 +16,11 @@ permissions:
   contents: read
 
 # Freezes every station's rain chances from 07:00 to midnight KST before any of
-# that rain falls. It reads the forecast providers only: no ASOS observation, so no
-# ASOS transport preflight. Attempts aim at 0, 10 and 25 minutes from when
-# collection began, the first three offsets of local-performance; fewer, because a
+# that rain falls, then reads ASOS hourly rainfall for the two newest complete days.
+# No ASOS transport preflight on purpose: an unreachable ASOS must never hold back
+# the capture, so the capture runs first and an ASOS failure only fails the run.
+# Attempts aim at 0, 10 and 25 minutes from when collection began, the first
+# three offsets of local-performance; fewer, because a
 # morning forecast taken an hour late is no longer the one people saw. A run that
 # starts after 07:00 still captures, and its `captured_at` says how late it was.
 # A manual dispatch outside 07:00–08:59 KST is refused by the capture itself.
@@ -89,7 +91,7 @@ jobs:
         timeout-minutes: 3
         run: npm ci
 
-      - name: Capture the rest of today's forecasts
+      - name: Capture the rest of today's forecasts and hourly rainfall
         id: capture
         if: steps.install.outcome == 'success'
         continue-on-error: true
@@ -167,7 +169,7 @@ jobs:
         timeout-minutes: 3
         run: npm ci
 
-      - name: Capture the rest of today's forecasts
+      - name: Capture the rest of today's forecasts and hourly rainfall
         id: capture
         if: steps.install.outcome == 'success'
         continue-on-error: true
@@ -245,7 +247,7 @@ jobs:
         timeout-minutes: 3
         run: npm ci
 
-      - name: Capture the rest of today's forecasts
+      - name: Capture the rest of today's forecasts and hourly rainfall
         id: capture
         if: steps.install.outcome == 'success'
         continue-on-error: true

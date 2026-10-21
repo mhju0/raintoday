@@ -36,6 +36,9 @@ _Avoid_: Morning data, forecast batch, fixed issue hour
 One immutable set of provider rain chances for the rest of the day, hour by hour from 07:00 to midnight KST, taken at the Morning Slot for an Observation Station before any of that rain is observed. It leaves out Pirate Weather, whose free quota covers only the cohorts. It targets the day it is taken on, has no Capture Cohort and no learned blend, and is stored apart from Forecast Captures. It is graded against hourly observations for its window, never the day's total.
 _Avoid_: 07 cohort, same-day cohort, today's capture
 
+**Hourly Observation**:
+One station's ASOS rainfall for one KMA day, hour by hour: the 24 hours ending 01:00 through 24:00 KST, the span the daily total covers. It is the ground truth for a Morning Capture's window. An hour ASOS published no row for is unknown, never dry. The hourly service publishes up to yesterday only, so a day is readable two calendar days after it.
+
 **Morning Slot**:
 07:00 KST, the moment a reader decides about an umbrella for the day. A Morning Capture keeps the time it was actually taken; one taken well after the slot is a different, easier forecast.
 _Avoid_: Morning cohort

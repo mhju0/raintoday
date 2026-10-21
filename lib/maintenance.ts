@@ -74,7 +74,7 @@ export type CredentialExpiry = {
  * find out — which is what the monthly checklist used to ask for, and why that
  * checkbox was unactionable.
  *
- * Only the three subscriptions the code actually calls are listed. The account
+ * Only the subscriptions the code actually calls are listed. The account
  * also holds approved-but-unused ones (기상특보, 레이더영상, 에어코리아 대기오염,
  * apihub 레이더 HSR); they are deliberately absent so that nobody renews a
  * subscription this project retired. See docs/OPERATIONS.md.
@@ -91,6 +91,13 @@ export const CREDENTIAL_EXPIRIES: CredentialExpiry[] = [
     service: "기상청_지상(종관, ASOS) 일자료 조회서비스",
     portal: "https://www.data.go.kr/iim/api/selectAcountList.do",
     expiresOn: "2028-06-18",
+  },
+  {
+    // The same key, a separate 활용신청 with its own 활용기간 (approved 2026-10-21).
+    variable: "KMA_OBSERVATION_API_KEY",
+    service: "기상청_지상(종관, ASOS) 시간자료 조회서비스",
+    portal: "https://www.data.go.kr/iim/api/selectAcountList.do",
+    expiresOn: "2028-10-21",
   },
   {
     variable: "KMA_APIHUB_KEY",

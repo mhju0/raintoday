@@ -71,6 +71,28 @@ export interface PrecipObservation {
   source: "kma-asos";
 }
 
+/** One hour of ASOS rainfall, as KMA published it. */
+export interface HourlyRain {
+  /** Millimetres in the hour. A blank `rn` is 0; see DECISIONS 2026-10-21. */
+  mm: number | null;
+  /** KMA's `rnQcflg`, kept so the blank-is-dry reading can be revisited. */
+  qcFlag: string | null;
+}
+
+/**
+ * One station's hourly rainfall for one KMA day: the 24 hours ending 01:00 through
+ * 24:00 KST, the same day the daily `sumRn` totals. `hours[0]` is 00:00–01:00 and
+ * `hours[23]` is 23:00–24:00. A null entry is an hour ASOS published no row for,
+ * which is unknown, never dry.
+ */
+export interface HourlyPrecipObservation {
+  stationId: string;
+  date: string;
+  hours: (HourlyRain | null)[];
+  observedAt: string;
+  source: "kma-asos";
+}
+
 /** One Forecast Capture paired with its later official observation. */
 export interface CompletedComparison {
   capture: ForecastCapture;

@@ -4,6 +4,7 @@ import type { PerformanceStore } from "./store.ts";
 import type {
   CaptureCohort,
   ForecastCapture,
+  HourlyPrecipObservation,
   MorningCapture,
   ObservationStation,
   PrecipObservation,
@@ -100,6 +101,14 @@ function observation(stationId: string, date: string, observedMm: number): Preci
   };
 }
 
+function hourlyObservation(stationId: string, date: string, wetHour: number): HourlyPrecipObservation {
+  const hours: HourlyPrecipObservation["hours"] = Array.from({ length: 24 }, () => ({ mm: 0, qcFlag: null }));
+  hours[wetHour] = { mm: 1.5, qcFlag: null };
+  hours[3] = null;
+  hours[4] = { mm: 0, qcFlag: "9" };
+  return { stationId, date, hours, observedAt: `${date}T22:00:00.000Z`, source: "kma-asos" };
+}
+
 /**
  * Register the contract against one adapter. `createStore` must return an empty,
  * isolated store; the suite writes to it.
@@ -145,6 +154,18 @@ export function runPerformanceStoreContract(
 
       assert.deepEqual(await store.loadCompletedComparisons("108", COHORT, 10), []);
       assert.deepEqual(await store.loadCompletedComparisons("108", "18", 10), []);
+    });
+  });
+
+  test(`${adapterName} replaces a re-read hourly day and keeps it out of the cohort path`, async () => {
+    await withStore(async (store) => {
+      await store.syncStations([station("108")], "2026-03-01");
+      await store.saveCapture(capture("108", "2026-03-02", { "open-meteo": 60 }));
+      await store.saveHourlyObservation(hourlyObservation("108", "2026-03-02", 8));
+      await store.saveHourlyObservation(hourlyObservation("108", "2026-03-02", 9));
+
+      // Hourly rainfall grades Morning Captures only; it never completes a cohort day.
+      assert.deepEqual(await store.loadCompletedComparisons("108", COHORT, 10), []);
     });
   });
 
