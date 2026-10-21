@@ -1,0 +1,288 @@
+name: morning-forecast
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 01:30 KST, held by `wait` until 07:00 KST. GitHub starts schedules hours late,
+    # and a Morning Capture is graded as the forecast a reader saw at 07:00, so the
+    # run fires early and waits. See `MORNING_SCHEDULE` in lib/performance/cli.ts.
+    - cron: "30 16 * * *"
+
+concurrency:
+  group: morning-forecast
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+# Freezes every station's rain chances from 07:00 to midnight KST before any of
+# that rain falls. It reads the forecast providers only: no ASOS observation, so no
+# ASOS transport preflight. Attempts aim at 0, 10 and 25 minutes from when
+# collection began, the first three offsets of local-performance; fewer, because a
+# morning forecast taken an hour late is no longer the one people saw. A run that
+# starts after 07:00 still captures, and its `captured_at` says how late it was.
+# A manual dispatch outside 07:00–08:59 KST is refused by the capture itself.
+jobs:
+  wait:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    continue-on-error: true
+    steps:
+      - name: Checkout code
+        timeout-minutes: 1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        timeout-minutes: 2
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Wait for the Morning Slot to open
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          seconds="$(node scripts/performance-slot-wait.ts --schedule="$SCHEDULE")"
+          echo "Waiting ${seconds}s for the Morning Slot."
+          sleep "$seconds"
+
+  capture_1:
+    needs: wait
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    continue-on-error: true
+    outputs:
+      succeeded: ${{ steps.capture.outcome == 'success' }}
+      started_at: ${{ steps.began.outputs.at }}
+    steps:
+      - name: Record when collection began
+        id: began
+        continue-on-error: true
+        timeout-minutes: 1
+        run: echo "at=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout code
+        id: checkout
+        continue-on-error: true
+        timeout-minutes: 1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        id: setup
+        if: steps.checkout.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        id: install
+        if: steps.setup.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: npm ci
+
+      - name: Capture the rest of today's forecasts
+        id: capture
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          PERFORMANCE_DATABASE_URL: ${{ secrets.PERFORMANCE_DATABASE_URL }}
+          KMA_APIHUB_KEY: ${{ secrets.KMA_APIHUB_KEY }}
+          KMA_OBSERVATION_API_KEY: ${{ secrets.KMA_OBSERVATION_API_KEY }}
+          KMA_SHORT_TERM_API_KEY: ${{ secrets.KMA_SHORT_TERM_API_KEY }}
+          PIRATE_WEATHER_API_KEY: ${{ secrets.PIRATE_WEATHER_API_KEY }}
+          WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
+          VISUAL_CROSSING_API_KEY: ${{ secrets.VISUAL_CROSSING_API_KEY }}
+        run: |
+          npm run performance:capture -- \
+            --morning \
+            --require-all-providers \
+            --schedule="${{ github.event.schedule }}"
+
+      - name: Report an unsuccessful attempt
+        if: always() && steps.capture.outcome != 'success'
+        run: echo "::warning::Morning capture attempt 1 did not succeed; trying a fresh runner."
+
+  capture_2:
+    needs: capture_1
+    if: ${{ always() && !cancelled() && needs.capture_1.outputs.succeeded != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    continue-on-error: true
+    outputs:
+      succeeded: ${{ steps.capture.outcome == 'success' }}
+    steps:
+
+      - name: Checkout code
+        id: checkout
+        continue-on-error: true
+        timeout-minutes: 1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        id: setup
+        if: steps.checkout.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Wait for a distinct sample of the providers
+        id: spacing
+        if: steps.setup.outcome == 'success'
+        timeout-minutes: 12
+        env:
+          COLLECTION_BEGAN_AT: ${{ needs.capture_1.outputs.started_at }}
+          ATTEMPT_OFFSET_SECONDS: "600"
+        run: |
+          if [[ -z "$COLLECTION_BEGAN_AT" ]]; then
+            echo "Attempt 1 recorded no start time; capturing now."
+            exit 0
+          fi
+          remaining=$(( COLLECTION_BEGAN_AT + ATTEMPT_OFFSET_SECONDS - $(date +%s) ))
+          if (( remaining <= 0 )); then
+            echo "Collection already spans ${ATTEMPT_OFFSET_SECONDS}s; capturing now."
+            exit 0
+          fi
+          echo "Waiting ${remaining}s so this attempt reads the providers at a different moment."
+          sleep "$remaining"
+
+      - name: Install dependencies
+        id: install
+        if: steps.setup.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: npm ci
+
+      - name: Capture the rest of today's forecasts
+        id: capture
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          PERFORMANCE_DATABASE_URL: ${{ secrets.PERFORMANCE_DATABASE_URL }}
+          KMA_APIHUB_KEY: ${{ secrets.KMA_APIHUB_KEY }}
+          KMA_OBSERVATION_API_KEY: ${{ secrets.KMA_OBSERVATION_API_KEY }}
+          KMA_SHORT_TERM_API_KEY: ${{ secrets.KMA_SHORT_TERM_API_KEY }}
+          PIRATE_WEATHER_API_KEY: ${{ secrets.PIRATE_WEATHER_API_KEY }}
+          WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
+          VISUAL_CROSSING_API_KEY: ${{ secrets.VISUAL_CROSSING_API_KEY }}
+        run: |
+          npm run performance:capture -- \
+            --morning \
+            --require-all-providers \
+            --schedule="${{ github.event.schedule }}"
+
+      - name: Report an unsuccessful attempt
+        if: always() && steps.capture.outcome != 'success'
+        run: echo "::warning::Morning capture attempt 2 did not succeed; trying a fresh runner."
+
+  capture_3:
+    needs: [capture_1, capture_2]
+    if: ${{ always() && !cancelled() && needs.capture_1.outputs.succeeded != 'true' && needs.capture_2.outputs.succeeded != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    continue-on-error: true
+    outputs:
+      succeeded: ${{ steps.capture.outcome == 'success' }}
+    steps:
+
+      - name: Checkout code
+        id: checkout
+        continue-on-error: true
+        timeout-minutes: 1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        id: setup
+        if: steps.checkout.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Wait for a distinct sample of the providers
+        id: spacing
+        if: steps.setup.outcome == 'success'
+        timeout-minutes: 27
+        env:
+          COLLECTION_BEGAN_AT: ${{ needs.capture_1.outputs.started_at }}
+          ATTEMPT_OFFSET_SECONDS: "1500"
+        run: |
+          if [[ -z "$COLLECTION_BEGAN_AT" ]]; then
+            echo "Attempt 1 recorded no start time; capturing now."
+            exit 0
+          fi
+          remaining=$(( COLLECTION_BEGAN_AT + ATTEMPT_OFFSET_SECONDS - $(date +%s) ))
+          if (( remaining <= 0 )); then
+            echo "Collection already spans ${ATTEMPT_OFFSET_SECONDS}s; capturing now."
+            exit 0
+          fi
+          echo "Waiting ${remaining}s so this attempt reads the providers at a different moment."
+          sleep "$remaining"
+
+      - name: Install dependencies
+        id: install
+        if: steps.setup.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: npm ci
+
+      - name: Capture the rest of today's forecasts
+        id: capture
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          PERFORMANCE_DATABASE_URL: ${{ secrets.PERFORMANCE_DATABASE_URL }}
+          KMA_APIHUB_KEY: ${{ secrets.KMA_APIHUB_KEY }}
+          KMA_OBSERVATION_API_KEY: ${{ secrets.KMA_OBSERVATION_API_KEY }}
+          KMA_SHORT_TERM_API_KEY: ${{ secrets.KMA_SHORT_TERM_API_KEY }}
+          PIRATE_WEATHER_API_KEY: ${{ secrets.PIRATE_WEATHER_API_KEY }}
+          WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
+          VISUAL_CROSSING_API_KEY: ${{ secrets.VISUAL_CROSSING_API_KEY }}
+        run: |
+          npm run performance:capture -- \
+            --morning \
+            --require-all-providers \
+            --schedule="${{ github.event.schedule }}"
+
+      - name: Report an unsuccessful attempt
+        if: always() && steps.capture.outcome != 'success'
+        run: echo "::warning::Morning capture attempt 3 did not succeed."
+
+  verdict:
+    needs: [capture_1, capture_2, capture_3]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    env:
+      CAPTURE_1_SUCCEEDED: ${{ needs.capture_1.outputs.succeeded }}
+      CAPTURE_2_SUCCEEDED: ${{ needs.capture_2.outputs.succeeded }}
+      CAPTURE_3_SUCCEEDED: ${{ needs.capture_3.outputs.succeeded }}
+    steps:
+      - name: Report final collection result
+        run: |
+          if [[ "$CAPTURE_1_SUCCEEDED" == "true" || "$CAPTURE_2_SUCCEEDED" == "true" \
+             || "$CAPTURE_3_SUCCEEDED" == "true" ]]; then
+            echo "At least one morning capture attempt succeeded."
+            exit 0
+          fi
+          echo "::error::No morning capture attempt succeeded."
+          exit 1

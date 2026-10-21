@@ -5,6 +5,7 @@ import type {
   CaptureCohort,
   CompletedComparison,
   ForecastCapture,
+  MorningCapture,
   ObservationStation,
   PrecipObservation,
   SeedComparison,
@@ -147,6 +148,7 @@ type RecoverablePostgresOperation =
   | "syncStations"
   | "saveObservation"
   | "saveCapture"
+  | "saveMorningCapture"
   | "loadCompletedComparisons";
 
 export interface PostgresStatementRecoveryOptions {
@@ -303,6 +305,22 @@ export class PostgresPerformanceStore implements PerformanceStore {
         create index if not exists performance_observations_station_date
         on performance_observations (station_id, date)
       `;
+      // Same-day forecasts from the Morning Slot. A separate table rather than a
+      // third cohort: the cohort check above is never altered on an existing
+      // database, a morning capture targets the day it is taken on, and its window
+      // is graded against hourly observations, never the day's total.
+      await this.#sql`
+        create table if not exists performance_morning_captures (
+          station_id text not null references performance_stations(id),
+          target_date date not null,
+          captured_at timestamptz not null,
+          window_start_hour smallint not null check (window_start_hour between 0 and 23),
+          providers jsonb not null,
+          equal_probability double precision
+            check (equal_probability is null or equal_probability between 0 and 100),
+          primary key (station_id, target_date)
+        )
+      `;
       // Retrospective seed evidence. Deliberately a separate table from
       // performance_captures: it has no cohort and no frozen blend, so it cannot be
       // read back as a prospective Capture even by a mistaken join.
@@ -401,6 +419,29 @@ export class PostgresPerformanceStore implements PerformanceStore {
           ${this.#sql.json(frozenBlend as unknown as postgres.JSONValue)}
         )
         on conflict (station_id, target_date, cohort) do nothing
+        returning station_id
+      `;
+      return rows.length === 0 ? "existing" : "inserted";
+    }, this.#statementRecovery);
+  }
+
+  async saveMorningCapture(capture: MorningCapture): Promise<CaptureWriteResult> {
+    const stationId = capture.stationId;
+    const targetDate = capture.targetDate;
+    const capturedAt = capture.capturedAt;
+    const windowStartHour = capture.windowStartHour;
+    const providers = structuredClone(capture.providers);
+    const equalProbability = capture.equalProbability;
+    return runPostgresStatementWithRecovery("saveMorningCapture", async () => {
+      const rows = await this.#sql`
+        insert into performance_morning_captures (
+          station_id, target_date, captured_at, window_start_hour, providers, equal_probability
+        ) values (
+          ${stationId}, ${targetDate}, ${capturedAt}, ${windowStartHour},
+          ${this.#sql.json(providers as unknown as postgres.JSONValue)},
+          ${equalProbability}
+        )
+        on conflict (station_id, target_date) do nothing
         returning station_id
       `;
       return rows.length === 0 ? "existing" : "inserted";

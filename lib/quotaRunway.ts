@@ -2,7 +2,7 @@
  * Whether a metered provider quota still covers the rest of its billing period.
  *
  * Pirate Weather is the only upstream with a hard monthly ceiling low enough to
- * reach: 10,000 calls against a scheduled pipeline that spends two calls per
+ * reach: 10,000 calls against a scheduled pipeline that spends three calls per
  * station per day. A plain "warn under N left" threshold cannot express that,
  * because the same number is comfortable on the last day of a period and fatal
  * on the first. What matters is runway — does what is left cover the burn still

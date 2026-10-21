@@ -29,6 +29,40 @@ export interface ForecastCapture {
   };
 }
 
+/** One provider hour inside a Morning Capture's window. */
+export interface MorningHourForecast {
+  /** The provider's own hour stamp, ISO 8601 with offset. */
+  time: string;
+  probability: number | null;
+  amountMm: number | null;
+}
+
+/** One provider's rain chances for the rest of the day, hour by hour. */
+export interface MorningProviderForecast {
+  provider: PrecipProviderId;
+  /** The highest hourly chance in the window, as a daily chance is the day's highest. */
+  probability: number;
+  hours: MorningHourForecast[];
+}
+
+/**
+ * One immutable same-day forecast taken at the Morning Slot: the rain a reader was
+ * told to expect from the window's first hour to midnight KST, before any of it fell.
+ * Deliberately not a ForecastCapture: it has no cohort, targets the day it is taken
+ * on, and is graded against hourly observations rather than the day's total.
+ */
+export interface MorningCapture {
+  stationId: string;
+  /** The KST date the capture was taken on and forecasts. */
+  targetDate: string;
+  capturedAt: string;
+  /** First KST hour of the window; the window ends at midnight. */
+  windowStartHour: number;
+  providers: MorningProviderForecast[];
+  /** Mean of the providers' window chances, frozen like a cohort's equal blend. */
+  equalProbability: number | null;
+}
+
 export interface PrecipObservation {
   stationId: string;
   date: string;

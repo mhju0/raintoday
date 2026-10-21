@@ -689,3 +689,66 @@ test("a single success anywhere keeps a flaking source in play", async () => {
   assert.equal(result.capturesAbandoned, 0);
   assert.equal(result.abandonedReason, null);
 });
+
+function morningSnapshot(probability: number): ProviderSnapshot {
+  return {
+    ...forecastSnapshot(),
+    hourly: [{
+      time: "2026-10-22T09:00:00+09:00",
+      temperature: 15,
+      precipitationProbability: probability,
+      windSpeed: null,
+      humidity: null,
+      condition: "cloudy",
+    }],
+    daily: [],
+  };
+}
+
+test("the Morning Slot captures today for every station and reads no observation", async () => {
+  const store = new InMemoryPerformanceStore();
+  let observationCalls = 0;
+  const result = await runPerformanceBatch({
+    morning: true,
+    now: new Date("2026-10-22T07:00:00+09:00"),
+    store,
+    fetchStations: async () => stations,
+    fetchObservation: async () => {
+      observationCalls += 1;
+      return { status: "absent" };
+    },
+    readForecasts: async () => [morningSnapshot(40)],
+    concurrency: 2,
+  });
+
+  assert.equal(observationCalls, 0);
+  assert.equal(result.capturesInserted, 2);
+  assert.equal(result.observationsStored + result.observationsAbsent + result.observationsFailed, 0);
+  assert.equal(result.observationsAbandoned, 0);
+  assert.deepEqual(result.failures, []);
+  const [captured] = await store.loadMorningCaptures("159");
+  assert.equal(captured.targetDate, "2026-10-22");
+  assert.deepEqual(await store.loadCaptures("159", "06"), []);
+  assert.deepEqual(await store.loadCaptures("159", "18"), []);
+});
+
+test("the Morning Slot stops reading a provider proven down, like a cohort does", async () => {
+  let forecastCalls = 0;
+  const all = manyStations(40);
+  const result = await runPerformanceBatch({
+    morning: true,
+    now: new Date("2026-10-22T07:00:00+09:00"),
+    store: new InMemoryPerformanceStore(),
+    fetchStations: async () => all,
+    readForecasts: async () => {
+      forecastCalls += 1;
+      return [faultSnapshot()];
+    },
+    concurrency: 1,
+  });
+
+  assert.ok(forecastCalls <= OUTAGE_EVIDENCE_THRESHOLD);
+  assert.equal(result.capturesAbandoned, all.length - OUTAGE_EVIDENCE_THRESHOLD);
+  assert.equal(result.observationsAbandoned, 0);
+  assert.doesNotMatch(result.abandonedReason ?? "", /observation/);
+});

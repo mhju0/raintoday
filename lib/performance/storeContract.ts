@@ -4,6 +4,7 @@ import type { PerformanceStore } from "./store.ts";
 import type {
   CaptureCohort,
   ForecastCapture,
+  MorningCapture,
   ObservationStation,
   PrecipObservation,
   PrecipProviderId,
@@ -54,6 +55,21 @@ function capture(
       equalProbability: 50,
       influence: Object.fromEntries(entries.map(([provider]) => [provider, 1 / entries.length])),
     },
+  };
+}
+
+function morningCapture(stationId: string, targetDate: string): MorningCapture {
+  return {
+    stationId,
+    targetDate,
+    capturedAt: `${targetDate}T22:00:00.000Z`,
+    windowStartHour: 7,
+    providers: [{
+      provider: "open-meteo",
+      probability: 40,
+      hours: [{ time: `${targetDate}T07:00:00+09:00`, probability: 40, amountMm: 0.2 }],
+    }],
+    equalProbability: 40,
   };
 }
 
@@ -108,6 +124,27 @@ export function runPerformanceStoreContract(
       const first = capture("108", "2026-03-02", { "open-meteo": 60 });
       assert.equal(await store.saveCapture(first), "inserted");
       assert.equal(await store.saveCapture(first), "existing");
+    });
+  });
+
+  test(`${adapterName} keeps the first Morning Capture for a station and date`, async () => {
+    await withStore(async (store) => {
+      await store.syncStations([station("108"), station("159")], "2026-03-01");
+      assert.equal(await store.saveMorningCapture(morningCapture("108", "2026-03-02")), "inserted");
+      assert.equal(await store.saveMorningCapture(morningCapture("108", "2026-03-02")), "existing");
+      assert.equal(await store.saveMorningCapture(morningCapture("108", "2026-03-03")), "inserted");
+      assert.equal(await store.saveMorningCapture(morningCapture("159", "2026-03-02")), "inserted");
+    });
+  });
+
+  test(`${adapterName} keeps Morning Captures out of the cohort comparison path`, async () => {
+    await withStore(async (store) => {
+      await store.syncStations([station("108")], "2026-03-01");
+      await store.saveMorningCapture(morningCapture("108", "2026-03-02"));
+      await store.saveObservation(observation("108", "2026-03-02", 3.5));
+
+      assert.deepEqual(await store.loadCompletedComparisons("108", COHORT, 10), []);
+      assert.deepEqual(await store.loadCompletedComparisons("108", "18", 10), []);
     });
   });
 

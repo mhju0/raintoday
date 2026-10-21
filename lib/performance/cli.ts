@@ -1,6 +1,7 @@
 import { forecastProviders } from "../providers/registry.ts";
 import type { PerformanceBatchResult } from "./batch.ts";
 import { OUTAGE_EVIDENCE_THRESHOLD } from "./batch.ts";
+import { MORNING_WINDOW_START_HOUR } from "./morning.ts";
 import type { CaptureCohort } from "./types.ts";
 
 /** Production cohorts must not freeze a smaller provider set because a key is missing. */
@@ -117,6 +118,41 @@ export const SCHEDULE_COHORTS: Readonly<Record<string, CaptureCohort>> = {
 };
 
 /**
+ * The cron of `.github/workflows/morning-forecast.yml`, 01:30 KST.
+ *
+ * The Morning Slot is graded as the forecast a reader saw at 07:00, so a capture
+ * that GitHub starts late is a different, easier forecast. The 06:10 KST cron
+ * started 110 to 183 minutes late on every run from 2026-10-16 to 10-21, and the
+ * evening cron's early fire and wait has landed at 18:10 KST on six of seven days
+ * since it shipped (18:18 on the seventh). This fires 5.5 hours early and waits
+ * for 07:00 the same way. It is not a cohort: it targets today, not tomorrow.
+ */
+export const MORNING_SCHEDULE = "30 16 * * *";
+
+/**
+ * KST hours in which a manually dispatched Morning Capture may run. A scheduled
+ * run that lands late is the platform's doing and keeps its own `capturedAt`; a
+ * person dispatching at 14:00 would be writing an afternoon forecast into a table
+ * read as the morning one.
+ */
+const MANUAL_MORNING_HOURS: readonly [number, number] = [MORNING_WINDOW_START_HOUR, MORNING_WINDOW_START_HOUR + 1];
+
+/** The reason a manual Morning Capture contradicts the clock, or null when it does not. */
+export function manualMorningHourMismatch(argv: readonly string[], now: Date): string | null {
+  if (option(argv, "schedule")) return null;
+  if (argv.includes("--force")) return null;
+  const [from, to] = MANUAL_MORNING_HOURS;
+  const hour = koreanHour(now);
+  if (hour >= from && hour <= to) return null;
+  return (
+    `a Morning Capture is taken between ${from}:00 and ${to}:59 KST, and it is ` +
+    `${String(hour).padStart(2, "0")}:00 KST now. It is graded as the forecast a reader ` +
+    "saw that morning, so a later one would be scored as a forecast nobody was shown. " +
+    "Wait for the window, or pass --force."
+  );
+}
+
+/**
  * Crons fired ahead of their slot, with the KST minute of the day the slot opens.
  *
  * GitHub started the evening cron 4.4 to 9.2 hours after its 18:10 KST slot on
@@ -126,10 +162,12 @@ export const SCHEDULE_COHORTS: Readonly<Record<string, CaptureCohort>> = {
  * hours, and each crossing left one target date with no evening capture. The
  * cron now fires at 12:40 KST and the run waits here until 18:10, which absorbs
  * 5.5 hours of scheduler delay and leaves a longer one landing before midnight.
- * The morning cron's 2 to 4.5 hours never crosses a day boundary, so it does not wait.
+ * The 06 cohort's cron runs 2 to 4.5 hours late but never crosses a day boundary, so
+ * it does not wait. The Morning Slot does, because its value is the hour it was taken.
  */
 export const SCHEDULE_SLOT_OPENS: Readonly<Record<string, number>> = {
   "40 3 * * *": 18 * 60 + 10,
+  [MORNING_SCHEDULE]: MORNING_WINDOW_START_HOUR * 60,
 };
 
 function koreanSecondOfDay(date: Date): number {

@@ -21,15 +21,16 @@
  * up as a 429, which arrives as one fewer provider in the check below. That is a
  * symptom watch, not a runway, and it must not be described as the latter.
  * Pirate Weather also remains the binding ceiling: 10,000/month is about 333 a
- * day against the same 194 burn, tighter than Visual Crossing's 1,000 a day.
+ * day against a 291 burn since the Morning Slot, tighter than Visual Crossing's
+ * 1,000 a day.
  */
 import { FALLBACK_STATION_CATALOG } from "../lib/performance/stationCatalog.ts";
 import { evaluateQuotaRunway } from "../lib/quotaRunway.ts";
 import { parseQuotaHeader } from "../lib/maintenance.ts";
 import { checkForecastResponse } from "../lib/serviceHealth.ts";
 
-/** Two scheduled cohorts a day, one call per station per cohort. */
-const DAILY_PIPELINE_BURN = FALLBACK_STATION_CATALOG.length * 2;
+/** Two scheduled cohorts and the Morning Slot a day, one call per station each. */
+const DAILY_PIPELINE_BURN = FALLBACK_STATION_CATALOG.length * 3;
 /** Calls held back for visitor traffic beyond the pipeline's own projection. */
 const VISITOR_RESERVE = 1_000;
 /**

@@ -3,6 +3,7 @@ import type {
   CaptureCohort,
   CompletedComparison,
   ForecastCapture,
+  MorningCapture,
   ObservationStation,
   PrecipObservation,
   PrecipProviderId,
@@ -50,6 +51,8 @@ export interface PerformanceStore {
   syncStations(stations: readonly ObservationStation[], catalogDate: string): Promise<void>;
   listStations(): Promise<ObservationStation[]>;
   saveCapture(capture: ForecastCapture): Promise<CaptureWriteResult>;
+  /** Insert one Morning Capture; an existing one for the station and date is kept. */
+  saveMorningCapture(capture: MorningCapture): Promise<CaptureWriteResult>;
   saveObservation(observation: PrecipObservation): Promise<void>;
   loadCompletedComparisons(
     stationId: string,
@@ -69,6 +72,7 @@ const clone = <T>(value: T): T => structuredClone(value);
 export class InMemoryPerformanceStore implements PerformanceStore {
   readonly #stations = new Map<string, ObservationStation>();
   readonly #captures = new Map<string, ForecastCapture>();
+  readonly #morningCaptures = new Map<string, MorningCapture>();
   readonly #observations = new Map<string, PrecipObservation>();
   readonly #seedComparisons = new Map<string, SeedComparison>();
 
@@ -117,6 +121,20 @@ export class InMemoryPerformanceStore implements PerformanceStore {
     if (this.#captures.has(key)) return "existing";
     this.#captures.set(key, clone(capture));
     return "inserted";
+  }
+
+  async saveMorningCapture(capture: MorningCapture): Promise<CaptureWriteResult> {
+    const key = `${capture.stationId}:${capture.targetDate}`;
+    if (this.#morningCaptures.has(key)) return "existing";
+    this.#morningCaptures.set(key, clone(capture));
+    return "inserted";
+  }
+
+  async loadMorningCaptures(stationId: string): Promise<MorningCapture[]> {
+    return Array.from(this.#morningCaptures.values())
+      .filter((capture) => capture.stationId === stationId)
+      .sort((a, b) => a.targetDate.localeCompare(b.targetDate))
+      .map(clone);
   }
 
   async saveObservation(observation: PrecipObservation): Promise<void> {

@@ -128,7 +128,8 @@ npm run performance:catalog                     # regenerate the fallback statio
 | `backfill.ts` | One-shot offline backfill orchestration |
 | `stationCatalog.ts` | Generated fallback ASOS catalog — never hand-edited |
 | `capture.ts` | Freeze one station/cohort prediction |
-| `batch.ts` | Nationwide bounded live cohort run |
+| `morning.ts` | Freeze one station's rest-of-today hourly chances at the Morning Slot |
+| `batch.ts` | Nationwide bounded live cohort or Morning Slot run |
 | `influence.ts` | Effective Influence and the blend it produces |
 | `../providers/selection.ts` | Active provider membership and daily eligibility shared by serving and capture |
 | `stations.ts` | Station Match against distance and elevation gates |

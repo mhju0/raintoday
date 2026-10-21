@@ -29,14 +29,16 @@ health monitoring also accepts manual read-only checks. It flags a missing compl
 measured from when the last one finished, and a missing health check after 10 hours, including disabled workflows. The evening
 collection is triggered at 12:40 KST and shows as in progress, in its `wait` job, until
 18:10 KST; that is not a hang. When GitHub starts it after 18:10 the wait is zero and the
-capture is late (October 13, 2026: started 20:06 KST). The workflow also
+capture is late (October 13, 2026: started 20:06 KST). `morning-forecast` is triggered at
+01:30 KST and waits in the same way until 07:00 KST; it is flagged after 30 hours without a
+completed scheduled run. The workflow also
 creates weekly and monthly review issues; an unfinished checklist remains open
 instead of being duplicated. Check off each task with evidence before closing it.
 
 Service health now flags even one missing provider. The site can remain usable
 while this check is red. A collection failure still refuses faulted forecast captures.
 
-- Weekly: inspect failed `local-performance` and `service-health` runs, provider gaps,
+- Weekly: inspect failed `local-performance`, `morning-forecast` and `service-health` runs, provider gaps,
   Dependabot PRs and Vercel/Neon usage. A green capture can still omit faulted stations.
 - Monthly and before significant data changes: take a private backup and restore it to
   an isolated database. Check provider accounts' credential expiry dates and quotas.
@@ -204,7 +206,9 @@ incident-response procedure take precedence.
 ## Credentials and request limits
 
 Vercel production and preview use `raintoday_web`, a SELECT-only PostgreSQL role with
-access to the four performance tables. The serving adapter also requests read-only
+access to the four performance tables. It has no grant on
+`performance_morning_captures`, which nothing served reads yet; grant SELECT when the
+scoring record starts reading it. The serving adapter also requests read-only
 sessions, a 15-second statement timeout and a 10-second idle transaction timeout.
 GitHub Actions retains the separate collector credential. Only scheduled collection needs
 `KMA_APIHUB_KEY` and `KMA_OBSERVATION_API_KEY`; they do not belong in Vercel.
@@ -234,6 +238,12 @@ only. That is the documented reason the September 6 forecast probe returned HTTP
 the key was never approved for forecast endpoints, so no expiry or rotation would have
 changed the result. Treat the apihub forecast fallback as unavailable until a
 corresponding 활용신청 is approved.
+
+Pirate Weather allows 10,000 calls a month. Collection spends one per station per run:
+two cohorts and the Morning Slot are 291 a day, about 9,000 in a 31-day month, before
+visitors and health checks. `service-health` budgets that burn plus a 1,000-call reserve, so
+its quota check can fail early in a long month on the free allowance. A 429 faults every
+capture that run, cohort and morning alike.
 
 Application limits are process-local. The Vercel firewall's **Dynamic request volume**
 rule observes `/api/` traffic above 150 requests per IP per 60 seconds. On October 13,
