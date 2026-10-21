@@ -1267,7 +1267,8 @@ start landing late, `captured_at` shows it and that choice can be revisited.
 - Grading needs hourly ASOS rainfall. The data.go.kr key answered
   `SERVICE_KEY_IS_NOT_REGISTERED_ERROR` for 기상청_지상(종관, ASOS) 시간자료 조회서비스 on
   2026-10-21; the owner applies.
-- Pirate Weather's free 10,000 calls a month against a 291-a-day collection burn. Owner
-  decision before merge.
+- Pirate Weather is left out of the Morning Slot (owner, 2026-10-21). Its free 10,000 calls
+  a month would not cover 291 a day plus visitors, and a 429 faults every capture. Morning
+  Captures compare four providers; re-admitting Pirate Weather needs a paid tier.
 - The 18 cohort counts as "the evening before" only from target date 2026-10-15; earlier
   evening captures were taken between 00:20 and 03:23 KST.

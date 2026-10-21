@@ -51,7 +51,19 @@ function koreanDateAndHour(date: Date): { date: string; hour: number } {
   return { date: `${parts.year}-${parts.month}-${parts.day}`, hour: Number(parts.hour) };
 }
 
-const compared = new Set<string>(COMPARED_PROVIDER_IDS);
+/**
+ * Compared providers the Morning Slot never reads. Pirate Weather's free 10,000
+ * calls a month cover the two cohorts but not a third daily run, and a 429 would
+ * fault every capture, cohort and morning alike. Decision 2026-10-21.
+ */
+export const MORNING_SKIPPED_PROVIDERS: ReadonlySet<string> = new Set(["pirate-weather"]);
+
+const compared = new Set<string>(
+  COMPARED_PROVIDER_IDS.filter((id) => !MORNING_SKIPPED_PROVIDERS.has(id)),
+);
+
+/** The registry's providers the Morning Slot reads, in serving order. */
+export const morningProviders = forecastProviders.filter((provider) => compared.has(provider.id));
 
 function validProbability(value: number | null | undefined): value is number {
   return value !== null && value !== undefined && Number.isFinite(value) && value >= 0 && value <= 100;
@@ -77,7 +89,7 @@ export function morningWindowHours(
 }
 
 async function readAllForecasts(location: ForecastLocation): Promise<ProviderSnapshot[]> {
-  return Promise.all(forecastProviders.map((provider) => provider.read(location)));
+  return Promise.all(morningProviders.map((provider) => provider.read(location)));
 }
 
 /** Freeze one station's rain chances for the rest of today before any of it is observed. */

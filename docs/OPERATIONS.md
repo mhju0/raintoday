@@ -239,11 +239,10 @@ the key was never approved for forecast endpoints, so no expiry or rotation woul
 changed the result. Treat the apihub forecast fallback as unavailable until a
 corresponding 활용신청 is approved.
 
-Pirate Weather allows 10,000 calls a month. Collection spends one per station per run:
-two cohorts and the Morning Slot are 291 a day, about 9,000 in a 31-day month, before
-visitors and health checks. `service-health` budgets that burn plus a 1,000-call reserve, so
-its quota check can fail early in a long month on the free allowance. A 429 faults every
-capture that run, cohort and morning alike.
+Pirate Weather allows 10,000 calls a month. Collection spends one per station per cohort
+run, 194 a day. The Morning Slot does not read Pirate Weather (`MORNING_SKIPPED_PROVIDERS`
+in `lib/performance/morning.ts`): a third run would bring the burn to about 9,000 in a
+31-day month, and a 429 faults every capture. Re-admitting it needs a paid tier first.
 
 Application limits are process-local. The Vercel firewall's **Dynamic request volume**
 rule observes `/api/` traffic above 150 requests per IP per 60 seconds. On October 13,

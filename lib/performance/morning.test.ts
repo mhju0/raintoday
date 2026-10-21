@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { HourlyForecast, ProviderSnapshot } from "../types.ts";
-import { captureStationMorningForecast, morningWindowHours } from "./morning.ts";
+import { captureStationMorningForecast, morningProviders, morningWindowHours } from "./morning.ts";
 import { InMemoryPerformanceStore } from "./store.ts";
 import type { ObservationStation } from "./types.ts";
 
@@ -171,4 +171,25 @@ test("a later read never replaces the morning's frozen forecast", async () => {
   const [stored] = await store.loadMorningCaptures("108");
   assert.equal(stored.providers[0].probability, 20);
   assert.equal(stored.capturedAt, SEVEN_AM.toISOString());
+});
+
+test("the Morning Slot never reads Pirate Weather, whose free quota covers only the cohorts", async () => {
+  assert.deepEqual(
+    morningProviders.map((provider) => provider.id),
+    ["open-meteo", "kma", "weather-api", "visual-crossing"],
+  );
+  // Even handed one, a Pirate Weather snapshot neither counts nor faults the capture.
+  const store = new InMemoryPerformanceStore();
+  await store.syncStations([station], "2026-10-22");
+  const result = await captureStationMorningForecast({
+    station,
+    now: SEVEN_AM,
+    store,
+    readForecasts: async () => [
+      snapshot("open-meteo", [hour("2026-10-22T09:00:00+09:00", 40)]),
+      snapshot("pirate-weather", [], "error"),
+    ],
+  });
+  assert.equal(result.status, "inserted");
+  assert.deepEqual(result.capture?.providers.map((forecast) => forecast.provider), ["open-meteo"]);
 });
