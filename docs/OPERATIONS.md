@@ -248,9 +248,8 @@ in `lib/performance/morning.ts`): a third run would bring the burn to about 9,00
 31-day month, and a 429 faults every capture. Re-admitting it needs a paid tier first.
 
 Application limits are process-local. The Vercel firewall's **Dynamic request volume**
-rule observes `/api/` traffic above 150 requests per IP per 60 seconds. On October 13,
-2026 it still logged rather than blocked and had logged nothing in the past day. On the
-Hobby plan the 429 action requires Pro; the dashboard offers Deny (403) without it. Inspect the [firewall traffic](https://vercel.com/mhju0s-projects/raintoday/firewall)
+rule answers `/api/` traffic above 150 requests per IP per 60 seconds with Deny (403); the
+owner switched it from Log on October 21, 2026. The 429 action requires the Pro plan. Inspect the [firewall traffic](https://vercel.com/mhju0s-projects/raintoday/firewall)
 before changing enforcement. Test a restrictive rule in preview before production.
 Vercel counters are regional; neither these rules nor caches guarantee a provider budget.
 

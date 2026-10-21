@@ -187,5 +187,5 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 
 - 2.3.0 (PR #223, `067b343`): main CI passed, production serves the merge commit, tag and release published. First scheduled Morning Capture is 2026-10-22, unverified.
 - The owner's 시간자료 활용신청 was approved (expires 2028-10-21). The morning run now reads hourly rainfall for the two newest complete days after all captures. Evidence for the hour convention, the one-day publication lag and flag 9: `docs/DECISIONS.md`, third 2026-10-21 entry.
-- Firewall: shown the owner where the Dynamic request volume rule is (Firewall → Rules → Project rules); still Log until the owner saves Deny.
+- Firewall: the owner switched the Dynamic request volume rule from Log to Deny (403); the Rules page confirms it. OPERATIONS updated.
 - Next: merge and release 2.3.1; verify the 10-22 morning run (captures at 07:00, hourly rows for 10-19..10-20); part 3 grading.
