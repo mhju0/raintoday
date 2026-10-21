@@ -35,6 +35,8 @@ Learned influence requires at least 30 comparable captures per provider, with bo
 
 The Prospective Benchmark compares adaptive and equal forecasts stored before the outcome. It passes when enough comparable samples exist and the adaptive Brier score is no worse than the equal score, including ties. Insufficient samples or regression suspend learned weighting. The condition is checked when evidence is read.
 
+A separate [`morning-forecast`](../.github/workflows/morning-forecast.yml) workflow takes a Morning Capture at 07:00 KST: each provider's hourly rain chances from 07:00 to midnight for the same day, frozen before any of it falls. Pirate Weather is not read, to keep within its free monthly quota. It fires at 01:30 KST and waits for 07:00, like the evening trigger; a run GitHub starts after 07:00 still captures and keeps its real time. It reads no observation and nothing reads it back yet: grading needs hourly ASOS rainfall, which the KMA subscription does not cover (2026-10-21), and the scoring record does not show it.
+
 Learned influence applies only to tomorrow. Today and days 2–7 use equal-provider averages. These records do not yet establish that 오늘비 is more accurate overall across locations and seasons.
 
 ### Archive evidence while recent records accumulate
@@ -85,6 +87,8 @@ flowchart TB
   Schedule["06:10 and 18:10 KST workflow"] --> Catalog["KMA ASOS station catalog"]
   Schedule --> Captures["Immutable next-day provider captures"]
   Schedule --> Observations["Completed KMA ASOS observations"]
+  Morning["07:00 KST workflow"] --> Today["Immutable rest-of-today hourly captures"]
+  Today --> Database
   Catalog --> Database
   Captures --> Database
   Observations --> Database
@@ -97,7 +101,7 @@ flowchart TB
 | `lib/providers/` | Provider snapshots and the ordered registry shared by capture and serving |
 | `lib/performance/performance.ts` | Scores, evidence requirements, weights and the Prospective Benchmark |
 | `lib/performance/store.ts`, `postgres.ts` | Persistence contract and production adapter |
-| `lib/performance/capture.ts`, `batch.ts` | Immutable captures and nationwide collection |
+| `lib/performance/capture.ts`, `morning.ts`, `batch.ts` | Immutable cohort and Morning Captures, and nationwide collection |
 | `lib/performance/influence.ts` | Shared blend calculation for capture and serving |
 | `lib/performance/seed.ts`, `seedScore.ts`, `precipSkill.ts`, `backfill.ts` | Archive reconstruction, scoring and offline backfill |
 | `lib/localForecast.ts` | Coordinate forecasts, nearby-station evidence and shared record reads |

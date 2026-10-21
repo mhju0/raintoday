@@ -32,6 +32,14 @@ _Avoid_: Nearest station, local truth
 One next-day forecast issue group, named for the scheduled 06 or 18 KST slot it belongs to. Cohorts are evaluated independently. The label identifies the slot, not the clock hour a capture was taken at: the scheduler is best-effort and can start a run hours late, so lead time varies within a cohort. The Recent Performance Profile measures that spread rather than assuming it away.
 _Avoid_: Morning data, forecast batch, fixed issue hour
 
+**Morning Capture**:
+One immutable set of provider rain chances for the rest of the day, hour by hour from 07:00 to midnight KST, taken at the Morning Slot for an Observation Station before any of that rain is observed. It leaves out Pirate Weather, whose free quota covers only the cohorts. It targets the day it is taken on, has no Capture Cohort and no learned blend, and is stored apart from Forecast Captures. It is graded against hourly observations for its window, never the day's total.
+_Avoid_: 07 cohort, same-day cohort, today's capture
+
+**Morning Slot**:
+07:00 KST, the moment a reader decides about an umbrella for the day. A Morning Capture keeps the time it was actually taken; one taken well after the slot is a different, easier forecast.
+_Avoid_: Morning cohort
+
 **Forecast Capture**:
 One immutable set of next-day provider predictions and prospectively frozen blend outputs for an Observation Station and Capture Cohort.
 _Avoid_: Current forecast, historical API response

@@ -1193,3 +1193,82 @@ two empty answers.
 
 **Limits.** Why KMA answers this way is not known, nor whether it will last. If more than
 three issues in a row are empty, KMA is still absent.
+
+---
+
+## 2026-10-21 — A stated chance should match how often it rains
+
+**Status: ACTIVE (owner direction; no behaviour change yet)**
+
+**Decided.** The owner wants 오늘비 to state rain plainly, without leaning toward rain to
+avoid blame for a miss. The rule: when the page says a chance, it should rain about that
+often. A missed rain matters more to a reader than an unneeded umbrella, but that is the
+reader's call from an honest number, not a reason to inflate it. Changes to the blend are
+judged on rainy and dry days separately as well as overall, and on calibration.
+
+**Grading moment.** People check rain the evening before and the morning of the day they go
+out. Accuracy should be graded on the forecasts available at those two moments. The 18
+cohort is the evening-before forecast. The 06 cohort is taken the morning of the day before,
+roughly a day and a half ahead, which is not a moment the owner optimises for. Nothing
+captures the morning-of forecast, and today's umbrella line is not scored.
+
+**Evidence read.** A read-only export on 2026-10-21 (10,373 captures, 97 stations, target
+dates 2026-08-20..10-19, 24% wet):
+
+- The served adaptive and equal blends differed by 0.1% in mean Brier; only 728 captures
+  had a provider more than a point above an equal share.
+- Both blends over-forecast mid-range chances: 30–50% was followed by rain about 21% of
+  the time; above 70%, 85%.
+- Recalibrating each provider and averaging made the blend timid: on the later half of the
+  dates it missed 28% of rainy days at the 40% line, against 13% today. Rejected.
+- Leaving KMA out of the blend improved rainy days in every two-week period and in both
+  cohorts. On dry days it was neutral after 2026-09-05 but clearly worse from 08-20 to
+  09-05, when the other providers averaged 43% on dry days and KMA 32%. Over the whole
+  period it is a trade, not a free gain, and one season is not enough to drop it. Not acted on.
+
+**Limits.** One late-summer and autumn season; little of 장마 is in the data. Daily
+blends only.
+
+---
+
+## 2026-10-21 — The forecast people see at 07:00 is captured at 07:00
+
+**Status: ACTIVE (2.3.0)**
+
+**Decided.** A new `morning-forecast` workflow takes a Morning Capture for every station:
+each compared provider's hourly rain chances from 07:00 to midnight KST on the same day,
+frozen before any of it falls, in a new `performance_morning_captures` table. It fires at
+01:30 KST and waits for 07:00, the evening trigger's method. Nothing is graded or shown yet.
+
+**Why.** The owner wants accuracy graded at the moments people check: the evening before and
+the morning of. The 18 cohort covers the evening. Nothing covered the morning, and today's
+umbrella line has never been scored. GitHub cannot be trusted to start at 07:00: the 06:10
+cron started 110–183 minutes late on every run from October 16 to 21, and the 06 cohort's
+captures landed between 08:00 and 11:32. The evening trigger's early fire and wait has
+landed at 18:10 KST on six of seven days since 2.2.2 and at 18:18 on the seventh.
+
+**Why not an outside scheduler.** It would place a GitHub token with a third party and add
+an account to watch, to fix a problem the early fire already fixes. If morning captures
+start landing late, `captured_at` shows it and that choice can be revisited.
+
+**Shape.**
+- A separate table, not a third cohort. The cohort `check` constraint is never altered on an
+  existing database, a cohort targets tomorrow, and this window must be graded against
+  hourly rainfall rather than the day's total.
+- Hours, not one number. A provider's window chance is its highest hour, matching how a
+  daily chance is the day's highest, and the hours are kept so the umbrella line's own rule
+  can be replayed later.
+- Same refusal as a cohort: a provider read fault stores nothing for that station.
+- No learned blend. Only the equal blend is frozen; learned weights apply to tomorrow only.
+- A manual run is refused outside 07:00–08:59 KST without `--force`; a scheduled run that
+  starts late still captures and keeps its real time.
+
+**Still open.**
+- Grading needs hourly ASOS rainfall. The data.go.kr key answered
+  `SERVICE_KEY_IS_NOT_REGISTERED_ERROR` for 기상청_지상(종관, ASOS) 시간자료 조회서비스 on
+  2026-10-21; the owner applies.
+- Pirate Weather is left out of the Morning Slot (owner, 2026-10-21). Its free 10,000 calls
+  a month would not cover 291 a day plus visitors, and a 429 faults every capture. Morning
+  Captures compare four providers; re-admitting Pirate Weather needs a paid tier.
+- The 18 cohort counts as "the evening before" only from target date 2026-10-15; earlier
+  evening captures were taken between 00:20 and 03:23 KST.

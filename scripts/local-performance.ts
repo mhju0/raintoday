@@ -3,6 +3,7 @@ import {
   assertCaptureProvidersConfigured,
   cohortRunFailed,
   manualCohortHourMismatch,
+  manualMorningHourMismatch,
   resolveCaptureCohort,
 } from "../lib/performance/cli.ts";
 import { failureDetail } from "../lib/performance/errorDetail.ts";
@@ -10,11 +11,13 @@ import { PostgresPerformanceStore } from "../lib/performance/postgres.ts";
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
-  const cohort = resolveCaptureCohort(argv);
+  // `--morning` freezes the rest of today at the Morning Slot instead of a cohort.
+  const morning = argv.includes("--morning");
+  const cohort = morning ? null : resolveCaptureCohort(argv);
   const now = new Date();
   // A delayed scheduled run still writes; a hand-picked label the clock
   // contradicts does not. See #118.
-  const mismatch = manualCohortHourMismatch(argv, now);
+  const mismatch = morning ? manualMorningHourMismatch(argv, now) : manualCohortHourMismatch(argv, now);
   if (mismatch) throw new Error(mismatch);
   if (argv.includes("--require-all-providers")) assertCaptureProvidersConfigured();
   const connectionUrl = process.env.PERFORMANCE_DATABASE_URL?.trim();
@@ -23,8 +26,10 @@ async function main(): Promise<void> {
     retryConnectionFailures: true,
   });
   try {
-    const result = await runPerformanceBatch({ cohort, now, store });
-    console.log(JSON.stringify({ cohort, ...result }, null, 2));
+    const result = cohort === null
+      ? await runPerformanceBatch({ morning: true, now, store })
+      : await runPerformanceBatch({ cohort, now, store });
+    console.log(JSON.stringify({ slot: cohort ?? "morning", ...result }, null, 2));
     // 97 stations failing the same way prints 97 near-identical entries, which
     // buries the one thing worth reading: what actually went wrong, and how often.
     if (result.failures.length > 0) {

@@ -5,8 +5,9 @@ import { DEFAULT_FAILURE_RETRY_MS } from "../cache.ts";
 // run 35351001382 reported `4 x observation: ` and failed a 93-of-97 cohort on a
 // reason nobody could read. Observations have zero fault tolerance. See #170.
 import { failureDetail as failureMessage } from "./errorDetail.ts";
-import { captureStationForecast } from "./capture.ts";
+import { captureStationForecast, type CaptureStationResult } from "./capture.ts";
 import { fetchAsosObservation, fetchKmaAsosStations, type AsosObservationRead } from "./kma.ts";
+import { captureStationMorningForecast, type MorningCaptureResult } from "./morning.ts";
 import type { PerformanceStore } from "./store.ts";
 import type { CaptureCohort, ObservationStation } from "./types.ts";
 
@@ -51,8 +52,14 @@ export interface PerformanceBatchResult {
   catalogError: string | null;
 }
 
-interface PerformanceBatchInput {
-  cohort: CaptureCohort;
+/**
+ * Which forecast the pass freezes. A cohort reads one published observation day
+ * and captures the next day; the Morning Slot captures the rest of today and reads
+ * no observation, because nothing it will be graded on has happened yet.
+ */
+type BatchSlot = { cohort: CaptureCohort; morning?: never } | { morning: true; cohort?: never };
+
+type PerformanceBatchInput = BatchSlot & {
   now: Date;
   store: PerformanceStore;
   fetchStations?: (at: Date) => Promise<ObservationStation[]>;
@@ -64,7 +71,7 @@ interface PerformanceBatchInput {
   readForecasts?: (location: ForecastLocation) => Promise<ProviderSnapshot[]>;
   concurrency?: number;
   retryDelay?: (ms: number) => Promise<void>;
-}
+};
 
 function koreanDate(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -178,7 +185,8 @@ export async function runPerformanceBatch(
     catalogSource,
     catalogError,
   };
-  const targetObservationDate = observationDate(input.cohort, input.now);
+  const cohort = input.morning ? null : input.cohort;
+  const targetObservationDate = cohort === null ? null : observationDate(cohort, input.now);
   const fetchObservation = input.fetchObservation ?? fetchAsosObservation;
   const concurrency = Math.max(1, Math.min(input.concurrency ?? 4, stations.length || 1));
   type RetryCandidate = {
@@ -223,6 +231,7 @@ export async function runPerformanceBatch(
     station: ObservationStation,
     retry?: RetryCandidate,
   ): Promise<void> => {
+    if (targetObservationDate === null) return;
     let read: AsosObservationRead;
     try {
       read = await fetchObservation(station.id, targetObservationDate, input.now);
@@ -299,13 +308,20 @@ export async function runPerformanceBatch(
     retry?: RetryCandidate,
   ): Promise<void> => {
     try {
-      const capture = await captureStationForecast({
-        station,
-        cohort: input.cohort,
-        now: input.now,
-        store: input.store,
-        readForecasts: input.readForecasts,
-      });
+      const capture: CaptureStationResult | MorningCaptureResult = cohort === null
+        ? await captureStationMorningForecast({
+          station,
+          now: input.now,
+          store: input.store,
+          readForecasts: input.readForecasts,
+        })
+        : await captureStationForecast({
+          station,
+          cohort,
+          now: input.now,
+          store: input.store,
+          readForecasts: input.readForecasts,
+        });
       const completedAt = ++captureSequence;
       if (capture.status !== "faulted") latestCaptureProgress = completedAt;
       if (!retry) {
@@ -366,8 +382,11 @@ export async function runPerformanceBatch(
     // A proven-down source is not called again. Everything it would have read is
     // counted as unattempted, which is neither a failed read nor an absence — an
     // absence is a claim about the weather record and this makes no such claim.
-    if (health.observation.down) result.observationsAbandoned += 1;
-    else await processObservation(station);
+    // The Morning Slot reads no observation, so it has nothing to abandon either.
+    if (targetObservationDate !== null) {
+      if (health.observation.down) result.observationsAbandoned += 1;
+      else await processObservation(station);
+    }
     if (health.capture.down) result.capturesAbandoned += 1;
     else await processCapture(station);
   });

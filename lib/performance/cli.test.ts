@@ -8,6 +8,8 @@ import {
   CAPTURE_FAULT_TOLERANCE,
   cohortRunFailed,
   manualCohortHourMismatch,
+  manualMorningHourMismatch,
+  MORNING_SCHEDULE,
   OUTAGE_SAFE_COHORT_LIMIT,
   resolveCaptureCohort,
   SCHEDULE_COHORTS,
@@ -148,22 +150,22 @@ test("the capture workflow passes every credential the capture path reads", () =
   }
   assert.ok(read.size > 0, "found no credentials to check — the scan is broken");
 
-  const workflow = readFileSync(
-    join(root, ".github", "workflows", "local-performance.yml"),
-    "utf8",
-  );
-  const passed = new Set(
-    Array.from(
-      workflow.matchAll(/^\s*([A-Z][A-Z0-9_]*):\s*\$\{\{\s*secrets\./gm),
-      (match) => match[1],
-    ),
-  );
-  const missing = [...read].filter((name) => !passed.has(name)).sort();
-  assert.deepEqual(
-    missing,
-    [],
-    `the cohort reads ${missing.join(", ")} but the workflow never passes it`,
-  );
+  // The Morning Slot runs the same capture path from its own workflow.
+  for (const file of ["local-performance.yml", "morning-forecast.yml"]) {
+    const workflow = readFileSync(join(root, ".github", "workflows", file), "utf8");
+    const passed = new Set(
+      Array.from(
+        workflow.matchAll(/^\s*([A-Z][A-Z0-9_]*):\s*\$\{\{\s*secrets\./gm),
+        (match) => match[1],
+      ),
+    );
+    const missing = [...read].filter((name) => !passed.has(name)).sort();
+    assert.deepEqual(
+      missing,
+      [],
+      `the capture reads ${missing.join(", ")} but ${file} never passes it`,
+    );
+  }
 });
 
 test("the capture workflow makes five spaced fresh-runner attempts, identically credentialled", () => {
@@ -519,7 +521,10 @@ test("only a cron fired ahead of its slot waits; the morning run and a dispatch 
 
 test("every early-fired cron is a known capture cron and its wait fits one runner job", () => {
   for (const [cron, opensAtKstMinute] of Object.entries(SCHEDULE_SLOT_OPENS)) {
-    assert.ok(cron in SCHEDULE_COHORTS, `${cron} waits for a slot but resolves to no cohort`);
+    assert.ok(
+      cron in SCHEDULE_COHORTS || cron === MORNING_SCHEDULE,
+      `${cron} waits for a slot but is neither a cohort cron nor the Morning Slot's`,
+    );
     const [minute, hour] = cron.split(" ").map(Number);
     const firesAt = new Date(Date.UTC(2026, 9, 12, hour, minute));
     const longest = secondsUntilSlotOpens([`--schedule=${cron}`], firesAt);
@@ -543,4 +548,66 @@ test("the capture workflow holds its first attempt behind the slot wait without 
   assert.match(first, /needs: wait/);
   // A wait that failed or timed out must not cost the capture it was pacing.
   assert.match(first, /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
+});
+
+const morningWorkflow = (): string => readFileSync(
+  join(import.meta.dirname, "..", "..", ".github", "workflows", "morning-forecast.yml"),
+  "utf8",
+);
+
+test("the morning workflow fires on the Morning Slot's cron and nothing else", () => {
+  const crons = Array.from(morningWorkflow().matchAll(/^\s*-\s*cron:\s*"([^"]+)"/gm), (m) => m[1]);
+  assert.deepEqual(crons, [MORNING_SCHEDULE]);
+  assert.ok(!(MORNING_SCHEDULE in SCHEDULE_COHORTS), "the Morning Slot must not resolve to a cohort");
+});
+
+test("the Morning Slot waits from its early fire until 07:00 KST, and a late start does not wait", () => {
+  const argv = [`--schedule=${MORNING_SCHEDULE}`];
+  const at = (time: string) => new Date(`2026-10-22T${time}+09:00`);
+  assert.equal(secondsUntilSlotOpens(argv, at("01:30:00")), 330 * 60);
+  assert.equal(secondsUntilSlotOpens(argv, at("04:00:00")), 180 * 60);
+  assert.equal(secondsUntilSlotOpens(argv, at("07:00:00")), 0);
+  assert.equal(secondsUntilSlotOpens(argv, at("09:15:00")), 0);
+  // A manual dispatch carries an empty schedule and never waits.
+  assert.equal(secondsUntilSlotOpens(["--schedule="], at("04:00:00")), 0);
+});
+
+test("a manual Morning Capture runs only in the morning; a late scheduled one always runs", () => {
+  const at = (time: string) => new Date(`2026-10-22T${time}+09:00`);
+  assert.equal(manualMorningHourMismatch(["--schedule="], at("07:05:00")), null);
+  assert.equal(manualMorningHourMismatch(["--schedule="], at("08:59:00")), null);
+  assert.match(manualMorningHourMismatch(["--schedule="], at("14:00:00")) ?? "", /7:00 and 8:59 KST/);
+  assert.match(manualMorningHourMismatch([], at("06:30:00")) ?? "", /Morning Capture/);
+  assert.equal(manualMorningHourMismatch(["--schedule=", "--force"], at("14:00:00")), null);
+  assert.equal(manualMorningHourMismatch([`--schedule=${MORNING_SCHEDULE}`], at("11:30:00")), null);
+});
+
+test("the morning workflow holds its first attempt behind the wait and spaces three identical attempts", () => {
+  const workflow = morningWorkflow();
+  const jobsBody = workflow.slice(workflow.indexOf("\njobs:"));
+  const jobNames = Array.from(jobsBody.matchAll(/^ {2}([a-z][\w-]*):$/gm), (m) => m[1]);
+  assert.deepEqual(jobNames, ["wait", "capture_1", "capture_2", "capture_3", "verdict"]);
+  const bodyOf = (name: string): string => {
+    const start = jobsBody.indexOf(`\n  ${name}:\n`);
+    const rest = jobsBody.slice(start + 1);
+    const next = rest.slice(1).search(/^ {2}[a-z][\w-]*:$/m);
+    return next < 0 ? rest : rest.slice(0, next + 1);
+  };
+  const wait = bodyOf("wait");
+  assert.match(wait, /performance-slot-wait\.ts --schedule="\$SCHEDULE"/);
+  assert.match(wait, /continue-on-error: true/);
+  assert.match(wait, /timeout-minutes: 345/);
+  assert.match(bodyOf("capture_1"), /needs: wait/);
+  assert.match(bodyOf("capture_1"), /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
+  assert.match(bodyOf("capture_2"), /needs:\s*capture_1/);
+  assert.match(bodyOf("capture_3"), /needs:\s*\[capture_1, capture_2\]/);
+  assert.match(bodyOf("capture_2"), /ATTEMPT_OFFSET_SECONDS: "600"/);
+  assert.match(bodyOf("capture_3"), /ATTEMPT_OFFSET_SECONDS: "1500"/);
+  const secretsOf = (name: string): string[] =>
+    Array.from(bodyOf(name).matchAll(/^\s*([A-Z][A-Z0-9_]*):\s*\$\{\{\s*secrets\./gm), (m) => m[1]).sort();
+  for (const name of ["capture_1", "capture_2", "capture_3"]) {
+    assert.match(bodyOf(name), /--morning/, `${name} must capture the Morning Slot`);
+    assert.match(bodyOf(name), /--require-all-providers/, `${name} must refuse a missing provider key`);
+    assert.deepEqual(secretsOf(name), secretsOf("capture_1"), `${name} is credentialled differently`);
+  }
 });

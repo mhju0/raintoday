@@ -48,11 +48,11 @@ async function syncIssue(key: string, title: string, body: string | null) {
 }
 
 const now = Date.now();
-for (const [workflow, hours] of [["local-performance", 18], ["service-health", 10]] as const) {
+for (const [workflow, hours] of [["local-performance", 18], ["morning-forecast", 30], ["service-health", 10]] as const) {
   const config = await api<{ state: string }>(`/actions/workflows/${workflow}.yml`);
   // A manual health check is a valid fresh probe. A manual collection must not
-  // conceal a missed scheduled cohort.
-  const event = workflow === "local-performance" ? "&event=schedule" : "";
+  // conceal a missed scheduled cohort or Morning Slot.
+  const event = workflow === "service-health" ? "" : "&event=schedule";
   const { workflow_runs: runs } = await api<{ workflow_runs: MaintenanceRun[] }>(`/actions/workflows/${workflow}.yml/runs?branch=main${event}&per_page=20`);
   const finding = assessRuns(runs, now, hours);
   // Record where the attempts died while the incident is open. This issue closes
