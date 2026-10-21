@@ -137,39 +137,14 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - No evening collection ran on 2026-10-12: the 2.2.2 merge removed the 18:10 cron after that day's 12:40 cron had passed. The evening group has no captures targeting 2026-10-13; not recoverable.
 - Decisions and costs for all five: `docs/DECISIONS.md`, 2026-10-12 and 2026-10-13 entries.
 
-## 2026-10-13 — 2.2.7 released; outage alerts and Speed Insights (2.2.8 candidate)
+## 2026-10-13 — Summary: releases 2.2.8–2.2.10
 
-- 2.2.7 (PR #213, `42689e5`): main CI passed, production serves the merge commit, tag and release published.
-- Owner asked for four launch gaps to be closed: error reporting, outage alerts, measured speed, abuse protection.
-- Outage alerts: UptimeRobot monitor 804257727 checks `https://raintoday.vercel.app/` every 5 minutes and emails the owner's Outlook address. It checks the home page only, so a provider or database failure behind a 200 response is still left to `service:health`.
-- Measured speed: `@vercel/speed-insights` renders beside Analytics on Vercel only, with the same address stripping. It was already enabled in the Vercel project. One Lighthouse lab run on 2.2.7 (Seoul): desktop 100, simulated phone 65 (LCP 3.0 s, blocking time about 1 s); cause not diagnosed yet.
-- Abuse protection: nothing changed. The firewall's Dynamic request volume rule (`/api/`, 150 requests per IP per 60 s) still only logs, and logged nothing in the past day. Switching it to answer 429 awaits the owner.
-- Error reporting: not started. The owner's Sentry organisation has one project, `javascript-nextjs`; whether raintoday may use it is unanswered.
-- Release candidate: 2.2.8. Next: merge, confirm, tag; after real visits, read the Speed Insights tab; diagnose the phone score as a read-only audit. Open: the October 13 evening-run check (2.2.2 entry).
-
-## 2026-10-13 — 2.2.8 released; functions moved to Seoul (2.2.9 candidate)
-
-- 2.2.8 (PR #215, `05c3de8`): main CI passed, production serves the merge commit, tag and release published; the Speed Insights script loads on the live site.
-- Functions ran in `iad1` while visitors enter at `icn1`. `vercel.json` now sets `regions: ["icn1"]`; measurements and limits are in `docs/DECISIONS.md` (fourth 2026-10-13 entry). Production at the time blended three providers (no Open-Meteo, no KMA); the Seoul preview blended four or five.
-- Evening collection on 2026-10-13: GitHub started the 12:40 KST schedule at 20:06 KST, so the wait step held nothing and the capture is 1 h 56 min late; 95 of 97 stations stored, two Open-Meteo connection faults. The morning run started at 11:31 KST. The 2.2.2 early-start did not hold the slot that day; nothing changed yet.
-- Firewall: the owner approved switching the Dynamic request volume rule from Log to 429, but the agent's browser session was not permitted to change it. The owner does it in the dashboard.
-- Sentry: project `raintoday` created in the owner's organisation `michael-ju-46`; no code yet. Plan: browser errors only, loaded after the page is idle, address stripped of the place, no session recording.
-- Release candidate: 2.2.9. Next: merge, confirm `x-vercel-id` shows `icn1::icn1` on production and the provider count, tag; then Sentry as its own release. Open: phone-speed items not yet addressed (about 25 font files per visit; the home button's label mismatch).
-
-## 2026-10-13 — 2.2.9 released; browser error reporting (2.2.10 candidate)
-
-- 2.2.9 (PR #216, `edf9ba2`): main CI passed, production serves the merge commit and answers `icn1::icn1`; five forecast reads took 0.35–0.76 s after a 2.2 s first read; Open-Meteo is back in the blend. KMA was absent from the three cities read after deploy; cause not established.
-- Browser errors on the production host go to Sentry project `raintoday` (`instrumentation-client.ts`, `lib/errorReport.ts`). Scope, privacy treatment and limits: `docs/DECISIONS.md`, fifth 2026-10-13 entry.
-- While proving the browser test fails with the host check opened, one event ("browser test error", from 127.0.0.1) reached the Sentry project. It is test noise.
-- Release candidate: 2.2.10. Next: merge, confirm, tag; throw one error on the live site and read the stored event for the address and IP fields. Open: owner switches the firewall rule to 429; KMA absence after the region move; font count and the home button's label.
-
-## 2026-10-13 — 2.2.10 released; documentation corrected (2.2.11 candidate)
-
-- 2.2.10 (PR #217, `2eeb91c`): main CI passed, production serves the merge commit, tag and release published. A deliberate error on the live site, sent from a clean headless browser, reached Sentry with the place stripped and no user counted. The owner's own Chrome blocks Sentry requests.
-- Firewall: the 429 action needs the Pro plan and the owner declined to pay. The rule still logs. Deny (403) is offered on Hobby; the owner may save it.
-- KMA absence explained: KMA's 20:00 issue intermittently answered `NO_DATA` that night while the 17:00 issue was fine; not related to the region move (`docs/DECISIONS.md`, follow-up on the region entry). Possible fix, not approved: fall back to the previous issue when the chosen one is empty.
-- Documentation sweep at the owner's request: README names Sentry's approximate city; OPERATIONS lists the three outside monitors and the firewall's real state; the forecast contract, roadmap and operations notes say the evening run can still start after its slot; this file's header and current state were stale at v2.1.1.
-- Release candidate: 2.2.11. Open: evening slot punctuality (needs a trigger other than GitHub's scheduler; owner decision); KMA fallback; the owner's five-person test. Deferred by the owner: font count and the home button's label (phone speed is acceptable for now).
+- 2.2.8 (PR #215, `05c3de8`): Speed Insights on Vercel only; UptimeRobot monitor 804257727 checks the home page every 5 minutes (a provider or database failure behind a 200 is left to `service:health`).
+- 2.2.9 (PR #216, `edf9ba2`): functions moved to `icn1` via `vercel.json`; forecast reads 0.35–0.76 s and Open-Meteo back in the blend (`docs/DECISIONS.md`, fourth 2026-10-13 entry).
+- 2.2.10 (PR #217, `2eeb91c`): browser-only errors to Sentry project `raintoday`; a live test event arrived with the place stripped. The owner's own Chrome blocks Sentry.
+- Firewall: 429 needs the Pro plan (declined); the Dynamic request volume rule still logs; Deny (403) is the owner's to save.
+- The evening run on 2026-10-13 started at 20:06 KST, 1 h 56 min late, despite the early start. KMA's absence that night was its 20:00 issue answering `NO_DATA` (fixed in 2.2.12).
+- Deferred by the owner: font count (about 25 font files per visit) and the home button's label.
 
 ## 2026-10-14 — 2.2.11 released; KMA falls back to the previous issue (2.2.12 candidate)
 
@@ -199,3 +174,11 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 - Owner scoped the factual refresh to Raintoday across the repository README, portfolio and GitHub profile. README now dates the read-only production snapshot (9,712 captures, 5,529 observations, 97 stations), distinguishes scheduled from completed collection, and describes up to eight timeline blocks.
 - The dated Seoul morning benchmark displays Brier 0.088 for both blends over 52 comparisons; this is rounded local evidence, not an overall accuracy claim. Analytics privacy wording is narrowed to the supported cookie-free Web Analytics claim.
 - Owner approved the prepared updates and requested publication plus local/remote synchronization. The repository patch contains documentation and version metadata only; portfolio/profile publication is handled separately. The release procedure requires main CI and an exact production Git SHA readback before tagging. No new production collection is part of this work. Existing recovery/owner issues above remain open.
+
+## 2026-10-21 — Morning Capture at 07:00 KST (2.3.0 candidate, branch `feat/morning-of-capture`)
+
+- Read-only breakdown of 10,373 captures (08-20..10-19): the served adaptive and equal blends differ by 0.1% Brier; KMA is the weakest provider on wet days; both blends over-forecast 30–50% (verified about 21%). Dropping KMA trades dry-day for wet-day quality over the full period; not acted on.
+- Owner rules recorded in `docs/DECISIONS.md` (2026-10-21): a stated chance should match how often it rains, never inflated to be safe; grade the evening-before and the morning-of forecasts, because those are when people check.
+- Built: `morning-forecast.yml` fires at 01:30 KST and waits to 07:00 (GitHub's morning cron ran 110–183 min late), then freezes each station's hourly chances from 07:00 to midnight in `performance_morning_captures`. Not graded yet. Verify, the real-Postgres contract (31/31) and a live five-provider dry run passed.
+- Open before merge: Pirate Weather at 291 calls/day exceeds the 10,000/month free tier with the 1,000 reserve. The owner chooses a paid tier, Pirate out of the morning slot, or accepting the risk.
+- Next: Part 2, hourly ASOS rainfall. It needs the owner's 활용신청 for 기상청_지상(종관, ASOS) 시간자료 조회서비스; the current key answers `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`. Part 3: grade by moment, exclude late captures, show calibration on /behind-the-data, and grant `raintoday_web` SELECT on the new table.
