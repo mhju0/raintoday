@@ -1193,3 +1193,38 @@ two empty answers.
 
 **Limits.** Why KMA answers this way is not known, nor whether it will last. If more than
 three issues in a row are empty, KMA is still absent.
+
+---
+
+## 2026-10-21 — A stated chance should match how often it rains
+
+**Status: ACTIVE (owner direction; no behaviour change yet)**
+
+**Decided.** The owner wants 오늘비 to state rain plainly, without leaning toward rain to
+avoid blame for a miss. The rule: when the page says a chance, it should rain about that
+often. A missed rain matters more to a reader than an unneeded umbrella, but that is the
+reader's call from an honest number, not a reason to inflate it. Changes to the blend are
+judged on rainy and dry days separately as well as overall, and on calibration.
+
+**Grading moment.** People check rain the evening before and the morning of the day they go
+out. Accuracy should be graded on the forecasts available at those two moments. The 18
+cohort is the evening-before forecast. The 06 cohort is taken the morning of the day before,
+roughly a day and a half ahead, which is not a moment the owner optimises for. Nothing
+captures the morning-of forecast, and today's umbrella line is not scored.
+
+**Evidence read.** A read-only export on 2026-10-21 (10,373 captures, 97 stations, target
+dates 2026-08-20..10-19, 24% wet):
+
+- The served adaptive and equal blends differed by 0.1% in mean Brier; only 728 captures
+  had a provider more than a point above an equal share.
+- Both blends over-forecast mid-range chances: 30–50% was followed by rain about 21% of
+  the time; above 70%, 85%.
+- Recalibrating each provider and averaging made the blend timid: on the later half of the
+  dates it missed 28% of rainy days at the 40% line, against 13% today. Rejected.
+- Leaving KMA out of the blend improved rainy days in every two-week period and in both
+  cohorts. On dry days it was neutral after 2026-09-05 but clearly worse from 08-20 to
+  09-05, when the other providers averaged 43% on dry days and KMA 32%. Over the whole
+  period it is a trade, not a free gain, and one season is not enough to drop it. Not acted on.
+
+**Limits.** One late-summer and autumn season; little of 장마 is in the data. Daily
+blends only.
