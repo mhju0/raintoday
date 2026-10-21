@@ -1264,11 +1264,44 @@ start landing late, `captured_at` shows it and that choice can be revisited.
   starts late still captures and keeps its real time.
 
 **Still open.**
-- Grading needs hourly ASOS rainfall. The data.go.kr key answered
-  `SERVICE_KEY_IS_NOT_REGISTERED_ERROR` for 기상청_지상(종관, ASOS) 시간자료 조회서비스 on
-  2026-10-21; the owner applies.
+- Grading needs hourly ASOS rainfall. Approved and collected from 2.3.1; see the next entry.
 - Pirate Weather is left out of the Morning Slot (owner, 2026-10-21). Its free 10,000 calls
   a month would not cover 291 a day plus visitors, and a 429 faults every capture. Morning
   Captures compare four providers; re-admitting Pirate Weather needs a paid tier.
 - The 18 cohort counts as "the evening before" only from target date 2026-10-15; earlier
   evening captures were taken between 00:20 and 03:23 KST.
+
+## 2026-10-21 — Hourly ASOS rainfall is collected for the morning window (2.3.1)
+
+**Decision.** The morning run reads 기상청_지상(종관, ASOS) 시간자료 조회서비스 after every
+station's Morning Capture and stores one row per station and KMA day in
+`performance_hourly_observations`: 24 hours, each with its amount and KMA's `rnQcflg`.
+It reads the two newest complete days, so one failed morning is filled in by the next.
+Nothing grades against it yet.
+
+**What the service actually serves**, measured 2026-10-21 on the owner's key:
+- Rows are stamped by the hour they end. Grouping hours 01:00–24:00 matched the daily
+  `sumRn` on 300 of 300 station-days (10 stations, 2026-09-20 to 10-19); grouping
+  00:00–23:00 mismatched 23 times. A KMA day is therefore the `01:00` row through the next
+  date's `00:00` row, and the 07:00–24:00 window is hours 8 to 24 of one day.
+- It serves up to yesterday only (`resultCode 99`, "전날 자료까지 제공됩니다"). With the
+  closing `00:00` row, a day is complete two calendar days after it.
+- A blank `rn` is a dry hour. With no flag that is plain. With flag `9`, 12% of rows, it
+  is also dry: on the 85 station-days containing flag-9 hours the hours still summed to the
+  daily total, and of 447 flag-9 hours in five stations 441 fell outside every rain spell in
+  that day's logged weather (`iscs`); the other six touched only the edge minutes of brief
+  drizzle. `0.0` is a trace below the 0.1 mm threshold.
+
+**Shape.**
+- A blank hour under any other flag, and an hour with no row at all, is stored as unknown,
+  never dry. Flags are kept so the flag-9 reading can be revisited.
+- Captures run before any hourly read, so a slow ASOS cannot push a capture late. There is
+  no ASOS preflight for the same reason; an ASOS failure fails the run, and the next
+  attempt re-reads it (captures are first-write-wins, so the retry cannot change them).
+- Re-reads replace a day, as daily observations do; KMA can revise QC after publishing.
+- Same key as the daily observations; the subscription expires 2028-10-21 and is in
+  `CREDENTIAL_EXPIRIES`.
+
+**Still open.** Grading (part 3): map a provider hour starting at `HH:00` to the row ending
+`HH+1:00`, decide how an unknown hour affects a dry verdict, exclude late captures, and grant
+`raintoday_web` SELECT on both new tables before the scoring record reads them.

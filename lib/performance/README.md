@@ -133,7 +133,7 @@ npm run performance:catalog                     # regenerate the fallback statio
 | `influence.ts` | Effective Influence and the blend it produces |
 | `../providers/selection.ts` | Active provider membership and daily eligibility shared by serving and capture |
 | `stations.ts` | Station Match against distance and elevation gates |
-| `kma.ts` | ASOS station catalog, daily observations, and past observation windows |
+| `kma.ts` | ASOS station catalog, daily and hourly observations, and past observation windows |
 | `observations.ts` | One-shot backfill of ground truth the cohorts missed |
 | `store.ts` | Durable boundary and the in-memory adapter |
 | `postgres.ts` | Production adapter |

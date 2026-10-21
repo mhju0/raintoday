@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   fetchAsosObservation,
+  fetchAsosHourlyObservations,
   fetchAsosObservationWindow,
   fetchKmaAsosStations,
   parseKmaStationCatalog,
@@ -504,5 +505,119 @@ test("an OK envelope needs explicit zero count to mean no observation", async ()
     } });
     const result = await read(async () => new Response(empty, { status: 200 }));
     assert.equal(result.status, "absent");
+  });
+});
+
+const hourlyBody = (rows: { tm: string; rn: string; rnQcflg?: string }[], resultCode = "00"): string =>
+  JSON.stringify({
+    response: {
+      header: { resultCode, resultMsg: "test" },
+      body: {
+        dataType: "JSON",
+        totalCount: rows.length,
+        items: { item: rows.map((row) => ({ stnId: "108", rnQcflg: "", ...row })) },
+      },
+    },
+  });
+
+const readHourly = (body: string, requests: string[] = []) =>
+  fetchAsosHourlyObservations(
+    "108",
+    "2026-10-19",
+    "2026-10-20",
+    new Date("2026-10-22T07:00:00+09:00"),
+    async (url) => {
+      requests.push(String(url));
+      return new Response(body, { status: 200 });
+    },
+    async () => {},
+  );
+
+test("an hourly row is the hour it ends, so a KMA day runs from 01:00 to the next date's 00:00", async () => {
+  await withObservationKey(async () => {
+    const requests: string[] = [];
+    const read = await readHourly(hourlyBody([
+      { tm: "2026-10-19 01:00", rn: "" },
+      { tm: "2026-10-19 08:00", rn: "1.5" },
+      { tm: "2026-10-20 00:00", rn: "2.0" },
+      { tm: "2026-10-20 01:00", rn: "0.0" },
+      { tm: "2026-10-21 00:00", rn: "" },
+    ]), requests);
+
+    assert.equal(read.status, "observed");
+    assert.equal(requests.length, 1, "both days cost one request");
+    assert.match(requests[0], /dateCd=HR&startDt=20261019&startHh=01&endDt=20261021&endHh=00/);
+    const [first, second] = read.observations ?? [];
+    assert.equal(first.date, "2026-10-19");
+    assert.equal(first.hours.length, 24);
+    assert.deepEqual(first.hours[0], { mm: 0, qcFlag: null });
+    assert.deepEqual(first.hours[7], { mm: 1.5, qcFlag: null }, "08:00 is the rain from 07:00 to 08:00");
+    assert.deepEqual(first.hours[23], { mm: 2, qcFlag: null }, "the next date's 00:00 closes this day");
+    assert.equal(first.hours[1], null, "an hour with no row is unknown, never dry");
+    assert.equal(second.date, "2026-10-20");
+    assert.deepEqual(second.hours[0], { mm: 0, qcFlag: null });
+    assert.deepEqual(second.hours[23], { mm: 0, qcFlag: null });
+  });
+});
+
+test("a blank hour is dry under flag 9, but unknown under any other flag", async () => {
+  await withObservationKey(async () => {
+    const read = await readHourly(hourlyBody([
+      { tm: "2026-10-19 05:00", rn: "", rnQcflg: "9" },
+      { tm: "2026-10-19 06:00", rn: "", rnQcflg: "1" },
+      { tm: "2026-10-19 07:00", rn: "0.4", rnQcflg: "1" },
+    ]));
+    const hours = read.observations?.[0]?.hours ?? [];
+    assert.deepEqual(hours[4], { mm: 0, qcFlag: "9" });
+    assert.deepEqual(hours[5], { mm: null, qcFlag: "1" });
+    assert.deepEqual(hours[6], { mm: 0.4, qcFlag: "1" }, "a published amount is kept with its flag");
+  });
+});
+
+test("an hourly read ASOS refuses or garbles is a fault, never a dry day", async () => {
+  await withObservationKey(async () => {
+    const refused = await readHourly(hourlyBody([], "30"));
+    assert.equal(refused.status, "failed");
+    assert.match(refused.reason ?? "", /forbidden/);
+
+    // The service answers a date it has not published yet with code 99.
+    const early = await readHourly(hourlyBody([], "99"));
+    assert.equal(early.status, "failed");
+
+    const outside = await readHourly(hourlyBody([{ tm: "2026-10-21 01:00", rn: "" }]));
+    assert.equal(outside.status, "failed");
+    assert.match(outside.reason ?? "", /outside the requested range/);
+
+    const duplicate = await readHourly(hourlyBody([
+      { tm: "2026-10-19 08:00", rn: "" },
+      { tm: "2026-10-19 08:00", rn: "1.0" },
+    ]));
+    assert.equal(duplicate.status, "failed");
+
+    const invalid = await readHourly(hourlyBody([{ tm: "2026-10-19 08:00", rn: "-1" }]));
+    assert.equal(invalid.status, "failed");
+
+    const dropped = await fetchAsosHourlyObservations(
+      "108", "2026-10-19", "2026-10-20", new Date(),
+      async () => { throw new TypeError("fetch failed"); },
+      async () => {},
+    );
+    assert.equal(dropped.status, "failed");
+    assert.equal(dropped.retryable, true);
+  });
+});
+
+test("an hourly window with no rows is an absence, and a long one is refused before any request", async () => {
+  await withObservationKey(async () => {
+    const empty = await readHourly(hourlyBody([], "03"));
+    assert.equal(empty.status, "observed");
+    assert.deepEqual(empty.observations, []);
+
+    await assert.rejects(
+      fetchAsosHourlyObservations("108", "2026-10-01", "2026-10-10", new Date(), async () => {
+        throw new Error("must not request");
+      }),
+      /exceeds 3/,
+    );
   });
 });

@@ -6,7 +6,13 @@ import { DEFAULT_FAILURE_RETRY_MS } from "../cache.ts";
 // reason nobody could read. Observations have zero fault tolerance. See #170.
 import { failureDetail as failureMessage } from "./errorDetail.ts";
 import { captureStationForecast, type CaptureStationResult } from "./capture.ts";
-import { fetchAsosObservation, fetchKmaAsosStations, type AsosObservationRead } from "./kma.ts";
+import {
+  fetchAsosHourlyObservations,
+  fetchAsosObservation,
+  fetchKmaAsosStations,
+  type AsosHourlyRead,
+  type AsosObservationRead,
+} from "./kma.ts";
 import { captureStationMorningForecast, type MorningCaptureResult } from "./morning.ts";
 import type { PerformanceStore } from "./store.ts";
 import type { CaptureCohort, ObservationStation } from "./types.ts";
@@ -55,7 +61,7 @@ export interface PerformanceBatchResult {
 /**
  * Which forecast the pass freezes. A cohort reads one published observation day
  * and captures the next day; the Morning Slot captures the rest of today and reads
- * no observation, because nothing it will be graded on has happened yet.
+ * the hourly rainfall of the last two days the hourly service has published.
  */
 type BatchSlot = { cohort: CaptureCohort; morning?: never } | { morning: true; cohort?: never };
 
@@ -68,6 +74,12 @@ type PerformanceBatchInput = BatchSlot & {
     date: string,
     now: Date,
   ) => Promise<AsosObservationRead>;
+  fetchHourlyObservations?: (
+    stationId: string,
+    startDate: string,
+    endDate: string,
+    now: Date,
+  ) => Promise<AsosHourlyRead>;
   readForecasts?: (location: ForecastLocation) => Promise<ProviderSnapshot[]>;
   concurrency?: number;
   retryDelay?: (ms: number) => Promise<void>;
@@ -101,6 +113,17 @@ function addCalendarDays(date: string, days: number): string {
  */
 function observationDate(cohort: CaptureCohort, now: Date): string {
   return addCalendarDays(koreanDate(now), cohort === "06" ? -2 : -1);
+}
+
+/**
+ * The KMA days the Morning Slot reads hourly rainfall for. The hourly service
+ * publishes up to yesterday, and a KMA day ends at the next date's 00:00, so the
+ * newest complete day is two days back. Reading the day before it too means one
+ * failed morning is filled in by the next.
+ */
+function hourlyObservationWindow(now: Date): { startDate: string; endDate: string } {
+  const today = koreanDate(now);
+  return { startDate: addCalendarDays(today, -3), endDate: addCalendarDays(today, -2) };
 }
 
 const PARTIAL_FAILURE_RETRY_DELAY_MS = DEFAULT_FAILURE_RETRY_MS + 1_000;
@@ -187,7 +210,9 @@ export async function runPerformanceBatch(
   };
   const cohort = input.morning ? null : input.cohort;
   const targetObservationDate = cohort === null ? null : observationDate(cohort, input.now);
+  const hourlyWindow = cohort === null ? hourlyObservationWindow(input.now) : null;
   const fetchObservation = input.fetchObservation ?? fetchAsosObservation;
+  const fetchHourly = input.fetchHourlyObservations ?? fetchAsosHourlyObservations;
   const concurrency = Math.max(1, Math.min(input.concurrency ?? 4, stations.length || 1));
   type RetryCandidate = {
     station: ObservationStation;
@@ -227,14 +252,35 @@ export async function runPerformanceBatch(
     if (index >= 0) result.failures.splice(index, 1);
   };
 
+  type ObservationOutcome =
+    | { status: "observed"; save: () => Promise<void>; reason?: undefined; retryable?: undefined }
+    | { status: "absent"; reason?: undefined; retryable?: undefined }
+    | Extract<AsosObservationRead, { status: "failed" }>;
+  /** One station's observation read, daily for a cohort and hourly for the Morning Slot. */
+  const readObservation = async (station: ObservationStation): Promise<ObservationOutcome> => {
+    if (hourlyWindow !== null) {
+      const read = await fetchHourly(station.id, hourlyWindow.startDate, hourlyWindow.endDate, input.now);
+      if (read.status === "failed") return read;
+      if (read.observations.length === 0) return { status: "absent" };
+      return {
+        status: "observed",
+        save: async () => {
+          for (const observation of read.observations) await input.store.saveHourlyObservation(observation);
+        },
+      };
+    }
+    const read = await fetchObservation(station.id, targetObservationDate as string, input.now);
+    if (read.status !== "observed") return read;
+    return { status: "observed", save: () => input.store.saveObservation(read.observation) };
+  };
+
   const processObservation = async (
     station: ObservationStation,
     retry?: RetryCandidate,
   ): Promise<void> => {
-    if (targetObservationDate === null) return;
-    let read: AsosObservationRead;
+    let read: ObservationOutcome;
     try {
-      read = await fetchObservation(station.id, targetObservationDate, input.now);
+      read = await readObservation(station);
     } catch (error) {
       if (!retry) noteTransportFailure("observation");
       const message = failureMessage(error);
@@ -253,7 +299,7 @@ export async function runPerformanceBatch(
     }
     if (read.status === "observed") {
       try {
-        await input.store.saveObservation(read.observation);
+        await read.save();
       } catch (error) {
         const message = failureMessage(error);
         if (retry) retry.failure.message = message;
@@ -378,18 +424,28 @@ export async function runPerformanceBatch(
     await Promise.all(Array.from({ length: Math.min(concurrency, selected.length || 1) }, () => worker()));
   };
 
-  await runStations(stations, async (station) => {
-    // A proven-down source is not called again. Everything it would have read is
-    // counted as unattempted, which is neither a failed read nor an absence — an
-    // absence is a claim about the weather record and this makes no such claim.
-    // The Morning Slot reads no observation, so it has nothing to abandon either.
-    if (targetObservationDate !== null) {
-      if (health.observation.down) result.observationsAbandoned += 1;
-      else await processObservation(station);
-    }
+  // A proven-down source is not called again. Everything it would have read is
+  // counted as unattempted, which is neither a failed read nor an absence — an
+  // absence is a claim about the weather record and this makes no such claim.
+  const observeStation = async (station: ObservationStation): Promise<void> => {
+    if (health.observation.down) result.observationsAbandoned += 1;
+    else await processObservation(station);
+  };
+  const captureStation = async (station: ObservationStation): Promise<void> => {
     if (health.capture.down) result.capturesAbandoned += 1;
     else await processCapture(station);
-  });
+  };
+  if (cohort === null) {
+    // A Morning Capture is graded as the forecast people saw at 07:00, so every
+    // station's capture comes first; a slow ASOS must not push the last one late.
+    await runStations(stations, captureStation);
+    await runStations(stations, observeStation);
+  } else {
+    await runStations(stations, async (station) => {
+      await observeStation(station);
+      await captureStation(station);
+    });
+  }
   const abandoned = [
     result.observationsAbandoned > 0
       ? `observation (${result.observationsAbandoned} stations not attempted)`
