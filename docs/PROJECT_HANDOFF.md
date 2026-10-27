@@ -99,7 +99,7 @@ Next: the owner checks the Outlook inbox and the Vercel and Neon dashboards, the
 
 ## 2026-10-11 — Summary: chart baseline, responsive fixes and audit 007 (2.1.3–2.1.4 candidates)
 
-- [Audit 006](audits/ui/audit-006-2026-10-11.md) confirmed wrapped captions shifted probability bars above 900px. 2.1.3 fixed it with shared ribbon rows and service-wide reflow fixes; a development-only braces advisory has a pinned audit exception expiring 2026-10-25 00:00 UTC (removal conditions in OPERATIONS).
+- [Audit 006](audits/ui/audit-006-2026-10-11.md) confirmed wrapped captions shifted probability bars above 900px. 2.1.3 fixed it with shared ribbon rows and service-wide reflow fixes; a development-only braces advisory had a pinned audit exception, removed on 2026-10-27 after the Next.js 16.4.3 upgrade left a clean audit.
 - [Audit 007](audits/ui/audit-007-2026-10-11.md) found twelve further items; findings 1–7 shipped as 2.1.4. Decisions kept: search messages sit in the flow with their room held while the field has text; when the two pinned bars would exceed 30% of the screen height, only the location strip stays pinned.
 - Port 3101 can be held by another project's server on this machine; the browser suite then runs through an ignored `.scratch` config on 3111. CI is unaffected.
 

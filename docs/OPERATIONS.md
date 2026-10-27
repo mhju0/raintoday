@@ -6,19 +6,10 @@ see the [reporting policy](../.github/SECURITY.md).
 
 CI runs `npm run test:dependency-audit` before `npm run audit:dependencies`, which runs
 the complete `npm audit --json --audit-level=high` with developer, optional and peer
-dependencies included. A temporary exception expires at **2026-10-25 00:00 UTC** for
-[GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), source 1240992,
-high severity, affecting braces `<=3.0.3`. At the October 11 review, braces had no
-patched release. The exception covers only the development-only chain
-`eslint-config-next@16.3.8 → @next/eslint-plugin-next@16.3.8 → fast-glob@3.3.1 → micromatch@4.0.8 → braces@3.0.3`
-at its five reviewed `node_modules` paths. The reviewed Next ESLint plugin invokes
-the glob path for custom `settings.next.rootDir`; our configuration has no such setting.
-The gate pins the configuration's SHA-256, lock versions and dev status, audit graph,
-advisory identity and reported remediation. Any change to those conditions, a new
-high/critical finding, malformed report, command failure or expiry blocks CI. Each
-use prints the reason and expiry as a warning; it does not claim the vulnerability
-is fixed. When a compatible fix becomes available, update the chain, remove the
-exception and verify a clean complete audit. A clean audit needs no exception.
+dependencies included. Any high/critical finding, malformed report or command failure
+blocks CI. There is no exception list; lower-severity findings stay visible in the output.
+The temporary braces exception (GHSA-vfj7-8cjw-p6xm) expired on 2026-10-25 and was removed
+after the Next.js 16.4.3 upgrade cleared the chain.
 
 ## Routine review
 
