@@ -1,22 +1,9 @@
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const SEVERITIES = ["info", "low", "moderate", "high", "critical"] as const;
 type Severity = (typeof SEVERITIES)[number];
 type ObjectValue = Record<string, unknown>;
-const EXPIRES = "2026-10-25T00:00:00.000Z";
-const ADVISORY = "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm";
-// Reviewed configuration has no settings.next.rootDir; changes need another review.
-const CONFIG_SHA256 = "870f1adccecf3051cbcd9fd307cef51d7633cf510979c181a81f4b1797273493";
-const CHAIN = [
-  { name: "eslint-config-next", version: "16.3.8", range: ">=14.3.0-canary.0" },
-  { name: "@next/eslint-plugin-next", version: "16.3.8", range: ">=14.3.0-canary.0" },
-  { name: "fast-glob", version: "3.3.1", range: "*" },
-  { name: "micromatch", version: "4.0.8", range: ">=0.2.0" },
-  { name: "braces", version: "3.0.3", range: "*" },
-] as const;
 
 function requireCondition(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -62,12 +49,7 @@ function validateAdvisory(value: unknown, name: string): ObjectValue {
   return advisory;
 }
 
-export function validateAuditReport(
-  input: unknown,
-  lockInput: unknown,
-  eslintConfig: string,
-  now = new Date(),
-): { warnings: string[]; vulnerabilityCount: number } {
+export function validateAuditReport(input: unknown): { vulnerabilityCount: number } {
   const report = object(input, "audit report");
   requireCondition(!Object.hasOwn(report, "error"), "npm audit returned an error envelope");
   requireCondition(report.auditReportVersion === 2, "unsupported audit report version");
@@ -122,42 +104,8 @@ export function validateAuditReport(
   for (const name of records.keys()) resolve(name);
 
   const blocked = [...records.entries()].filter(([, record]) => SEVERITIES.indexOf(severity(record.severity)) >= SEVERITIES.indexOf("high"));
-  if (blocked.length === 0) return { warnings: [], vulnerabilityCount: records.size };
-  requireCondition(Number.isFinite(now.getTime()) && now.getTime() < Date.parse(EXPIRES), `temporary braces exception expired at ${EXPIRES}`);
-  requireCondition(createHash("sha256").update(eslintConfig).digest("hex") === CONFIG_SHA256, "ESLint configuration changed; temporary exception requires renewed review");
-  const lock = object(lockInput, "package lock");
-  requireCondition(lock.lockfileVersion === 3, "unsupported package lock version");
-  const packages = object(lock.packages, "locked packages");
-  requireCondition(blocked.length === CHAIN.length && blocked.every(([name]) => CHAIN.some((item) => item.name === name)), "unreviewed high/critical vulnerability");
-  for (const [index, expected] of CHAIN.entries()) {
-    const record = records.get(expected.name);
-    requireCondition(record, `missing reviewed chain record: ${expected.name}`);
-    const path = `node_modules/${expected.name}`;
-    requireCondition(record.severity === "high" && record.isDirect === (index === 0) && record.range === expected.range, `${expected.name}: reviewed record changed`);
-    const fix = object(record.fixAvailable, `${expected.name} reviewed fix`);
-    requireCondition(fix.name === "eslint-config-next" && fix.version === "14.2.35" && fix.isSemVerMajor === true, `${expected.name}: reported remediation changed; review the exception`);
-    requireCondition(sameStrings(record.nodes as string[], [path]), `${expected.name}: affected installations changed`);
-    const installed = object(packages[path], path);
-    requireCondition(installed.version === expected.version && installed.dev === true && installed.link !== true && installed.devOptional !== true, `${expected.name}: locked version or development-only status changed`);
-    const allPaths = Object.keys(packages).filter((key) => key === path || key.endsWith(`/node_modules/${expected.name}`));
-    requireCondition(sameStrings(allPaths, [path]), `${expected.name}: additional installation in lock`);
-    const expectedEffects = index === 0 ? [] : [CHAIN[index - 1].name];
-    requireCondition(sameStrings(record.effects as string[], expectedEffects), `${expected.name}: reviewed effects changed`);
-    const via = record.via as unknown[];
-    requireCondition(via.length === 1, `${expected.name}: additional advisory or dependency`);
-    if (index < CHAIN.length - 1) {
-      const next = CHAIN[index + 1].name;
-      requireCondition(via[0] === next, `${expected.name}: reviewed dependency changed`);
-      requireCondition(nonemptyString(object(installed.dependencies, `${path} dependencies`)[next]), `${expected.name}: locked dependency missing`);
-    } else {
-      const advisory = validateAdvisory(via[0], expected.name);
-      requireCondition(advisory.source === 1240992 && advisory.url === ADVISORY && advisory.severity === "high" && advisory.range === "<=3.0.3", "unreviewed braces advisory");
-    }
-  }
-  return {
-    warnings: [`Temporary exception: ${ADVISORY}; only the five pinned development-only ESLint records. No patched braces release was available at review (2026-10-11); the reviewed ESLint config has no settings.next.rootDir. Expires ${EXPIRES}. All other high/critical findings block.`],
-    vulnerabilityCount: records.size,
-  };
+  requireCondition(blocked.length === 0, `unreviewed high/critical vulnerability: ${blocked.map(([name]) => name).join(", ")}`);
+  return { vulnerabilityCount: records.size };
 }
 
 export type AuditCommandResult = {
@@ -193,8 +141,7 @@ function main(): void {
     });
     if (result.stdout) process.stdout.write(`${result.stdout.trimEnd()}\n`);
     const report = parseAuditCommand(result);
-    const validation = validateAuditReport(report, JSON.parse(readFileSync(new URL("../package-lock.json", import.meta.url), "utf8")), readFileSync(new URL("../eslint.config.mjs", import.meta.url), "utf8"));
-    for (const warning of validation.warnings) process.stderr.write(`WARNING: ${warning}\n`);
+    const validation = validateAuditReport(report);
     process.stdout.write(`Complete dependency audit passed (${validation.vulnerabilityCount} reported package records).\n`);
   } catch (error) {
     process.stderr.write(`Dependency audit blocked: ${error instanceof Error ? error.message : String(error)}\n`);

@@ -15,12 +15,6 @@ type Fixture = {
   }>;
   metadata: { vulnerabilities: Record<string, number>; dependencies: Record<string, number> };
 };
-type Lock = {
-  lockfileVersion: number;
-  packages: Record<string, { version: string; dev: boolean; dependencies?: Record<string, string>; [key: string]: unknown }>;
-};
-
-// Complete npm v2 reports captured before and after the reviewed dependency updates.
 const remaining: Fixture = {
   "auditReportVersion": 2,
   "vulnerabilities": {
@@ -554,99 +548,8 @@ const original: Fixture = {
   }
 };
 
-const reviewedLock: Lock = {
-  "lockfileVersion": 3,
-  "packages": {
-    "node_modules/@next/eslint-plugin-next": {
-      "version": "16.3.8",
-      "resolved": "https://registry.npmjs.org/@next/eslint-plugin-next/-/eslint-plugin-next-16.3.8.tgz",
-      "integrity": "sha512-eCR9RcLTZrVS+K3+VOhi0xMdUUGNuriCHHhU1ZoABC/QQ/Gp0OWbLKQxV2/9DkmihYdYRcQWFmZXW8M1AMUXYw==",
-      "dev": true,
-      "license": "MIT",
-      "dependencies": {
-        "@eslint-community/eslint-utils": "4.9.1",
-        "fast-glob": "3.3.1"
-      }
-    },
-    "node_modules/braces": {
-      "version": "3.0.3",
-      "resolved": "https://registry.npmjs.org/braces/-/braces-3.0.3.tgz",
-      "integrity": "sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==",
-      "dev": true,
-      "license": "MIT",
-      "dependencies": {
-        "fill-range": "^7.1.1"
-      },
-      "engines": {
-        "node": ">=8"
-      }
-    },
-    "node_modules/eslint-config-next": {
-      "version": "16.3.8",
-      "resolved": "https://registry.npmjs.org/eslint-config-next/-/eslint-config-next-16.3.8.tgz",
-      "integrity": "sha512-81vovwMe6NGnoFsl0KUJWzlS+y239i3fdsxs49gSEX3pDQW2cuKy+fxUPXNkQqqx6OCPheYPtBlSufc9aZ0k+w==",
-      "dev": true,
-      "license": "MIT",
-      "dependencies": {
-        "@next/eslint-plugin-next": "16.3.8",
-        "eslint-import-resolver-node": "^0.3.6",
-        "eslint-import-resolver-typescript": "^3.5.2",
-        "eslint-plugin-import": "^2.32.0",
-        "eslint-plugin-jsx-a11y": "^6.10.0",
-        "eslint-plugin-react": "^7.37.0",
-        "eslint-plugin-react-hooks": "^7.0.0",
-        "globals": "16.4.0",
-        "typescript-eslint": "^8.46.0"
-      },
-      "peerDependencies": {
-        "eslint": ">=9.0.0",
-        "typescript": ">=3.3.1"
-      },
-      "peerDependenciesMeta": {
-        "typescript": {
-          "optional": true
-        }
-      }
-    },
-    "node_modules/fast-glob": {
-      "version": "3.3.1",
-      "resolved": "https://registry.npmjs.org/fast-glob/-/fast-glob-3.3.1.tgz",
-      "integrity": "sha512-kNFPyjhh5cKjrUltxs+wFx+ZkbRaxxmZ+X0ZU31SOsxCEtP9VPgtq2teZw1DebupL5GmDaNQ6yKMMVcM41iqDg==",
-      "dev": true,
-      "license": "MIT",
-      "dependencies": {
-        "@nodelib/fs.stat": "^2.0.2",
-        "@nodelib/fs.walk": "^1.2.3",
-        "glob-parent": "^5.1.2",
-        "merge2": "^1.3.0",
-        "micromatch": "^4.0.4"
-      },
-      "engines": {
-        "node": ">=8.6.0"
-      }
-    },
-    "node_modules/micromatch": {
-      "version": "4.0.8",
-      "resolved": "https://registry.npmjs.org/micromatch/-/micromatch-4.0.8.tgz",
-      "integrity": "sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA==",
-      "dev": true,
-      "license": "MIT",
-      "dependencies": {
-        "braces": "^3.0.3",
-        "picomatch": "^2.3.1"
-      },
-      "engines": {
-        "node": ">=8.6"
-      }
-    }
-  }
-};
-
-const reviewedConfig = "import { defineConfig, globalIgnores } from \"eslint/config\";\nimport nextVitals from \"eslint-config-next/core-web-vitals\";\nimport nextTs from \"eslint-config-next/typescript\";\n\nconst eslintConfig = defineConfig([\n  ...nextVitals,\n  ...nextTs,\n  // Override default ignores of eslint-config-next.\n  globalIgnores([\n    // Default ignores of eslint-config-next:\n    \".next/**\",\n    \"out/**\",\n    \"build/**\",\n    \"next-env.d.ts\",\n  ]),\n]);\n\nexport default eslintConfig;\n";
-const beforeExpiry = new Date("2026-10-11T00:00:00Z");
-
-function check(report: unknown = remaining, lock: unknown = reviewedLock, config = reviewedConfig, now = beforeExpiry) {
-  return validateAuditReport(report, lock, config, now);
+function check(report: unknown = fresh()) {
+  return validateAuditReport(report);
 }
 
 function recount(report: Fixture): void {
@@ -658,7 +561,14 @@ function recount(report: Fixture): void {
   report.metadata.vulnerabilities = counts;
 }
 
-function fresh() { return structuredClone(remaining); }
+// The braces chain downgraded below the threshold keeps a realistic, passing graph.
+function fresh() {
+  const report = structuredClone(remaining);
+  for (const record of Object.values(report.vulnerabilities)) record.severity = "moderate";
+  advisory(report).severity = "moderate";
+  recount(report);
+  return report;
+}
 function advisory(report: Fixture): Advisory { return report.vulnerabilities.braces.via[0] as Advisory; }
 function command(stdout = JSON.stringify(remaining), status: number | null = 1) {
   return { stdout, status, signal: null };
@@ -670,20 +580,15 @@ function addFinding(report: Fixture, name = "new-package", severity = "high") {
   recount(report);
 }
 
-test("authentic remaining report passes with a visible reason and UTC expiry", () => {
-  const result = check(parseAuditCommand(command()));
-  assert.equal(result.vulnerabilityCount, 5);
-  assert.equal(result.warnings.length, 1);
-  assert.match(result.warnings[0], /GHSA-vfj7-8cjw-p6xm/);
-  assert.match(result.warnings[0], /No patched braces release/);
-  assert.match(result.warnings[0], /2026-10-25T00:00:00.000Z/);
-});
-
-test("clean report passes without requiring the exceptional chain, config or lock", () => {
+test("clean report passes", () => {
   const report = fresh();
   report.vulnerabilities = {};
   recount(report);
-  assert.deepEqual(check(parseAuditCommand(command(JSON.stringify(report), 0)), null, "changed", new Date("2030-01-01")), { warnings: [], vulnerabilityCount: 0 });
+  assert.deepEqual(check(parseAuditCommand(command(JSON.stringify(report), 0))), { vulnerabilityCount: 0 });
+});
+
+test("former braces exception chain now blocks", () => {
+  assert.throws(() => check(parseAuditCommand(command())), /unreviewed high\/critical/);
 });
 
 test("original authentic nine-finding report blocks", () => {
@@ -707,56 +612,6 @@ test("new direct and transitive high/critical findings block", () => {
     recount(report);
     assert.throws(() => check(report), /unreviewed high\/critical/);
   }
-});
-
-test("any extra or changed advisory on the exceptional chain blocks", () => {
-  for (const mutate of [
-    (a: Advisory) => { a.source += 1; },
-    (a: Advisory) => { a.url += "-new"; },
-    (a: Advisory) => { a.range = "<=3.0.4"; },
-    (a: Advisory) => { a.severity = "critical"; },
-  ]) {
-    const report = fresh();
-    mutate(advisory(report));
-    assert.throws(() => check(report));
-  }
-  const report = fresh();
-  report.vulnerabilities.micromatch.via.push({ ...advisory(report), source: 9999999, name: "micromatch", dependency: "micromatch", severity: "low" });
-  assert.throws(() => check(report), /additional advisory/);
-  const changedFix = fresh();
-  changedFix.vulnerabilities.braces.fixAvailable = { name: "eslint-config-next", version: "16.3.9", isSemVerMajor: false };
-  assert.throws(() => check(changedFix), /reported remediation changed/);
-});
-
-test("every reviewed package version, dev status and audit node path is pinned", () => {
-  for (const name of Object.keys(remaining.vulnerabilities)) {
-    const path = `node_modules/${name}`;
-    const lock = structuredClone(reviewedLock);
-    lock.packages[path].version += "-changed";
-    assert.throws(() => check(remaining, lock), /version or development-only status/);
-    lock.packages[path] = structuredClone(reviewedLock.packages[path]);
-    lock.packages[path].dev = false;
-    assert.throws(() => check(remaining, lock), /development-only status/);
-    const report = fresh();
-    report.vulnerabilities[name].nodes.push(`node_modules/other/node_modules/${name}`);
-    assert.throws(() => check(report), /affected installations/);
-    report.vulnerabilities[name].nodes = [`node_modules/other/node_modules/${name}`];
-    assert.throws(() => check(report), /affected installations/);
-    lock.packages[path] = structuredClone(reviewedLock.packages[path]);
-    lock.packages[`node_modules/other/node_modules/${name}`] = structuredClone(lock.packages[path]);
-    assert.throws(() => check(remaining, lock), /additional installation/);
-  }
-});
-
-test("changed config, missing lock dependency and exception expiry block", () => {
-  assert.throws(() => check(remaining, reviewedLock, reviewedConfig + "\n"), /ESLint configuration changed/);
-  assert.throws(() => check(remaining, reviewedLock, 'export default [{settings:{next:{rootDir:"**"}}}];'), /ESLint configuration changed/);
-  const lock = structuredClone(reviewedLock);
-  lock.packages["node_modules/micromatch"].dependencies = {};
-  assert.throws(() => check(remaining, lock), /locked dependency missing/);
-  assert.equal(check(remaining, reviewedLock, reviewedConfig, new Date("2026-10-24T23:59:59.999Z")).warnings.length, 1);
-  assert.throws(() => check(remaining, reviewedLock, reviewedConfig, new Date("2026-10-25T00:00:00Z")), /expired/);
-  assert.throws(() => check(remaining, reviewedLock, reviewedConfig, new Date(NaN)), /expired/);
 });
 
 test("malformed records, errors, unsupported reports and contradictory totals block", () => {

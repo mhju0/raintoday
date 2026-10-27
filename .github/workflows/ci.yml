@@ -41,7 +41,7 @@ jobs:
         run: npm run test:dependency-audit
 
       - name: Audit dependencies
-        # Complete audit, including tooling; one pinned exception expires October 25 UTC.
+        # Complete audit, including tooling; any high/critical finding blocks.
         run: npm run audit:dependencies
 
       - name: Lint
