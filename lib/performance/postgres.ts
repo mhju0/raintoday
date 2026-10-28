@@ -4,6 +4,7 @@ import { aggregateCauses, describeErrorTree } from "./errorDetail.ts";
 import type {
   CaptureCohort,
   CompletedComparison,
+  EveningCapture,
   ForecastCapture,
   HourlyPrecipObservation,
   MorningCapture,
@@ -150,6 +151,7 @@ type RecoverablePostgresOperation =
   | "saveObservation"
   | "saveCapture"
   | "saveMorningCapture"
+  | "saveEveningCapture"
   | "saveHourlyObservation"
   | "loadCompletedComparisons";
 
@@ -323,7 +325,22 @@ export class PostgresPerformanceStore implements PerformanceStore {
           primary key (station_id, target_date)
         )
       `;
-      // Hourly rainfall for grading Morning Captures: one row per station and KMA
+      // Tomorrow's forecasts from the Evening Slot, hour by hour. Its own table: a
+      // Morning Capture of the same date is keyed the same way and taken the next
+      // morning, and the two are graded as separate moments.
+      await this.#sql`
+        create table if not exists performance_evening_captures (
+          station_id text not null references performance_stations(id),
+          target_date date not null,
+          captured_at timestamptz not null,
+          window_start_hour smallint not null check (window_start_hour between 0 and 23),
+          providers jsonb not null,
+          equal_probability double precision
+            check (equal_probability is null or equal_probability between 0 and 100),
+          primary key (station_id, target_date)
+        )
+      `;
+      // Hourly rainfall for grading Morning and Evening Captures: one row per station and KMA
       // day, its 24 hours ending 01:00 through 24:00. A null hour is one ASOS
       // published no row for. Re-reads replace the row, as daily observations do.
       await this.#sql`
@@ -450,6 +467,29 @@ export class PostgresPerformanceStore implements PerformanceStore {
     return runPostgresStatementWithRecovery("saveMorningCapture", async () => {
       const rows = await this.#sql`
         insert into performance_morning_captures (
+          station_id, target_date, captured_at, window_start_hour, providers, equal_probability
+        ) values (
+          ${stationId}, ${targetDate}, ${capturedAt}, ${windowStartHour},
+          ${this.#sql.json(providers as unknown as postgres.JSONValue)},
+          ${equalProbability}
+        )
+        on conflict (station_id, target_date) do nothing
+        returning station_id
+      `;
+      return rows.length === 0 ? "existing" : "inserted";
+    }, this.#statementRecovery);
+  }
+
+  async saveEveningCapture(capture: EveningCapture): Promise<CaptureWriteResult> {
+    const stationId = capture.stationId;
+    const targetDate = capture.targetDate;
+    const capturedAt = capture.capturedAt;
+    const windowStartHour = capture.windowStartHour;
+    const providers = structuredClone(capture.providers);
+    const equalProbability = capture.equalProbability;
+    return runPostgresStatementWithRecovery("saveEveningCapture", async () => {
+      const rows = await this.#sql`
+        insert into performance_evening_captures (
           station_id, target_date, captured_at, window_start_hour, providers, equal_probability
         ) values (
           ${stationId}, ${targetDate}, ${capturedAt}, ${windowStartHour},

@@ -2,6 +2,7 @@ import { COMPARED_PROVIDER_IDS } from "../providers/selection.ts";
 import type {
   CaptureCohort,
   CompletedComparison,
+  EveningCapture,
   ForecastCapture,
   HourlyPrecipObservation,
   MorningCapture,
@@ -54,6 +55,8 @@ export interface PerformanceStore {
   saveCapture(capture: ForecastCapture): Promise<CaptureWriteResult>;
   /** Insert one Morning Capture; an existing one for the station and date is kept. */
   saveMorningCapture(capture: MorningCapture): Promise<CaptureWriteResult>;
+  /** Insert one Evening Capture; an existing one for the station and target date is kept. */
+  saveEveningCapture(capture: EveningCapture): Promise<CaptureWriteResult>;
   saveObservation(observation: PrecipObservation): Promise<void>;
   /** Store one station-day of hourly rainfall, replacing an earlier read of it. */
   saveHourlyObservation(observation: HourlyPrecipObservation): Promise<void>;
@@ -76,6 +79,7 @@ export class InMemoryPerformanceStore implements PerformanceStore {
   readonly #stations = new Map<string, ObservationStation>();
   readonly #captures = new Map<string, ForecastCapture>();
   readonly #morningCaptures = new Map<string, MorningCapture>();
+  readonly #eveningCaptures = new Map<string, EveningCapture>();
   readonly #hourlyObservations = new Map<string, HourlyPrecipObservation>();
   readonly #observations = new Map<string, PrecipObservation>();
   readonly #seedComparisons = new Map<string, SeedComparison>();
@@ -136,6 +140,20 @@ export class InMemoryPerformanceStore implements PerformanceStore {
 
   async loadMorningCaptures(stationId: string): Promise<MorningCapture[]> {
     return Array.from(this.#morningCaptures.values())
+      .filter((capture) => capture.stationId === stationId)
+      .sort((a, b) => a.targetDate.localeCompare(b.targetDate))
+      .map(clone);
+  }
+
+  async saveEveningCapture(capture: EveningCapture): Promise<CaptureWriteResult> {
+    const key = `${capture.stationId}:${capture.targetDate}`;
+    if (this.#eveningCaptures.has(key)) return "existing";
+    this.#eveningCaptures.set(key, clone(capture));
+    return "inserted";
+  }
+
+  async loadEveningCaptures(stationId: string): Promise<EveningCapture[]> {
+    return Array.from(this.#eveningCaptures.values())
       .filter((capture) => capture.stationId === stationId)
       .sort((a, b) => a.targetDate.localeCompare(b.targetDate))
       .map(clone);

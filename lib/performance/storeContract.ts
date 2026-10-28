@@ -146,6 +146,17 @@ export function runPerformanceStoreContract(
     });
   });
 
+  test(`${adapterName} keeps the first Evening Capture apart from the Morning Capture of its date`, async () => {
+    await withStore(async (store) => {
+      await store.syncStations([station("108")], "2026-03-01");
+      const evening = { ...morningCapture("108", "2026-03-02"), windowStartHour: 0 };
+      assert.equal(await store.saveEveningCapture(evening), "inserted");
+      assert.equal(await store.saveEveningCapture(evening), "existing");
+      // The same station and date the next morning is a different moment, not a duplicate.
+      assert.equal(await store.saveMorningCapture(morningCapture("108", "2026-03-02")), "inserted");
+    });
+  });
+
   test(`${adapterName} keeps Morning Captures out of the cohort comparison path`, async () => {
     await withStore(async (store) => {
       await store.syncStations([station("108")], "2026-03-01");

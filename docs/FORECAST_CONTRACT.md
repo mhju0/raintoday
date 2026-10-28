@@ -37,6 +37,8 @@ The Prospective Benchmark compares adaptive and equal forecasts stored before th
 
 A separate [`morning-forecast`](../.github/workflows/morning-forecast.yml) workflow takes a Morning Capture at 07:00 KST: each provider's hourly rain chances from 07:00 to midnight for the same day, frozen before any of it falls. Pirate Weather is not read, to keep within its free monthly quota. It fires at 01:30 KST and waits for 07:00, like the evening trigger; a run GitHub starts after 07:00 still captures and keeps its real time. After every station is captured, the same run reads hourly ASOS rainfall for the two newest complete KMA days and stores it per station and day; a re-read replaces the day. Nothing grades Morning Captures against it yet, and the scoring record does not show either.
 
+An [`evening-forecast`](../.github/workflows/evening-forecast.yml) workflow takes an Evening Capture at 19:30 KST: each provider's hourly rain chances for all of tomorrow, frozen the evening before, again without Pirate Weather. It fires at 14:05 KST and waits, and it reads no observations, because the morning run already stores the hourly rainfall both are graded against. Nothing grades Evening Captures yet.
+
 Learned influence applies only to tomorrow. Today and days 2–7 use equal-provider averages. These records do not yet establish that 오늘비 is more accurate overall across locations and seasons.
 
 ### Archive evidence while recent records accumulate
@@ -88,7 +90,9 @@ flowchart TB
   Schedule --> Captures["Immutable next-day provider captures"]
   Schedule --> Observations["Completed KMA ASOS observations"]
   Morning["07:00 KST workflow"] --> Today["Immutable rest-of-today hourly captures"]
+  Evening["19:30 KST workflow"] --> Tomorrow["Immutable next-day hourly captures"]
   Today --> Database
+  Tomorrow --> Database
   Catalog --> Database
   Captures --> Database
   Observations --> Database
@@ -101,7 +105,7 @@ flowchart TB
 | `lib/providers/` | Provider snapshots and the ordered registry shared by capture and serving |
 | `lib/performance/performance.ts` | Scores, evidence requirements, weights and the Prospective Benchmark |
 | `lib/performance/store.ts`, `postgres.ts` | Persistence contract and production adapter |
-| `lib/performance/capture.ts`, `morning.ts`, `batch.ts` | Immutable cohort and Morning Captures, and nationwide collection |
+| `lib/performance/capture.ts`, `morning.ts`, `batch.ts` | Immutable cohort, Morning and Evening Captures, and nationwide collection |
 | `lib/performance/influence.ts` | Shared blend calculation for capture and serving |
 | `lib/performance/seed.ts`, `seedScore.ts`, `precipSkill.ts`, `backfill.ts` | Archive reconstruction, scoring and offline backfill |
 | `lib/localForecast.ts` | Coordinate forecasts, nearby-station evidence and shared record reads |

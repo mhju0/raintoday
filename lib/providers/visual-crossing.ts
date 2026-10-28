@@ -7,6 +7,7 @@ import type {
   HourlyForecast,
   WeatherCondition,
 } from "../types";
+import { HOURLY_HORIZON_HOURS } from "./base.ts";
 import { createWeatherProvider } from "./read.ts";
 
 /**
@@ -206,7 +207,7 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
   const hourly: HourlyForecast[] = days
     .flatMap((day) => day.hours ?? [])
     .filter((hour) => hour.datetimeEpoch * 1_000 >= nowMs - 30 * 60 * 1_000)
-    .slice(0, 24)
+    .slice(0, HOURLY_HORIZON_HOURS)
     .map(
       (hour): HourlyForecast => ({
         time: unixToKstIso(hour.datetimeEpoch),

@@ -13,7 +13,11 @@ import {
   type AsosHourlyRead,
   type AsosObservationRead,
 } from "./kma.ts";
-import { captureStationMorningForecast, type MorningCaptureResult } from "./morning.ts";
+import {
+  captureStationEveningForecast,
+  captureStationMorningForecast,
+  type MorningCaptureResult,
+} from "./morning.ts";
 import type { PerformanceStore } from "./store.ts";
 import type { CaptureCohort, ObservationStation } from "./types.ts";
 
@@ -61,9 +65,14 @@ export interface PerformanceBatchResult {
 /**
  * Which forecast the pass freezes. A cohort reads one published observation day
  * and captures the next day; the Morning Slot captures the rest of today and reads
- * the hourly rainfall of the last two days the hourly service has published.
+ * the hourly rainfall of the last two days the hourly service has published; the
+ * Evening Slot captures all of tomorrow hour by hour and reads nothing, because the
+ * Morning Slot already collects the hourly rainfall both are graded against.
  */
-type BatchSlot = { cohort: CaptureCohort; morning?: never } | { morning: true; cohort?: never };
+type BatchSlot =
+  | { cohort: CaptureCohort; morning?: never; evening?: never }
+  | { morning: true; cohort?: never; evening?: never }
+  | { evening: true; cohort?: never; morning?: never };
 
 type PerformanceBatchInput = BatchSlot & {
   now: Date;
@@ -208,9 +217,9 @@ export async function runPerformanceBatch(
     catalogSource,
     catalogError,
   };
-  const cohort = input.morning ? null : input.cohort;
+  const cohort = input.cohort ?? null;
   const targetObservationDate = cohort === null ? null : observationDate(cohort, input.now);
-  const hourlyWindow = cohort === null ? hourlyObservationWindow(input.now) : null;
+  const hourlyWindow = input.morning ? hourlyObservationWindow(input.now) : null;
   const fetchObservation = input.fetchObservation ?? fetchAsosObservation;
   const fetchHourly = input.fetchHourlyObservations ?? fetchAsosHourlyObservations;
   const concurrency = Math.max(1, Math.min(input.concurrency ?? 4, stations.length || 1));
@@ -355,7 +364,7 @@ export async function runPerformanceBatch(
   ): Promise<void> => {
     try {
       const capture: CaptureStationResult | MorningCaptureResult = cohort === null
-        ? await captureStationMorningForecast({
+        ? await (input.evening ? captureStationEveningForecast : captureStationMorningForecast)({
           station,
           now: input.now,
           store: input.store,
@@ -439,7 +448,7 @@ export async function runPerformanceBatch(
     // A Morning Capture is graded as the forecast people saw at 07:00, so every
     // station's capture comes first; a slow ASOS must not push the last one late.
     await runStations(stations, captureStation);
-    await runStations(stations, observeStation);
+    if (input.morning) await runStations(stations, observeStation);
   } else {
     await runStations(stations, async (station) => {
       await observeStation(station);

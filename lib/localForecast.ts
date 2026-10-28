@@ -175,6 +175,12 @@ async function readAllForecasts(location: ForecastLocation): Promise<ProviderSna
   return Promise.all(forecastProviders.map((provider) => provider.read(location)));
 }
 
+/**
+ * Hours of the hourly series the response carries. Adapters keep more so the
+ * Evening Capture can read all of tomorrow; the ribbon shows the next 24.
+ */
+const RIBBON_HOURS = 24;
+
 export async function readDatabaseEvidence(
   location: ForecastLocation,
   elevationM: number | null,
@@ -355,7 +361,7 @@ export async function readLocalForecast(
         }
       : null,
     hourly: hourlySource
-      ? { entries: hourlySource.hourly, sourceName: hourlySource.status.name }
+      ? { entries: hourlySource.hourly.slice(0, RIBBON_HOURS), sourceName: hourlySource.status.name }
       : null,
     recommendation: {
       precipitationProbability: recommendation.precipitationProbability,

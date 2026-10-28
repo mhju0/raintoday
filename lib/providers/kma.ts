@@ -7,6 +7,7 @@ import type {
   HourlyForecast,
 } from "../types";
 import { conditionFromKma } from "./kma-mapping.ts";
+import { HOURLY_HORIZON_HOURS } from "./base.ts";
 import { createWeatherProvider } from "./read.ts";
 
 /**
@@ -270,7 +271,7 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, v]) => ({ key, v, time: kstIso(key.slice(0, 8), key.slice(8)) }))
     .filter(({ time, v }) => Date.parse(time) >= nowMs - 30 * 60 * 1000 && v.TMP !== undefined)
-    .slice(0, 24)
+    .slice(0, HOURLY_HORIZON_HOURS)
     .map(({ time, v }) => ({
       time,
       temperature: Number(v.TMP),

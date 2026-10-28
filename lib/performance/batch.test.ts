@@ -764,6 +764,33 @@ test("the Morning Slot captures every station before reading two published days 
   assert.deepEqual(await store.loadCaptures("159", "18"), []);
 });
 
+test("the Evening Slot captures tomorrow for every station and reads no observations", async () => {
+  const store = new InMemoryPerformanceStore();
+  let observationCalls = 0;
+  const result = await runPerformanceBatch({
+    evening: true,
+    now: new Date("2026-10-21T19:30:00+09:00"),
+    store,
+    fetchStations: async () => stations,
+    fetchObservation: async () => {
+      observationCalls += 1;
+      return { status: "absent" };
+    },
+    fetchHourlyObservations: async () => {
+      observationCalls += 1;
+      return { status: "observed", observations: [] };
+    },
+    readForecasts: async () => [morningSnapshot(40)],
+  });
+
+  assert.equal(observationCalls, 0, "the Morning Slot already reads the hourly rainfall");
+  assert.equal(result.capturesInserted, 2);
+  assert.deepEqual(result.failures, []);
+  const [captured] = await store.loadEveningCaptures("159");
+  assert.equal(captured.targetDate, "2026-10-22");
+  assert.deepEqual(await store.loadMorningCaptures("159"), []);
+});
+
 test("a failed hourly read fails the morning run but never costs its capture", async () => {
   const store = new InMemoryPerformanceStore();
   const result = await runPerformanceBatch({
