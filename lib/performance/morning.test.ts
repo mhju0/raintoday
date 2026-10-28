@@ -232,3 +232,28 @@ test("the Morning Slot never reads Pirate Weather, whose free quota covers only 
   assert.equal(result.status, "inserted");
   assert.deepEqual(result.capture?.providers.map((forecast) => forecast.provider), ["open-meteo"]);
 });
+
+test("a band is captured as a band, and only where no amount is stated", async () => {
+  const store = new InMemoryPerformanceStore();
+  await store.syncStations([station], "2026-10-22");
+  const banded = (time: string, amount: number | null, range: HourlyForecast["precipitationAmountRange"]) =>
+    ({ ...hour(time, 60, amount), precipitationAmountRange: range });
+  const result = await captureStationMorningForecast({
+    station,
+    now: SEVEN_AM,
+    store,
+    readForecasts: async () => [
+      snapshot("kma", [
+        banded("2026-10-22T08:00:00+09:00", null, { lowMm: 0, highMm: 1 }),
+        banded("2026-10-22T09:00:00+09:00", null, { lowMm: 50, highMm: null }),
+        banded("2026-10-22T10:00:00+09:00", 2, null),
+        banded("2026-10-22T11:00:00+09:00", null, { lowMm: 5, highMm: 1 }),
+      ]),
+    ],
+  });
+
+  assert.deepEqual(
+    result.capture?.providers[0].hours.map((h) => [h.amountMm, h.amountRangeMm ?? null]),
+    [[null, { lowMm: 0, highMm: 1 }], [null, { lowMm: 50, highMm: null }], [2, null], [null, null]],
+  );
+});

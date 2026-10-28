@@ -11,7 +11,7 @@ it follows v1.1.0 with the September 26 audit fixes, accessibility work, the typ
 and the shorter README. The v1.0.0 tag remains unchanged on the SeoulSky source.
 
 Since then every merged change ships as its own release (the rule is in `AGENTS.md`).
-The current release is v2.5.0. The
+The current release is v2.5.1. The
 [GitHub releases](https://github.com/mhju0/raintoday/releases) carry the full list; the
 ones that changed what a visitor sees are:
 
@@ -35,10 +35,11 @@ ones that changed what a visitor sees are:
 - 2.2.11: documentation corrected; no behaviour change.
 - 2.2.12: when KMA's newest forecast issue comes back empty, an earlier issue (up to nine hours older) is used, so KMA stays in the forecast.
 
-2.3.0 to 2.5.0 collect evidence for blending the hourly forecast and change almost nothing a
+2.3.0 to 2.5.1 collect evidence for blending the hourly forecast and change almost nothing a
 visitor sees: every station's hour-by-hour forecast is saved at 07:00 for the rest of the day and at
 19:30 for all of tomorrow, with hourly ASOS rainfall to grade it, and from 2.5.0 the saved
-hours carry WeatherAPI's and KMA's rain amounts too. The one visible exception: if
+hours carry WeatherAPI's and KMA's rain amounts too; from 2.5.1 KMA's amount bands are saved
+as ranges and scored by their distance to the measured rain. The one visible exception: if
 Open-Meteo's hourly series is missing, the timeline's rain-amount lane now shows KMA's
 stated amounts instead of a gap.
 

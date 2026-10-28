@@ -53,6 +53,12 @@ export interface HourlyForecast {
    * it, and the timeline's mm lane shows an honest gap instead of a zero.
    */
   precipitationAmount?: number | null;
+  /**
+   * The hour's amount as a band, when the source gives one instead of a value (KMA's
+   * "1mm 미만", "30.0~50.0mm", "50.0mm 이상"); `precipitationAmount` is then null.
+   * `highMm` is null for an open top band. Captured for scoring, never drawn.
+   */
+  precipitationAmountRange?: { lowMm: number; highMm: number | null } | null;
   windSpeed: number | null;
   humidity: number | null;
   condition: WeatherCondition;

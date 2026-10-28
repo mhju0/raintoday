@@ -39,10 +39,10 @@ export function conditionFromKma(pty: number, sky: number): WeatherCondition {
 
 /**
  * 단기예보 1시간 강수량(PCP) → millimetres, only where KMA states an amount:
- * "강수없음" is 0, and an exact value ("1.0mm", or a bare "0") is that value. The
- * bands ("1mm 미만", "30.0~50.0mm", "50.0mm 이상") stay unknown, never a midpoint:
- * they appear exactly when it rains, where a guessed value would be most wrong
- * (DECISIONS 2026-08-26). Anything else is unknown too, never dry.
+ * "강수없음" is 0, and an exact value ("1.0mm", or a bare "0") is that value. A band
+ * is never turned into a value: it appears exactly when it rains, where a guessed
+ * value would be most wrong (DECISIONS 2026-08-26); `amountRangeFromKmaPcp` keeps
+ * it as a band. Anything else is unknown, never dry.
  */
 export function amountFromKmaPcp(value: string | undefined): number | null {
   if (value === undefined) return null;
@@ -50,4 +50,20 @@ export function amountFromKmaPcp(value: string | undefined): number | null {
   if (text === "강수없음") return 0;
   const exact = /^(\d+(?:\.\d+)?)\s*(?:mm)?$/.exec(text);
   return exact ? Number(exact[1]) : null;
+}
+
+/**
+ * A PCP band as its bounds in mm: "1mm 미만" is 0–1, "30.0~50.0mm" is 30–50, and
+ * "50.0mm 이상" is 50 with no upper bound. Null for an exact value or anything else.
+ */
+export function amountRangeFromKmaPcp(
+  value: string | undefined,
+): { lowMm: number; highMm: number | null } | null {
+  const text = value?.trim() ?? "";
+  const range = /^(\d+(?:\.\d+)?)\s*~\s*(\d+(?:\.\d+)?)\s*mm$/.exec(text);
+  if (range) return { lowMm: Number(range[1]), highMm: Number(range[2]) };
+  const below = /^(\d+(?:\.\d+)?)\s*mm\s*미만$/.exec(text);
+  if (below) return { lowMm: 0, highMm: Number(below[1]) };
+  const atLeast = /^(\d+(?:\.\d+)?)\s*mm\s*이상$/.exec(text);
+  return atLeast ? { lowMm: Number(atLeast[1]), highMm: null } : null;
 }

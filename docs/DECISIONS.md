@@ -1416,7 +1416,8 @@ Visual Crossing carried hourly amounts. KMA's amount is kept only where KMA stat
 ("강수없음" or an exact value). Its bands ("1mm 미만", "30.0~50.0mm", "50.0mm 이상") stay
 unknown, under the 2026-08-26 rule against bucket midpoints, so KMA is scored only on blocks it
 states exactly and drops out of blocks where it gives a band. The owner may revisit this
-for hourly scoring; it is not decided here. On the served page this changes only the
+for hourly scoring; it is not decided here. *(Superseded in part by "2026-10-28 — KMA's
+hourly amount bands are kept and scored as ranges": from 2.5.1 the bands are captured.)* On the served page this changes only the
 fallback: if Open-Meteo has no hourly series, the ribbon's mm lane now shows KMA's stated
 amounts where it used to show none.
 
@@ -1436,3 +1437,26 @@ the hourly-amount sources; its adapter maps no hourly amount, only a daily one. 
 2026-10-28 Open-Meteo's ECMWF ensemble run from 00Z became available at 21:20 KST. The
 Evening Capture at 19:30 KST therefore read the 18Z run from the day before. One day only;
 moving the slot is the owner's call.
+
+## 2026-10-28 — KMA's hourly amount bands are kept and scored as ranges
+
+**Supersedes in part** the previous entry's rule that KMA's hourly bands stay unknown
+(owner, 2026-10-28). The 2026-08-26 rule against bucket midpoints is unchanged: no band
+is ever turned into a single number.
+
+- **Capture.** From 2.5.1, where KMA's `PCP` is a band, the hourly series carries it as
+  `precipitationAmountRange` and the Morning and Evening Captures store it as
+  `amountRangeMm`: "1mm 미만" is 0 to 1 mm, "30.0~50.0mm" is 30 to 50 mm and "50.0mm 이상"
+  is 50 mm with no upper bound. `amountMm` stays null for that hour, and stated amounts are
+  stored as before. Captures taken before 2.5.1 have no bands; they are not rewritten.
+- **Score.** A 3-hour block's bounds are the sum of its hours' bounds; one open band leaves
+  the block open at the top. KMA's miss on such a block is the distance from the measured
+  rain to the range, zero when the rain falls inside it, and enters KMA's mean absolute error
+  like any other miss. The report counts these as `bandBlocks`. A block with a band counts
+  as wet, since every band forecasts rain.
+- **Averages.** A block where any service gave a band has no plain or weighted average, so
+  both averages and the switch rule use only blocks where every service stated an amount.
+- **Cost.** A miss of zero inside a wide band is generous: "30.0~50.0mm" is never wrong
+  between 30 and 50. Bands are rare outside "1mm 미만", which is narrow, so KMA's error is
+  read with its `bandBlocks` count beside it. The served page is unchanged: bands are never
+  drawn.

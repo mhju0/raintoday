@@ -35,6 +35,11 @@ export interface MorningHourForecast {
   time: string;
   probability: number | null;
   amountMm: number | null;
+  /**
+   * The amount as a band when the provider gave one instead of a value (KMA, from
+   * 2.5.1); `amountMm` is then null. Absent on older captures and on stated values.
+   */
+  amountRangeMm?: { lowMm: number; highMm: number | null };
 }
 
 /** One provider's rain chances for the rest of the day, hour by hour. */

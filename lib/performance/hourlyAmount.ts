@@ -40,17 +40,28 @@ export const WET_BLOCK_MM = 0.1;
 export const AMOUNT_SWITCH_MIN_DAYS = 60;
 export const AMOUNT_SWITCH_MIN_WET_STATION_DAYS = 100;
 
+/** A block amount as bounds; a stated amount has equal bounds, an open top band no high. */
+export interface AmountRange {
+  lowMm: number;
+  highMm: number | null;
+}
+
 /** One station's 3-hour block where every scored provider and the station have a full amount. */
 export interface AmountBlock {
   stationId: string;
   targetDate: string;
   start: number;
   observedMm: number;
+  /** Providers whose three hours all stated an amount. */
   forecastMm: Partial<Record<PrecipProviderId, number>>;
+  /** Providers that gave a band for at least one of the hours (KMA), as the block's bounds. */
+  forecastRangeMm: Partial<Record<PrecipProviderId, AmountRange>>;
 }
 
 export interface AmountError {
   wetBlocks: number;
+  /** Of `wetBlocks`, those scored against a band: the miss is the distance to the band. */
+  bandBlocks: number;
   /** Mean absolute error over wet blocks, mm; null with no wet block. */
   meanAbsErrorMm: number | null;
   /** Mean forecast minus observed over wet blocks, mm; null with no wet block. */
@@ -88,21 +99,35 @@ export function observedHourIndex(time: string, targetDate: string, stamp: HourS
   return kst.date === nextDate(targetDate) && kst.hour === 0 ? 23 : null;
 }
 
-/** A provider's amount for the block, or null unless all three of its hours carry one. */
-export function providerBlockAmount(
+/**
+ * A provider's amount for the block as bounds, or null unless all three of its hours
+ * carry an amount or a band. Bounds add up hour by hour; one open band leaves the
+ * block open at the top.
+ */
+export function providerBlockRange(
   forecast: MorningProviderForecast,
   targetDate: string,
   start: number,
   stamp: HourStamp,
-): number | null {
-  const amounts = new Map<number, number>();
+): AmountRange | null {
+  const hours = new Map<number, AmountRange>();
   for (const hour of forecast.hours) {
     const index = observedHourIndex(hour.time, targetDate, stamp);
     if (index === null || index < start || index >= start + BLOCK_HOURS) continue;
-    if (hour.amountMm !== null && Number.isFinite(hour.amountMm)) amounts.set(index, hour.amountMm);
+    if (hour.amountMm !== null && Number.isFinite(hour.amountMm)) {
+      hours.set(index, { lowMm: hour.amountMm, highMm: hour.amountMm });
+    } else if (hour.amountRangeMm) {
+      hours.set(index, hour.amountRangeMm);
+    }
   }
-  if (amounts.size < BLOCK_HOURS) return null;
-  return Array.from(amounts.values()).reduce((sum, mm) => sum + mm, 0);
+  if (hours.size < BLOCK_HOURS) return null;
+  const ranges = Array.from(hours.values());
+  return {
+    lowMm: ranges.reduce((sum, range) => sum + range.lowMm, 0),
+    highMm: ranges.some((range) => range.highMm === null)
+      ? null
+      : ranges.reduce((sum, range) => sum + (range.highMm ?? 0), 0),
+  };
 }
 
 /** The station's rainfall in the block, or null when any of its hours is unknown. */
@@ -133,24 +158,39 @@ export function amountBlocks(
       const observedMm = observedBlockAmount(observation, start);
       if (observedMm === null) continue;
       const forecastMm: Partial<Record<PrecipProviderId, number>> = {};
+      const forecastRangeMm: Partial<Record<PrecipProviderId, AmountRange>> = {};
+      let complete = true;
       for (const provider of providers) {
         const forecast = capture.providers.find((row) => row.provider === provider);
-        const mm = forecast
-          ? providerBlockAmount(forecast, capture.targetDate, start, DOCUMENTED_HOUR_STAMPS[provider] ?? unknownStamp)
+        const range = forecast
+          ? providerBlockRange(forecast, capture.targetDate, start, DOCUMENTED_HOUR_STAMPS[provider] ?? unknownStamp)
           : null;
-        if (mm === null) break;
-        forecastMm[provider] = mm;
+        if (range === null) {
+          complete = false;
+          break;
+        }
+        if (range.highMm === range.lowMm) forecastMm[provider] = range.lowMm;
+        else forecastRangeMm[provider] = range;
       }
-      if (Object.keys(forecastMm).length !== providers.length) continue;
-      blocks.push({ stationId: capture.stationId, targetDate: capture.targetDate, start, observedMm, forecastMm });
+      if (!complete) continue;
+      blocks.push({
+        stationId: capture.stationId,
+        targetDate: capture.targetDate,
+        start,
+        observedMm,
+        forecastMm,
+        forecastRangeMm,
+      });
     }
   }
   return blocks;
 }
 
+/** Every KMA band forecasts some rain, so a block with a band is wet. */
 export function isWetBlock(block: AmountBlock): boolean {
   return block.observedMm >= WET_BLOCK_MM ||
-    Object.values(block.forecastMm).some((mm) => mm >= WET_BLOCK_MM);
+    Object.values(block.forecastMm).some((mm) => mm >= WET_BLOCK_MM) ||
+    Object.keys(block.forecastRangeMm).length > 0;
 }
 
 /**
@@ -169,20 +209,33 @@ export function blendBlockAmount(
   return rows.reduce((sum, [provider, mm]) => sum + mm * weightOf(provider), 0) / total;
 }
 
-function errorOf(blocks: readonly AmountBlock[], forecast: (block: AmountBlock) => number | null): AmountError {
+/** Forecast minus observed, where a band's miss is its distance to the observation. */
+function signedMiss(range: AmountRange, observedMm: number): number {
+  if (observedMm < range.lowMm) return range.lowMm - observedMm;
+  if (range.highMm !== null && observedMm > range.highMm) return range.highMm - observedMm;
+  return 0;
+}
+
+function errorOf(blocks: readonly AmountBlock[], forecast: (block: AmountBlock) => AmountRange | null): AmountError {
   let n = 0;
+  let bands = 0;
   let absolute = 0;
   let signed = 0;
   for (const block of blocks) {
     if (!isWetBlock(block)) continue;
-    const mm = forecast(block);
-    if (mm === null) continue;
+    const range = forecast(block);
+    if (range === null) continue;
+    const miss = signedMiss(range, block.observedMm);
     n += 1;
-    absolute += Math.abs(mm - block.observedMm);
-    signed += mm - block.observedMm;
+    if (range.highMm !== range.lowMm) bands += 1;
+    absolute += Math.abs(miss);
+    signed += miss;
   }
-  return { wetBlocks: n, meanAbsErrorMm: n ? absolute / n : null, biasMm: n ? signed / n : null };
+  return { wetBlocks: n, bandBlocks: bands, meanAbsErrorMm: n ? absolute / n : null, biasMm: n ? signed / n : null };
 }
+
+const point = (mm: number | null | undefined): AmountRange | null =>
+  mm === null || mm === undefined ? null : { lowMm: mm, highMm: mm };
 
 /** Each provider's amount error on wet blocks. */
 export function providerAmountErrors(
@@ -190,15 +243,20 @@ export function providerAmountErrors(
   providers: readonly PrecipProviderId[],
 ): Partial<Record<PrecipProviderId, AmountError>> {
   return Object.fromEntries(providers.map((provider) =>
-    [provider, errorOf(blocks, (block) => block.forecastMm[provider] ?? null)]));
+    [provider, errorOf(blocks, (block) => block.forecastRangeMm[provider] ?? point(block.forecastMm[provider]))]));
 }
 
-/** The plain or weighted average's amount error on wet blocks. */
+/**
+ * The plain or weighted average's amount error on wet blocks. A block where any
+ * provider gave a band has no average, since a band is never turned into a number,
+ * so both averages and the switch rule use only blocks of stated amounts.
+ */
 export function blendAmountError(
   blocks: readonly AmountBlock[],
   weights: Partial<Record<PrecipProviderId, number>> | null,
 ): AmountError {
-  return errorOf(blocks, (block) => blendBlockAmount(block.forecastMm, weights));
+  return errorOf(blocks, (block) =>
+    Object.keys(block.forecastRangeMm).length > 0 ? null : point(blendBlockAmount(block.forecastMm, weights)));
 }
 
 /**
