@@ -22,6 +22,13 @@ import type {
  */
 export const MORNING_WINDOW_START_HOUR = 7;
 
+/**
+ * The Evening Slot freezes all of tomorrow, hour by hour, so its window starts at
+ * midnight. It gives the learned hourly weights a second lead band (about 5 to
+ * 29 hours) beside the morning's 0 to 17. Decision 2026-10-28.
+ */
+export const EVENING_WINDOW_START_HOUR = 0;
+
 export interface MorningCaptureInput {
   station: ObservationStation;
   now: Date;
@@ -52,7 +59,7 @@ function koreanDateAndHour(date: Date): { date: string; hour: number } {
 }
 
 /**
- * Compared providers the Morning Slot never reads. Pirate Weather's free 10,000
+ * Compared providers the Morning and Evening Slots never read. Pirate Weather's free 10,000
  * calls a month cover the two cohorts but not a third daily run, and a 429 would
  * fault every capture, cohort and morning alike. Decision 2026-10-21.
  */
@@ -69,16 +76,26 @@ function validProbability(value: number | null | undefined): value is number {
   return value !== null && value !== undefined && Number.isFinite(value) && value >= 0 && value <= 100;
 }
 
-/** The provider hours from the window's first hour to midnight on `targetDate`. */
+/**
+ * The provider hours from the window's first hour to midnight on `targetDate`, as
+ * stamped. The stamp at the next date's 00:00 is kept too: Open-Meteo and KMA stamp
+ * the hour that ends then, so it is the day's last hour for them, while Pirate
+ * Weather stamps the hour that starts then. Grading maps each provider's stamps to
+ * observation hours by its own convention (docs/research/hourly-forecast-blending.md).
+ */
 export function morningWindowHours(
   snapshot: ProviderSnapshot,
   targetDate: string,
+  windowStartHour: number = MORNING_WINDOW_START_HOUR,
 ): MorningHourForecast[] {
+  const nextDate = addCalendarDays(targetDate, 1);
   return snapshot.hourly.flatMap((hour) => {
     const at = new Date(hour.time);
     if (Number.isNaN(at.getTime())) return [];
     const kst = koreanDateAndHour(at);
-    if (kst.date !== targetDate || kst.hour < MORNING_WINDOW_START_HOUR) return [];
+    const inDay = kst.date === targetDate && kst.hour >= windowStartHour;
+    const endsDay = kst.date === nextDate && kst.hour === 0;
+    if (!inDay && !endsDay) return [];
     const amount = hour.precipitationAmount;
     return [{
       time: hour.time,
@@ -88,15 +105,37 @@ export function morningWindowHours(
   });
 }
 
+function addCalendarDays(date: string, days: number): string {
+  return new Date(Date.parse(`${date}T00:00:00.000Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
 async function readAllForecasts(location: ForecastLocation): Promise<ProviderSnapshot[]> {
   return Promise.all(morningProviders.map((provider) => provider.read(location)));
 }
 
 /** Freeze one station's rain chances for the rest of today before any of it is observed. */
-export async function captureStationMorningForecast(
+export function captureStationMorningForecast(
   input: MorningCaptureInput,
 ): Promise<MorningCaptureResult> {
-  const targetDate = koreanDateAndHour(input.now).date;
+  return captureStationWindow(input, koreanDateAndHour(input.now).date, MORNING_WINDOW_START_HOUR, (capture) =>
+    input.store.saveMorningCapture(capture));
+}
+
+/** Freeze one station's rain chances for all of tomorrow, hour by hour, at the Evening Slot. */
+export function captureStationEveningForecast(
+  input: MorningCaptureInput,
+): Promise<MorningCaptureResult> {
+  const tomorrow = addCalendarDays(koreanDateAndHour(input.now).date, 1);
+  return captureStationWindow(input, tomorrow, EVENING_WINDOW_START_HOUR, (capture) =>
+    input.store.saveEveningCapture(capture));
+}
+
+async function captureStationWindow(
+  input: MorningCaptureInput,
+  targetDate: string,
+  windowStartHour: number,
+  save: (capture: MorningCapture) => Promise<CaptureWriteResult>,
+): Promise<MorningCaptureResult> {
   const location = createForecastLocation({
     name: input.station.name,
     latitude: input.station.latitude,
@@ -115,7 +154,7 @@ export async function captureStationMorningForecast(
   }
   const providers: MorningProviderForecast[] = snapshots.flatMap((snapshot) => {
     if (!compared.has(snapshot.id)) return [];
-    const hours = morningWindowHours(snapshot, targetDate);
+    const hours = morningWindowHours(snapshot, targetDate, windowStartHour);
     const chances = hours.map((hour) => hour.probability).filter(validProbability);
     return chances.length === 0
       ? []
@@ -132,11 +171,11 @@ export async function captureStationMorningForecast(
     stationId: input.station.id,
     targetDate,
     capturedAt: input.now.toISOString(),
-    windowStartHour: MORNING_WINDOW_START_HOUR,
+    windowStartHour,
     providers,
     equalProbability: equal.probability,
   };
-  const status = await input.store.saveMorningCapture(capture);
+  const status = await save(capture);
   return {
     status,
     reason: status === "inserted" ? "captured" : "already-captured",

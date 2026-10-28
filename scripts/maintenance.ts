@@ -48,10 +48,10 @@ async function syncIssue(key: string, title: string, body: string | null) {
 }
 
 const now = Date.now();
-for (const [workflow, hours] of [["local-performance", 18], ["morning-forecast", 30], ["service-health", 10]] as const) {
+for (const [workflow, hours] of [["local-performance", 18], ["morning-forecast", 30], ["evening-forecast", 30], ["service-health", 10]] as const) {
   const config = await api<{ state: string }>(`/actions/workflows/${workflow}.yml`);
   // A manual health check is a valid fresh probe. A manual collection must not
-  // conceal a missed scheduled cohort or Morning Slot.
+  // conceal a missed scheduled cohort, Morning Slot or Evening Slot.
   const event = workflow === "service-health" ? "" : "&event=schedule";
   const { workflow_runs: runs } = await api<{ workflow_runs: MaintenanceRun[] }>(`/actions/workflows/${workflow}.yml/runs?branch=main${event}&per_page=20`);
   const finding = assessRuns(runs, now, hours);

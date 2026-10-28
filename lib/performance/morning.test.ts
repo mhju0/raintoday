@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { HourlyForecast, ProviderSnapshot } from "../types.ts";
-import { captureStationMorningForecast, morningProviders, morningWindowHours } from "./morning.ts";
+import {
+  captureStationEveningForecast,
+  captureStationMorningForecast,
+  morningProviders,
+  morningWindowHours,
+} from "./morning.ts";
 import { InMemoryPerformanceStore } from "./store.ts";
 import type { ObservationStation } from "./types.ts";
 
@@ -52,21 +57,55 @@ function snapshot(
   };
 }
 
-test("the window runs from 07:00 KST to midnight on the capture's own date", () => {
+test("the window runs from 07:00 KST through the stamp at midnight that ends the capture's date", () => {
   const hours = morningWindowHours(snapshot("open-meteo", [
     hour("2026-10-22T06:00:00+09:00", 90),
     hour("2026-10-22T07:00:00+09:00", 10),
     // The same instant written in UTC still lands inside the window.
     hour("2026-10-22T14:00:00Z", 30),
     hour("2026-10-22T23:00:00+09:00", 20),
+    // Open-Meteo and KMA stamp the hour that ends then: 23:00–24:00 is the day's.
     hour("2026-10-23T00:00:00+09:00", 95),
+    hour("2026-10-23T01:00:00+09:00", 80),
   ]), "2026-10-22");
 
   assert.deepEqual(hours.map((entry) => entry.time), [
     "2026-10-22T07:00:00+09:00",
     "2026-10-22T14:00:00Z",
     "2026-10-22T23:00:00+09:00",
+    "2026-10-23T00:00:00+09:00",
   ]);
+});
+
+test("the Evening Slot freezes all of tomorrow, in its own record", async () => {
+  const store = new InMemoryPerformanceStore();
+  await store.syncStations([station], "2026-10-28");
+  const result = await captureStationEveningForecast({
+    station,
+    now: new Date("2026-10-28T19:30:00+09:00"),
+    store,
+    readForecasts: async () => [
+      snapshot("open-meteo", [
+        hour("2026-10-28T23:00:00+09:00", 90),
+        hour("2026-10-29T00:00:00+09:00", 10),
+        hour("2026-10-29T15:00:00+09:00", 60),
+        hour("2026-10-30T00:00:00+09:00", 20),
+        hour("2026-10-30T01:00:00+09:00", 95),
+      ]),
+    ],
+  });
+
+  assert.equal(result.status, "inserted");
+  assert.equal(result.capture?.targetDate, "2026-10-29");
+  assert.equal(result.capture?.windowStartHour, 0);
+  assert.deepEqual(result.capture?.providers[0].hours.map((entry) => entry.time), [
+    "2026-10-29T00:00:00+09:00",
+    "2026-10-29T15:00:00+09:00",
+    "2026-10-30T00:00:00+09:00",
+  ]);
+  assert.equal(result.capture?.providers[0].probability, 60);
+  assert.equal((await store.loadEveningCaptures("108")).length, 1);
+  assert.deepEqual(await store.loadMorningCaptures("108"), []);
 });
 
 test("a provider's window chance is its highest hour, and the equal blend averages providers", async () => {

@@ -1273,6 +1273,9 @@ start landing late, `captured_at` shows it and that choice can be revisited.
 
 ## 2026-10-21 — Hourly ASOS rainfall is collected for the morning window (2.3.1)
 
+**Status: ACTIVE; its "Still open" hour mapping is superseded by 2026-10-28 "The hourly
+forecast moves to a block blend, and an Evening Capture starts collecting".**
+
 **Decision.** The morning run reads 기상청_지상(종관, ASOS) 시간자료 조회서비스 after every
 station's Morning Capture and stores one row per station and KMA day in
 `performance_hourly_observations`: 24 hours, each with its amount and KMA's `rnQcflg`.
@@ -1314,3 +1317,59 @@ folder shared by Claude Code and Codex, and `.memory/handoff.md` carries the cur
 and next step. This ledger, the ADRs and `docs/ROADMAP.md` stay the public record; older
 entries that name the handoff are left as written. Agents may merge their own PRs once
 checks pass, under the owner's global rules, which the Releases section already assumes.
+
+---
+
+## 2026-10-28 — The hourly forecast moves to a block blend, and an Evening Capture starts collecting
+
+**Status: ACTIVE (owner, 2026-10-28). The Evening Capture ships in 2.4.0; the served blend
+and display come later, from mockups.** Evidence: `docs/research/hourly-forecast-blending.md`.
+
+**Decided.** The owner accepted all six recommendations:
+1. **Unit.** Hourly forecasts are blended and graded in fixed KST 3-hour blocks (00–03,
+   03–06, …): each provider's highest hour in the block first, then the blend across
+   providers. Single hours are graded as a secondary view.
+2. **Collection.** The 07:00 Morning Capture stays. A new Evening Capture freezes all of
+   tomorrow, hour by hour, at 19:30 KST. The 18 cohort is unchanged. No three-hourly
+   captures: most providers do not update that often, and Visual Crossing's 1,000 daily
+   records would run out.
+3. **Pirate Weather** stays out of the hourly blend, so what is served matches what is
+   graded; its free quota cannot cover hourly captures.
+4. **Ribbon blocks** move from now-anchored to fixed KST blocks, so displayed and graded
+   blocks are the same blocks.
+5. **Display.** Blended block bars plus a per-block count of providers at or above the 40%
+   threshold, with a per-provider grid as a receipt in the evidence shelf. Mockups come
+   before code.
+6. **Learned weights later.** A beta-transformed linear pool, pooled across stations, one
+   weight set per lead-time bucket, shrunk toward equal, fitted on the blend's own
+   out-of-sample log score. It replaces equal weights only after about 60 days of hourly
+   captures and about 100 wet station-days per bucket, when it beats equal out of sample
+   and is no worse on wet blocks or in reliability.
+
+**This reverses** the "single-source on purpose" rule for the hourly series
+(`lib/localForecast.ts`) once the served blend ships. Its objection, that a mean draws a
+curve no provider issued, is answered by blending block values every provider did issue.
+
+**Shape of 2.4.0.**
+- `evening-forecast` fires at 14:05 KST and waits for 19:30, with the morning run's three
+  spaced attempts. It writes `performance_evening_captures`, a separate table from Morning
+  Captures because both are keyed by station and date. It reads no observations.
+- Adapters keep 30 hours of hourly series (`HOURLY_HORIZON_HOURS`) so 19:30 reaches the end of
+  tomorrow; the served response still carries 24. WeatherAPI stays at `days=2`, so its
+  Evening Capture lacks the stamp at 00:00 two days ahead: a third day would also enter the
+  outlook blend.
+- Both slots now keep the stamp at the next date's 00:00, which is the target day's last hour
+  for providers that stamp the hour ending then.
+
+**Corrects** the grading plan of 2026-10-21. Open-Meteo ("preceding hour") and KMA (19시 =
+18–19시) stamp the hour that ends at `HH:00` and match ASOS row `HH` directly; Pirate Weather
+stamps the hour that starts then. WeatherAPI and Visual Crossing do not say. A lag test on
+the Morning Captures of 2026-10-22..26 could not tell the conventions apart, failing even on
+Open-Meteo, so grading reports both alignments for those two providers.
+
+**Still open.**
+- 19:30 does not guarantee every provider a fresh run. On 2026-10-28 Open-Meteo's newest
+  ECMWF ensemble at 20:25 KST was still the 18z of the day before; capture freshness is to be
+  measured, not assumed.
+- How the 40% threshold behaves on a blended value: replay stored captures before the
+  served blend ships.

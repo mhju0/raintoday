@@ -24,14 +24,16 @@ capture is late (October 13, 2026: started 20:06 KST). `morning-forecast` is tri
 01:30 KST and waits in the same way until 07:00 KST; it is flagged after 30 hours without a
 completed scheduled run. After every station's Morning Capture it reads ASOS hourly
 rainfall for the two newest complete days, so an ASOS failure fails the run without
-delaying a capture. The workflow also
+delaying a capture. `evening-forecast` is triggered at 14:05 KST and waits until 19:30 KST
+to take every station's Evening Capture of tomorrow, hour by hour; it reads no
+observations and is flagged after 30 hours without a completed scheduled run. The workflow also
 creates weekly and monthly review issues; an unfinished checklist remains open
 instead of being duplicated. Check off each task with evidence before closing it.
 
 Service health now flags even one missing provider. The site can remain usable
 while this check is red. A collection failure still refuses faulted forecast captures.
 
-- Weekly: inspect failed `local-performance`, `morning-forecast` and `service-health` runs, provider gaps,
+- Weekly: inspect failed `local-performance`, `morning-forecast`, `evening-forecast` and `service-health` runs, provider gaps,
   Dependabot PRs and Vercel/Neon usage. A green capture can still omit faulted stations.
 - Monthly and before significant data changes: take a private backup and restore it to
   an isolated database. Check provider accounts' credential expiry dates and quotas.

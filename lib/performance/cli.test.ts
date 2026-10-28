@@ -7,7 +7,9 @@ import { OUTAGE_EVIDENCE_THRESHOLD } from "./batch.ts";
 import {
   CAPTURE_FAULT_TOLERANCE,
   cohortRunFailed,
+  EVENING_SCHEDULE,
   manualCohortHourMismatch,
+  manualEveningHourMismatch,
   manualMorningHourMismatch,
   MORNING_SCHEDULE,
   OUTAGE_SAFE_COHORT_LIMIT,
@@ -150,8 +152,8 @@ test("the capture workflow passes every credential the capture path reads", () =
   }
   assert.ok(read.size > 0, "found no credentials to check — the scan is broken");
 
-  // The Morning Slot runs the same capture path from its own workflow.
-  for (const file of ["local-performance.yml", "morning-forecast.yml"]) {
+  // The Morning and Evening Slots run the same capture path from their own workflows.
+  for (const file of ["local-performance.yml", "morning-forecast.yml", "evening-forecast.yml"]) {
     const workflow = readFileSync(join(root, ".github", "workflows", file), "utf8");
     const passed = new Set(
       Array.from(
@@ -522,8 +524,8 @@ test("only a cron fired ahead of its slot waits; the morning run and a dispatch 
 test("every early-fired cron is a known capture cron and its wait fits one runner job", () => {
   for (const [cron, opensAtKstMinute] of Object.entries(SCHEDULE_SLOT_OPENS)) {
     assert.ok(
-      cron in SCHEDULE_COHORTS || cron === MORNING_SCHEDULE,
-      `${cron} waits for a slot but is neither a cohort cron nor the Morning Slot's`,
+      cron in SCHEDULE_COHORTS || cron === MORNING_SCHEDULE || cron === EVENING_SCHEDULE,
+      `${cron} waits for a slot but is neither a cohort cron nor the Morning or Evening Slot's`,
     );
     const [minute, hour] = cron.split(" ").map(Number);
     const firesAt = new Date(Date.UTC(2026, 9, 12, hour, minute));
@@ -550,16 +552,22 @@ test("the capture workflow holds its first attempt behind the slot wait without 
   assert.match(first, /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
 });
 
-const morningWorkflow = (): string => readFileSync(
-  join(import.meta.dirname, "..", "..", ".github", "workflows", "morning-forecast.yml"),
+const workflowFile = (file: string): string => readFileSync(
+  join(import.meta.dirname, "..", "..", ".github", "workflows", file),
   "utf8",
 );
+const hourlySlots = [
+  { slot: "Morning", file: "morning-forecast.yml", cron: MORNING_SCHEDULE, flag: "--morning" },
+  { slot: "Evening", file: "evening-forecast.yml", cron: EVENING_SCHEDULE, flag: "--evening" },
+] as const;
 
-test("the morning workflow fires on the Morning Slot's cron and nothing else", () => {
-  const crons = Array.from(morningWorkflow().matchAll(/^\s*-\s*cron:\s*"([^"]+)"/gm), (m) => m[1]);
-  assert.deepEqual(crons, [MORNING_SCHEDULE]);
-  assert.ok(!(MORNING_SCHEDULE in SCHEDULE_COHORTS), "the Morning Slot must not resolve to a cohort");
-});
+for (const { slot, file, cron } of hourlySlots) {
+  test(`the ${file} workflow fires on the ${slot} Slot's cron and nothing else`, () => {
+    const crons = Array.from(workflowFile(file).matchAll(/^\s*-\s*cron:\s*"([^"]+)"/gm), (m) => m[1]);
+    assert.deepEqual(crons, [cron]);
+    assert.ok(!(cron in SCHEDULE_COHORTS), `the ${slot} Slot must not resolve to a cohort`);
+  });
+}
 
 test("the Morning Slot waits from its early fire until 07:00 KST, and a late start does not wait", () => {
   const argv = [`--schedule=${MORNING_SCHEDULE}`];
@@ -572,6 +580,26 @@ test("the Morning Slot waits from its early fire until 07:00 KST, and a late sta
   assert.equal(secondsUntilSlotOpens(["--schedule="], at("04:00:00")), 0);
 });
 
+test("the Evening Slot waits from its early fire until 19:30 KST, and a late start does not wait", () => {
+  const argv = [`--schedule=${EVENING_SCHEDULE}`];
+  const at = (time: string) => new Date(`2026-10-28T${time}+09:00`);
+  assert.equal(secondsUntilSlotOpens(argv, at("14:05:00")), 325 * 60);
+  assert.equal(secondsUntilSlotOpens(argv, at("19:00:00")), 30 * 60);
+  assert.equal(secondsUntilSlotOpens(argv, at("19:30:00")), 0);
+  assert.equal(secondsUntilSlotOpens(argv, at("22:10:00")), 0);
+  assert.equal(secondsUntilSlotOpens(["--schedule="], at("15:00:00")), 0);
+});
+
+test("a manual Evening Capture runs only in the evening; a late scheduled one always runs", () => {
+  const at = (time: string) => new Date(`2026-10-28T${time}+09:00`);
+  assert.equal(manualEveningHourMismatch(["--schedule="], at("19:35:00")), null);
+  assert.equal(manualEveningHourMismatch(["--schedule="], at("20:59:00")), null);
+  assert.match(manualEveningHourMismatch(["--schedule="], at("14:00:00")) ?? "", /19:00 and 20:59 KST/);
+  assert.match(manualEveningHourMismatch([], at("22:00:00")) ?? "", /Evening Capture/);
+  assert.equal(manualEveningHourMismatch(["--schedule=", "--force"], at("14:00:00")), null);
+  assert.equal(manualEveningHourMismatch([`--schedule=${EVENING_SCHEDULE}`], at("23:30:00")), null);
+});
+
 test("a manual Morning Capture runs only in the morning; a late scheduled one always runs", () => {
   const at = (time: string) => new Date(`2026-10-22T${time}+09:00`);
   assert.equal(manualMorningHourMismatch(["--schedule="], at("07:05:00")), null);
@@ -582,32 +610,34 @@ test("a manual Morning Capture runs only in the morning; a late scheduled one al
   assert.equal(manualMorningHourMismatch([`--schedule=${MORNING_SCHEDULE}`], at("11:30:00")), null);
 });
 
-test("the morning workflow holds its first attempt behind the wait and spaces three identical attempts", () => {
-  const workflow = morningWorkflow();
-  const jobsBody = workflow.slice(workflow.indexOf("\njobs:"));
-  const jobNames = Array.from(jobsBody.matchAll(/^ {2}([a-z][\w-]*):$/gm), (m) => m[1]);
-  assert.deepEqual(jobNames, ["wait", "capture_1", "capture_2", "capture_3", "verdict"]);
-  const bodyOf = (name: string): string => {
-    const start = jobsBody.indexOf(`\n  ${name}:\n`);
-    const rest = jobsBody.slice(start + 1);
-    const next = rest.slice(1).search(/^ {2}[a-z][\w-]*:$/m);
-    return next < 0 ? rest : rest.slice(0, next + 1);
-  };
-  const wait = bodyOf("wait");
-  assert.match(wait, /performance-slot-wait\.ts --schedule="\$SCHEDULE"/);
-  assert.match(wait, /continue-on-error: true/);
-  assert.match(wait, /timeout-minutes: 345/);
-  assert.match(bodyOf("capture_1"), /needs: wait/);
-  assert.match(bodyOf("capture_1"), /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
-  assert.match(bodyOf("capture_2"), /needs:\s*capture_1/);
-  assert.match(bodyOf("capture_3"), /needs:\s*\[capture_1, capture_2\]/);
-  assert.match(bodyOf("capture_2"), /ATTEMPT_OFFSET_SECONDS: "600"/);
-  assert.match(bodyOf("capture_3"), /ATTEMPT_OFFSET_SECONDS: "1500"/);
-  const secretsOf = (name: string): string[] =>
-    Array.from(bodyOf(name).matchAll(/^\s*([A-Z][A-Z0-9_]*):\s*\$\{\{\s*secrets\./gm), (m) => m[1]).sort();
-  for (const name of ["capture_1", "capture_2", "capture_3"]) {
-    assert.match(bodyOf(name), /--morning/, `${name} must capture the Morning Slot`);
-    assert.match(bodyOf(name), /--require-all-providers/, `${name} must refuse a missing provider key`);
-    assert.deepEqual(secretsOf(name), secretsOf("capture_1"), `${name} is credentialled differently`);
-  }
-});
+for (const { slot, file, flag } of hourlySlots) {
+  test(`the ${file} workflow holds its first attempt behind the wait and spaces three identical attempts`, () => {
+    const workflow = workflowFile(file);
+    const jobsBody = workflow.slice(workflow.indexOf("\njobs:"));
+    const jobNames = Array.from(jobsBody.matchAll(/^ {2}([a-z][\w-]*):$/gm), (m) => m[1]);
+    assert.deepEqual(jobNames, ["wait", "capture_1", "capture_2", "capture_3", "verdict"]);
+    const bodyOf = (name: string): string => {
+      const start = jobsBody.indexOf(`\n  ${name}:\n`);
+      const rest = jobsBody.slice(start + 1);
+      const next = rest.slice(1).search(/^ {2}[a-z][\w-]*:$/m);
+      return next < 0 ? rest : rest.slice(0, next + 1);
+    };
+    const wait = bodyOf("wait");
+    assert.match(wait, /performance-slot-wait\.ts --schedule="\$SCHEDULE"/);
+    assert.match(wait, /continue-on-error: true/);
+    assert.match(wait, /timeout-minutes: 345/);
+    assert.match(bodyOf("capture_1"), /needs: wait/);
+    assert.match(bodyOf("capture_1"), /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
+    assert.match(bodyOf("capture_2"), /needs:\s*capture_1/);
+    assert.match(bodyOf("capture_3"), /needs:\s*\[capture_1, capture_2\]/);
+    assert.match(bodyOf("capture_2"), /ATTEMPT_OFFSET_SECONDS: "600"/);
+    assert.match(bodyOf("capture_3"), /ATTEMPT_OFFSET_SECONDS: "1500"/);
+    const secretsOf = (name: string): string[] =>
+      Array.from(bodyOf(name).matchAll(/^\s*([A-Z][A-Z0-9_]*):\s*\$\{\{\s*secrets\./gm), (m) => m[1]).sort();
+    for (const name of ["capture_1", "capture_2", "capture_3"]) {
+      assert.ok(bodyOf(name).includes(flag), `${name} must capture the ${slot} Slot`);
+      assert.match(bodyOf(name), /--require-all-providers/, `${name} must refuse a missing provider key`);
+      assert.deepEqual(secretsOf(name), secretsOf("capture_1"), `${name} is credentialled differently`);
+    }
+  });
+}

@@ -153,6 +153,36 @@ export function manualMorningHourMismatch(argv: readonly string[], now: Date): s
 }
 
 /**
+ * The cron of `.github/workflows/evening-forecast.yml`, 14:05 KST, and the KST
+ * minute its Evening Slot opens, 19:30.
+ *
+ * 19:30 follows the 18 cohort rather than sharing its minute, so the two runs do
+ * not read every provider for 97 stations at once. It fires 5.4 hours early and
+ * waits, as the 18 cohort and the Morning Slot do, so a late scheduler start still
+ * lands the same evening. Decision 2026-10-28.
+ */
+export const EVENING_SCHEDULE = "5 5 * * *";
+const EVENING_SLOT_OPENS_MINUTE = 19 * 60 + 30;
+
+/** KST hours in which a manually dispatched Evening Capture may run. */
+const MANUAL_EVENING_HOURS: readonly [number, number] = [19, 20];
+
+/** The reason a manual Evening Capture contradicts the clock, or null when it does not. */
+export function manualEveningHourMismatch(argv: readonly string[], now: Date): string | null {
+  if (option(argv, "schedule")) return null;
+  if (argv.includes("--force")) return null;
+  const [from, to] = MANUAL_EVENING_HOURS;
+  const hour = koreanHour(now);
+  if (hour >= from && hour <= to) return null;
+  return (
+    `an Evening Capture is taken between ${from}:00 and ${to}:59 KST, and it is ` +
+    `${String(hour).padStart(2, "0")}:00 KST now. It is graded as tomorrow's forecast ` +
+    "a reader saw that evening, so another hour would be scored at a lead time it does " +
+    "not have. Wait for the window, or pass --force."
+  );
+}
+
+/**
  * Crons fired ahead of their slot, with the KST minute of the day the slot opens.
  *
  * GitHub started the evening cron 4.4 to 9.2 hours after its 18:10 KST slot on
@@ -168,6 +198,7 @@ export function manualMorningHourMismatch(argv: readonly string[], now: Date): s
 export const SCHEDULE_SLOT_OPENS: Readonly<Record<string, number>> = {
   "40 3 * * *": 18 * 60 + 10,
   [MORNING_SCHEDULE]: MORNING_WINDOW_START_HOUR * 60,
+  [EVENING_SCHEDULE]: EVENING_SLOT_OPENS_MINUTE,
 };
 
 function koreanSecondOfDay(date: Date): number {

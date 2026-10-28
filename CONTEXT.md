@@ -33,15 +33,23 @@ One next-day forecast issue group, named for the scheduled 06 or 18 KST slot it 
 _Avoid_: Morning data, forecast batch, fixed issue hour
 
 **Morning Capture**:
-One immutable set of provider rain chances for the rest of the day, hour by hour from 07:00 to midnight KST, taken at the Morning Slot for an Observation Station before any of that rain is observed. It leaves out Pirate Weather, whose free quota covers only the cohorts. It targets the day it is taken on, has no Capture Cohort and no learned blend, and is stored apart from Forecast Captures. It is graded against hourly observations for its window, never the day's total.
+One immutable set of provider rain chances for the rest of the day, hour by hour from 07:00 through the hour ending at midnight KST, taken at the Morning Slot for an Observation Station before any of that rain is observed. It leaves out Pirate Weather, whose free quota covers only the cohorts. It targets the day it is taken on, has no Capture Cohort and no learned blend, and is stored apart from Forecast Captures. It is graded against hourly observations for its window, never the day's total.
 _Avoid_: 07 cohort, same-day cohort, today's capture
 
+**Evening Capture**:
+One immutable set of provider rain chances for all of tomorrow, hour by hour, taken at the Evening Slot for an Observation Station. It leaves out Pirate Weather for the same quota reason as a Morning Capture, has no Capture Cohort and no learned blend, and is stored apart from both Forecast Captures and Morning Captures. It is graded against hourly observations, as the evening-before moment for each hour of the target day.
+_Avoid_: 19 cohort, evening cohort, next-day hourly cohort
+
 **Hourly Observation**:
-One station's ASOS rainfall for one KMA day, hour by hour: the 24 hours ending 01:00 through 24:00 KST, the span the daily total covers. It is the ground truth for a Morning Capture's window. An hour ASOS published no row for is unknown, never dry. The hourly service publishes up to yesterday only, so a day is readable two calendar days after it.
+One station's ASOS rainfall for one KMA day, hour by hour: the 24 hours ending 01:00 through 24:00 KST, the span the daily total covers. It is the ground truth for Morning and Evening Captures. An hour ASOS published no row for is unknown, never dry. The hourly service publishes up to yesterday only, so a day is readable two calendar days after it.
 
 **Morning Slot**:
 07:00 KST, the moment a reader decides about an umbrella for the day. A Morning Capture keeps the time it was actually taken; one taken well after the slot is a different, easier forecast.
 _Avoid_: Morning cohort
+
+**Evening Slot**:
+19:30 KST, when the Evening Capture freezes tomorrow hour by hour. It follows the 18 cohort's slot rather than sharing it, so the two runs do not read every provider at once.
+_Avoid_: Evening cohort
 
 **Forecast Capture**:
 One immutable set of next-day provider predictions and prospectively frozen blend outputs for an Observation Station and Capture Cohort.

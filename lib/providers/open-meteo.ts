@@ -7,6 +7,7 @@ import type {
   DailyForecast,
   HourlyForecast,
 } from "../types";
+import { HOURLY_HORIZON_HOURS } from "./base.ts";
 import { createWeatherProvider } from "./read.ts";
 
 /**
@@ -188,7 +189,7 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
     weatherCode: data.current.weather_code ?? null,
   };
   const hourly: HourlyForecast[] = data.hourly.time
-    .slice(startIdx, startIdx + 24)
+    .slice(startIdx, startIdx + HOURLY_HORIZON_HOURS)
     .map((t, i) => {
       const idx = startIdx + i;
       return {

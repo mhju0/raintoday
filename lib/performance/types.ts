@@ -63,6 +63,13 @@ export interface MorningCapture {
   equalProbability: number | null;
 }
 
+/**
+ * One immutable next-day forecast taken at the Evening Slot: every provider's rain
+ * chances for all of tomorrow, hour by hour. The same shape as a Morning Capture,
+ * with `targetDate` the day after it was taken and `windowStartHour` 0.
+ */
+export type EveningCapture = MorningCapture;
+
 export interface PrecipObservation {
   stationId: string;
   date: string;
