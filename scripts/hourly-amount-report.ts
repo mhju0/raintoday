@@ -34,17 +34,12 @@ function option(name: string): string | undefined {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
-const providers = (option("providers")?.split(",") ?? HOURLY_BLEND_PROVIDERS) as PrecipProviderId[];
-const unknown = providers.filter((provider) => !HOURLY_BLEND_PROVIDERS.includes(provider));
-if (unknown.length > 0) {
-  console.error(`not an hourly-blend provider: ${unknown.join(", ")}`);
-  process.exit(1);
-}
-const from = option("from");
-if (from !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(from)) {
-  console.error("usage: performance:hourly-amounts -- [--providers=a,b] [--from=YYYY-MM-DD]");
-  process.exit(1);
-}
+// Options only select from known values; anything else is ignored, and the report
+// echoes the providers and date it actually used.
+const requested = option("providers")?.split(",") ?? [];
+const chosen = HOURLY_BLEND_PROVIDERS.filter((provider) => requested.includes(provider));
+const providers = chosen.length > 0 ? chosen : HOURLY_BLEND_PROVIDERS;
+const from = /^\d{4}-\d{2}-\d{2}$/.exec(option("from") ?? "")?.[0];
 
 const connectionUrl = process.env.PERFORMANCE_DATABASE_URL?.trim();
 if (!connectionUrl) {
