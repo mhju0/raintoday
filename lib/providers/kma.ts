@@ -6,7 +6,7 @@ import type {
   DailyForecast,
   HourlyForecast,
 } from "../types";
-import { conditionFromKma } from "./kma-mapping.ts";
+import { amountFromKmaPcp, conditionFromKma } from "./kma-mapping.ts";
 import { HOURLY_HORIZON_HOURS } from "./base.ts";
 import { createWeatherProvider } from "./read.ts";
 
@@ -276,6 +276,8 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
       time,
       temperature: Number(v.TMP),
       precipitationProbability: num(v.POP),
+      // 1시간 강수량 for the hour ending at the stamp; a band stays unknown.
+      precipitationAmount: amountFromKmaPcp(v.PCP),
       windSpeed: num(v.WSD) !== null ? Math.round(Number(v.WSD) * 3.6 * 10) / 10 : null,
       humidity: num(v.REH),
       condition: conditionFromKma(Number(v.PTY ?? 0), Number(v.SKY ?? 0)),

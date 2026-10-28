@@ -48,8 +48,9 @@ export interface HourlyForecast {
   precipitationProbability: number | null;
   /**
    * Forecast precipitation amount for the hour (mm). Optional enrichment
-   * populated by sources that publish one (Open-Meteo); other providers omit
-   * it and the timeline's mm lane shows an honest gap instead of a zero.
+   * populated by sources that publish one (Open-Meteo, WeatherAPI, Visual Crossing,
+   * and KMA where it states an exact value rather than a band); Pirate Weather omits
+   * it, and the timeline's mm lane shows an honest gap instead of a zero.
    */
   precipitationAmount?: number | null;
   windSpeed: number | null;
@@ -68,8 +69,8 @@ export interface DailyForecast {
   sunset: string | null;
   /**
    * Forecast daily precipitation total (mm). Optional enrichment populated only
-   * by sources that publish a clean daily amount (Open-Meteo, WeatherAPI); other
-   * sources omit it. Consumed by the forecast blend and by the performance
+   * by sources that publish a clean daily amount (Open-Meteo, WeatherAPI, Visual
+   * Crossing, Pirate Weather); KMA omits it. Consumed by the forecast blend and by the performance
    * capture as the day's amount; sources that publish none stay null.
    */
   precipitationAmount?: number | null;

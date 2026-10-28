@@ -33,11 +33,11 @@ One next-day forecast issue group, named for the scheduled 06 or 18 KST slot it 
 _Avoid_: Morning data, forecast batch, fixed issue hour
 
 **Morning Capture**:
-One immutable set of provider rain chances for the rest of the day, hour by hour from 07:00 through the hour ending at midnight KST, taken at the Morning Slot for an Observation Station before any of that rain is observed. It leaves out Pirate Weather, whose free quota covers only the cohorts. It targets the day it is taken on, has no Capture Cohort and no learned blend, and is stored apart from Forecast Captures. It is graded against hourly observations for its window, never the day's total.
+One immutable set of provider rain chances and amounts for the rest of the day, hour by hour from 07:00 through the hour ending at midnight KST, taken at the Morning Slot for an Observation Station before any of that rain is observed. It leaves out Pirate Weather, whose free quota covers only the cohorts. It targets the day it is taken on, has no Capture Cohort and no learned blend, and is stored apart from Forecast Captures. It is graded against hourly observations for its window, never the day's total.
 _Avoid_: 07 cohort, same-day cohort, today's capture
 
 **Evening Capture**:
-One immutable set of provider rain chances for all of tomorrow, hour by hour, taken at the Evening Slot for an Observation Station. It leaves out Pirate Weather for the same quota reason as a Morning Capture, has no Capture Cohort and no learned blend, and is stored apart from both Forecast Captures and Morning Captures. It is graded against hourly observations, as the evening-before moment for each hour of the target day.
+One immutable set of provider rain chances and amounts for all of tomorrow, hour by hour, taken at the Evening Slot for an Observation Station. It leaves out Pirate Weather for the same quota reason as a Morning Capture, has no Capture Cohort and no learned blend, and is stored apart from both Forecast Captures and Morning Captures. It is graded against hourly observations, as the evening-before moment for each hour of the target day.
 _Avoid_: 19 cohort, evening cohort, next-day hourly cohort
 
 **Hourly Observation**:

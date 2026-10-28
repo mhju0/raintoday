@@ -138,6 +138,8 @@ interface WaHour {
   humidity: number;
   wind_kph: number;
   chance_of_rain: number;
+  /** Precipitation amount in the hour (mm). */
+  precip_mm?: number;
   condition: WaCondition;
 }
 
@@ -214,6 +216,8 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
         temperature: h.temp_c,
         // chance_of_rain is already 0–100 — do not divide.
         precipitationProbability: h.chance_of_rain,
+        precipitationAmount:
+          typeof h.precip_mm === "number" && Number.isFinite(h.precip_mm) ? h.precip_mm : null,
         windSpeed: h.wind_kph,
         humidity: h.humidity,
         condition: conditionFromCode(h.condition.code),

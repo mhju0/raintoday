@@ -6,7 +6,9 @@ import type {
   CompletedComparison,
   EveningCapture,
   ForecastCapture,
+  HourlyGradingPair,
   HourlyPrecipObservation,
+  HourlySlot,
   MorningCapture,
   ObservationStation,
   PrecipObservation,
@@ -52,6 +54,18 @@ interface SeedComparisonRow {
   providers: SeedComparison["providers"];
   observed_mm: number;
   built_at: string;
+}
+
+interface HourlyGradingRow {
+  station_id: string;
+  target_date: string;
+  captured_at: string;
+  window_start_hour: number;
+  providers: MorningCapture["providers"];
+  equal_probability: number | null;
+  hours: HourlyPrecipObservation["hours"];
+  observed_at: string;
+  source: HourlyPrecipObservation["source"];
 }
 
 export interface CompletedComparisonsQuery {
@@ -544,6 +558,43 @@ export class PostgresPerformanceStore implements PerformanceStore {
           source = excluded.source
       `;
     }, this.#statementRecovery);
+  }
+
+  async loadHourlyGradingPairs(slot: HourlySlot): Promise<HourlyGradingPair[]> {
+    const rows = slot === "morning"
+      ? await this.#sql<HourlyGradingRow[]>`
+          select c.station_id, c.target_date::text, c.captured_at::text, c.window_start_hour,
+            c.providers, c.equal_probability, h.hours, h.observed_at::text, h.source
+          from performance_morning_captures c
+          join performance_hourly_observations h
+            on h.station_id = c.station_id and h.date = c.target_date
+          order by c.target_date, c.station_id
+        `
+      : await this.#sql<HourlyGradingRow[]>`
+          select c.station_id, c.target_date::text, c.captured_at::text, c.window_start_hour,
+            c.providers, c.equal_probability, h.hours, h.observed_at::text, h.source
+          from performance_evening_captures c
+          join performance_hourly_observations h
+            on h.station_id = c.station_id and h.date = c.target_date
+          order by c.target_date, c.station_id
+        `;
+    return rows.map((row) => ({
+      capture: {
+        stationId: row.station_id,
+        targetDate: row.target_date,
+        capturedAt: isoTimestamp(row.captured_at),
+        windowStartHour: row.window_start_hour,
+        providers: row.providers,
+        equalProbability: row.equal_probability,
+      },
+      observation: {
+        stationId: row.station_id,
+        date: row.target_date,
+        hours: row.hours,
+        observedAt: isoTimestamp(row.observed_at),
+        source: row.source,
+      },
+    }));
   }
 
   async loadCompletedComparisons(

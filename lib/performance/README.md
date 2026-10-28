@@ -109,7 +109,10 @@ npm run performance:capture -- --cohort=06     # one live cohort (scheduled)
 npm run performance:seed -- --start=2025-06-01 --end=2025-08-31
 npm run performance:observations -- --start=2026-08-21 --end=2026-08-22
 npm run performance:catalog                     # regenerate the fallback station catalog
+npm run performance:hourly-amounts              # read-only: amount accuracy and weights per slot
 ```
+
+`performance:hourly-amounts` scores each provider's rain amounts in the Morning and Evening Captures against hourly ASOS rainfall, in fixed KST 3-hour blocks, and reports the amount weights and whether their switch rule holds (`docs/DECISIONS.md` 2026-10-28). It opens the database read-only. Every provider is scored on the same blocks, so pass `--providers=open-meteo,visual-crossing` for the dates before WeatherAPI and KMA carried hourly amounts, or `--from=` the first date all four do.
 
 `performance:observations` repairs ground truth the cohorts missed. Each cohort reads one date fixed by the clock, so a date missed while the pipeline was degraded stays missed and every comparison whose target date it is stays incomplete. It writes observations only — no capture, no catalog sync — over the stations the store records as active *during the window*, retired ones included, since a catalog failure is both what retires a station and what leaves the hole. It is idempotent by `(station, date)`. It refuses an end date newer than two days back for the same reason the 06 cohort does: an uncompiled day would be recorded as an absence, writing the hole the tool exists to fill. A station whose window could not be read — or could not be stored — is a reported failure and a non-zero exit, never an absence. A run in which no station has a row anywhere exits non-zero too: a gap that wide is far likelier to be an outage than the record.
 
@@ -128,7 +131,8 @@ npm run performance:catalog                     # regenerate the fallback statio
 | `backfill.ts` | One-shot offline backfill orchestration |
 | `stationCatalog.ts` | Generated fallback ASOS catalog — never hand-edited |
 | `capture.ts` | Freeze one station/cohort prediction |
-| `morning.ts` | Freeze one station's rest-of-today hourly chances at the Morning Slot |
+| `morning.ts` | Freeze one station's hourly chances and amounts at the Morning and Evening Slots |
+| `hourlyAmount.ts` | Pure block amount scoring, amount weights and their switch rule |
 | `batch.ts` | Nationwide bounded live cohort or Morning Slot run |
 | `influence.ts` | Effective Influence and the blend it produces |
 | `../providers/selection.ts` | Active provider membership and daily eligibility shared by serving and capture |

@@ -1373,3 +1373,66 @@ Open-Meteo, so grading reports both alignments for those two providers.
   measured, not assumed.
 - How the 40% threshold behaves on a blended value: replay stored captures before the
   served blend ships.
+
+---
+
+## 2026-10-28 — The ribbon's rain amount is an average weighted by amount accuracy
+
+**Status: ACTIVE (owner, 2026-10-28). 2.5.0 collects and scores; nothing served changes yet.**
+Builds on the previous entry; mockups: the owner's private review artifact of 2026-10-28.
+
+**Display, decided from the mockups.**
+- The blended ribbon (recommendation 5) takes the M1 layout: the mean chance as the bar, one
+  square per service filled when that service is at 40% or above, with the count in words
+  ("4곳 중 3곳"), and a hedge line when the mean leaves a block dry but half or more of the
+  services put it at 40% or above.
+- No value may change the layout: every footer row of a ribbon column has a fixed height and
+  does not wrap, and a row with nothing to show keeps its space. Only the hedge line may add
+  height, on days the services split.
+- The amount lane shows **one average bar per block, and writes the range of the services'
+  amounts as its number**. The services behind the range are named in the receipt table, not
+  on the ribbon. Showing every service's amount as bars (two layered bars, or paired bars)
+  was rejected as too busy to read at a glance.
+
+**Supersedes in part** ADR 0009's rule "Amount spreads are attributed member min/max" for the
+ribbon only: the range is attributed in the receipt one tap away, not beside the number. The
+day cards' attributed amounts are unchanged.
+
+**The average is weighted by how well each service forecasts amounts**, the way tomorrow's
+rain chance is weighted by recent accuracy:
+- Score: each service's mean absolute error in mm on wet 3-hour blocks (forecast or observed
+  at least 0.1 mm) against hourly ASOS rainfall, every service on the same blocks, per slot.
+  The rain-chance score (Brier) does not apply to amounts.
+- Weights: inverse error, held between the rain-chance floor and cap (0.05 and 0.6), so no
+  service is dropped or takes over (`lib/performance/hourlyAmount.ts`).
+- **Switch rule.** The plain average stays until, within one slot, there are 60 days and 100 wet
+  station-days, weights fitted on the earlier half of the dates beat the plain average on the
+  later half, **and** win on most of those later wet dates, so one storm cannot decide it.
+- `npm run performance:hourly-amounts` reports all of this read-only; it changes nothing.
+
+**Collection.** WeatherAPI's hourly `precip_mm` and KMA's 1시간 강수량 (`PCP`) now enter the
+hourly series and therefore the Morning and Evening Captures; before 2.5.0 only Open-Meteo and
+Visual Crossing carried hourly amounts. KMA's amount is kept only where KMA states one
+("강수없음" or an exact value). Its bands ("1mm 미만", "30.0~50.0mm", "50.0mm 이상") stay
+unknown, under the 2026-08-26 rule against bucket midpoints, so KMA is scored only on blocks it
+states exactly and drops out of blocks where it gives a band. The owner may revisit this
+for hourly scoring; it is not decided here. On the served page this changes only the
+fallback: if Open-Meteo has no hourly series, the ribbon's mm lane now shows KMA's stated
+amounts where it used to show none.
+
+**The served blend stays on hold** (owner, 2026-10-28): the ribbon remains Open-Meteo
+single-source until the replay is re-run with about three more weeks of captures, around
+2026-11-18, Evening Captures included. The amount weights wait for the switch rule above.
+
+**Evidence so far** (Morning Captures, target dates 2026-10-22..26, Open-Meteo and Visual
+Crossing, 902 wet blocks, Visual Crossing read as hour-starting): mean absolute error 1.72 mm
+for Open-Meteo, 1.93 for Visual Crossing, 1.52 for their plain average and 1.51 weighted
+(0.525 / 0.475). Weights fitted on 10-22..23 lost to the plain average on each of
+10-24..26. Most wet blocks came from one storm on 10-24. Five days are a preview, not
+evidence.
+
+**Corrections.** `docs/research/hourly-forecast-blending.md` lists Pirate Weather among
+the hourly-amount sources; its adapter maps no hourly amount, only a daily one. On
+2026-10-28 Open-Meteo's ECMWF ensemble run from 00Z became available at 21:20 KST. The
+Evening Capture at 19:30 KST therefore read the 18Z run from the day before. One day only;
+moving the slot is the owner's call.

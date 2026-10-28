@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { conditionFromKma } from "./kma-mapping.ts";
+import { amountFromKmaPcp, conditionFromKma } from "./kma-mapping.ts";
 
 test("conditionFromKma: PTY (강수형태) maps to precipitation", () => {
   assert.equal(conditionFromKma(1, 1), "rain"); // 비
@@ -27,4 +27,20 @@ test("conditionFromKma: unknown codes fall back to 'unknown'", () => {
   assert.equal(conditionFromKma(0, 0), "unknown");
   assert.equal(conditionFromKma(0, 2), "unknown"); // SKY 2 is not a KMA code
   assert.equal(conditionFromKma(9, 0), "unknown");
+});
+
+test("amountFromKmaPcp: reads the amounts KMA states exactly", () => {
+  assert.equal(amountFromKmaPcp("강수없음"), 0);
+  assert.equal(amountFromKmaPcp("0"), 0);
+  assert.equal(amountFromKmaPcp("1.0mm"), 1);
+  assert.equal(amountFromKmaPcp("4.0mm"), 4);
+});
+
+test("amountFromKmaPcp: a band is unknown, never a midpoint, and so is anything unreadable", () => {
+  assert.equal(amountFromKmaPcp("1mm 미만"), null);
+  assert.equal(amountFromKmaPcp("30.0~50.0mm"), null);
+  assert.equal(amountFromKmaPcp("50.0mm 이상"), null);
+  assert.equal(amountFromKmaPcp(undefined), null);
+  assert.equal(amountFromKmaPcp(""), null);
+  assert.equal(amountFromKmaPcp("-"), null);
 });

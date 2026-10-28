@@ -180,6 +180,28 @@ export function runPerformanceStoreContract(
     });
   });
 
+  test(`${adapterName} pairs each hourly slot's captures with their day's hourly rainfall`, async () => {
+    await withStore(async (store) => {
+      await store.syncStations([station("108"), station("159")], "2026-03-01");
+      await store.saveMorningCapture(morningCapture("108", "2026-03-02"));
+      await store.saveMorningCapture(morningCapture("108", "2026-03-03"));
+      await store.saveEveningCapture({ ...morningCapture("108", "2026-03-02"), windowStartHour: 0 });
+      await store.saveHourlyObservation(hourlyObservation("108", "2026-03-02", 8));
+      await store.saveHourlyObservation(hourlyObservation("108", "2026-03-02", 9));
+      await store.saveHourlyObservation(hourlyObservation("159", "2026-03-03", 9));
+
+      const morning = await store.loadHourlyGradingPairs("morning");
+      assert.deepEqual(morning, [{
+        capture: morningCapture("108", "2026-03-02"),
+        observation: hourlyObservation("108", "2026-03-02", 9),
+      }]);
+      const evening = await store.loadHourlyGradingPairs("evening");
+      assert.equal(evening.length, 1);
+      assert.equal(evening[0].capture.windowStartHour, 0);
+      assert.deepEqual(evening[0].observation.hours, hourlyObservation("108", "2026-03-02", 9).hours);
+    });
+  });
+
   test(`${adapterName} pairs a capture with its later observation only`, async () => {
     await withStore(async (store) => {
       await store.syncStations([station("108")], "2026-03-01");
