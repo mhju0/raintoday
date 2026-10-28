@@ -272,3 +272,20 @@ test("a newest issue with data is not followed by a second forecast request", as
   assert.equal(requests.length, 1);
   assert.equal(hourly.length, 1);
 });
+
+test("each forecast hour carries its 1시간 강수량 (PCP) as an amount", async () => {
+  process.env.KMA_SHORT_TERM_API_KEY = SHORT_TERM_KEY;
+  const [tmp, pop] = tomorrowForecastItems() as { fcstDate: string }[];
+  const fcstDate = tmp.fcstDate;
+  installIssueFetch(() => okJson([
+    tmp, pop,
+    { category: "PCP", fcstDate, fcstTime: "1500", fcstValue: "2.0mm" },
+    { category: "TMP", fcstDate, fcstTime: "1600", fcstValue: "21" },
+    { category: "PCP", fcstDate, fcstTime: "1600", fcstValue: "1mm 미만" },
+    { category: "TMP", fcstDate, fcstTime: "1700", fcstValue: "21" },
+  ]));
+
+  const { hourly } = await kmaProvider.read();
+
+  assert.deepEqual(hourly.map((hour) => hour.precipitationAmount), [2, null, null]);
+});

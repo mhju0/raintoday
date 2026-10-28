@@ -1,6 +1,6 @@
 # Roadmap
 
-Updated 2026-10-12. The project is in maintenance mode: correctness, security,
+Updated 2026-10-28. The project is in maintenance mode: correctness, security,
 provider compatibility and service operation. New product scope requires an owner decision.
 Source/tests and Git take precedence over this document.
 
@@ -11,7 +11,7 @@ it follows v1.1.0 with the September 26 audit fixes, accessibility work, the typ
 and the shorter README. The v1.0.0 tag remains unchanged on the SeoulSky source.
 
 Since then every merged change ships as its own release (the rule is in `AGENTS.md`).
-The current release is v2.2.12, and no further change is planned for now. The
+The current release is v2.5.0. The
 [GitHub releases](https://github.com/mhju0/raintoday/releases) carry the full list; the
 ones that changed what a visitor sees are:
 
@@ -35,6 +35,13 @@ ones that changed what a visitor sees are:
 - 2.2.11: documentation corrected; no behaviour change.
 - 2.2.12: when KMA's newest forecast issue comes back empty, an earlier issue (up to nine hours older) is used, so KMA stays in the forecast.
 
+2.3.0 to 2.5.0 collect evidence for blending the hourly forecast and change almost nothing a
+visitor sees: every station's hour-by-hour forecast is saved at 07:00 for the rest of the day and at
+19:30 for all of tomorrow, with hourly ASOS rainfall to grade it, and from 2.5.0 the saved
+hours carry WeatherAPI's and KMA's rain amounts too. The one visible exception: if
+Open-Meteo's hourly series is missing, the timeline's rain-amount lane now shows KMA's
+stated amounts instead of a gap.
+
 ## Maintenance follow-ups
 
 Collection and health incidents have automated issue tracking, freshness checks,
@@ -48,6 +55,7 @@ so that gateway is not a fallback until a matching 활용신청 is approved.
 | Watch provider coverage | Check scheduled capture and service-health failures; inspect provider-specific gaps even when the overall run passes. Visual Crossing quota has no verified remaining-usage endpoint. |
 | Review dependencies | Dependabot opens security-fix PRs only; patch/minor fixes may auto-merge after required CI, and majors stay manual. Review routine upgrades by hand, and revisit the TypeScript and ESLint compatibility holds using current package metadata. |
 | Renew credentials | The 활용기간 end dates are recorded in `CREDENTIAL_EXPIRIES` (`lib/maintenance.ts`); the maintenance workflow opens a renewal issue 30 days out and escalates at 7. It closes by hand, because a renewal happens in the portal and is not observable from CI. Keep the Actions and Vercel credential stores aligned by purpose. |
+| Hourly blend and amount weights | Owner decisions 2026-10-28 in `docs/DECISIONS.md`. Around 2026-11-18, re-run the block replay on Morning and Evening Captures before the blended ribbon ships, and run `npm run performance:hourly-amounts` (with `--providers=open-meteo,visual-crossing` for dates before 2.5.0). The ribbon's amount stays a plain average until that report's switch rule holds. |
 | Recovery and costs | Follow [OPERATIONS.md](OPERATIONS.md) for backup/restore, rollback, notification checks and the review schedule. |
 
 These are ongoing operating duties, not unfinished product features. Time-dependent

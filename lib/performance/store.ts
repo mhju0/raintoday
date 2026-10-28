@@ -4,7 +4,9 @@ import type {
   CompletedComparison,
   EveningCapture,
   ForecastCapture,
+  HourlyGradingPair,
   HourlyPrecipObservation,
+  HourlySlot,
   MorningCapture,
   ObservationStation,
   PrecipObservation,
@@ -60,6 +62,11 @@ export interface PerformanceStore {
   saveObservation(observation: PrecipObservation): Promise<void>;
   /** Store one station-day of hourly rainfall, replacing an earlier read of it. */
   saveHourlyObservation(observation: HourlyPrecipObservation): Promise<void>;
+  /**
+   * Every capture of one hourly slot whose target day has hourly rainfall, paired
+   * with it, oldest first. Read-only; for grading and the amount-weight report.
+   */
+  loadHourlyGradingPairs(slot: HourlySlot): Promise<HourlyGradingPair[]>;
   loadCompletedComparisons(
     stationId: string,
     cohort: CaptureCohort,
@@ -172,6 +179,18 @@ export class InMemoryPerformanceStore implements PerformanceStore {
       .filter((observation) => observation.stationId === stationId)
       .sort((a, b) => a.date.localeCompare(b.date))
       .map(clone);
+  }
+
+  async loadHourlyGradingPairs(slot: HourlySlot): Promise<HourlyGradingPair[]> {
+    const captures = slot === "morning" ? this.#morningCaptures : this.#eveningCaptures;
+    return Array.from(captures.values())
+      .flatMap((capture) => {
+        const observation = this.#hourlyObservations.get(`${capture.stationId}:${capture.targetDate}`);
+        return observation ? [{ capture: clone(capture), observation: clone(observation) }] : [];
+      })
+      .sort((a, b) =>
+        a.capture.targetDate.localeCompare(b.capture.targetDate) ||
+        a.capture.stationId.localeCompare(b.capture.stationId));
   }
 
   async loadCaptures(stationId: string, cohort: CaptureCohort): Promise<ForecastCapture[]> {

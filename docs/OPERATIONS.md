@@ -202,7 +202,7 @@ incident-response procedure take precedence.
 
 Vercel production and preview use `raintoday_web`, a SELECT-only PostgreSQL role with
 access to the four performance tables. It has no grant on
-`performance_morning_captures` or `performance_hourly_observations`, which nothing served
+`performance_morning_captures`, `performance_evening_captures` or `performance_hourly_observations`, which nothing served
 reads yet; grant SELECT when the scoring record starts reading them. The serving adapter also requests read-only
 sessions, a 15-second statement timeout and a 10-second idle transaction timeout.
 GitHub Actions retains the separate collector credential. Only scheduled collection needs

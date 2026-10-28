@@ -60,7 +60,9 @@ The four screens are rebuilt around the existing ribbon rather than around any n
   is ever rescaled onto another's scale.
 - Three-hour data renders as steps and blocks, never smoothed splines.
 - Amount spreads are attributed member min/max. No quartiles, no percentile wording, at
-  the n ≤ 4 this product compares.
+  the n ≤ 4 this product compares. *(Superseded in part for the blended ribbon by
+  `docs/DECISIONS.md` 2026-10-28 "The ribbon's rain amount is an average weighted by amount
+  accuracy".)*
 
 ## Considered options
 

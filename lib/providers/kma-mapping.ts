@@ -36,3 +36,18 @@ export function conditionFromKma(pty: number, sky: number): WeatherCondition {
   }
   return "unknown";
 }
+
+/**
+ * 단기예보 1시간 강수량(PCP) → millimetres, only where KMA states an amount:
+ * "강수없음" is 0, and an exact value ("1.0mm", or a bare "0") is that value. The
+ * bands ("1mm 미만", "30.0~50.0mm", "50.0mm 이상") stay unknown, never a midpoint:
+ * they appear exactly when it rains, where a guessed value would be most wrong
+ * (DECISIONS 2026-08-26). Anything else is unknown too, never dry.
+ */
+export function amountFromKmaPcp(value: string | undefined): number | null {
+  if (value === undefined) return null;
+  const text = value.trim();
+  if (text === "강수없음") return 0;
+  const exact = /^(\d+(?:\.\d+)?)\s*(?:mm)?$/.exec(text);
+  return exact ? Number(exact[1]) : null;
+}

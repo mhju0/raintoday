@@ -100,6 +100,15 @@ export interface HourlyPrecipObservation {
   source: "kma-asos";
 }
 
+/** Which hourly slot a Morning or Evening Capture was taken in. */
+export type HourlySlot = "morning" | "evening";
+
+/** One Morning or Evening Capture paired with the hourly rainfall of its target day. */
+export interface HourlyGradingPair {
+  capture: MorningCapture;
+  observation: HourlyPrecipObservation;
+}
+
 /** One Forecast Capture paired with its later official observation. */
 export interface CompletedComparison {
   capture: ForecastCapture;
