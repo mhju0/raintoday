@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { amountFromKmaPcp, conditionFromKma } from "./kma-mapping.ts";
+import { amountFromKmaPcp, amountRangeFromKmaPcp, conditionFromKma } from "./kma-mapping.ts";
 
 test("conditionFromKma: PTY (강수형태) maps to precipitation", () => {
   assert.equal(conditionFromKma(1, 1), "rain"); // 비
@@ -43,4 +43,13 @@ test("amountFromKmaPcp: a band is unknown, never a midpoint, and so is anything 
   assert.equal(amountFromKmaPcp(undefined), null);
   assert.equal(amountFromKmaPcp(""), null);
   assert.equal(amountFromKmaPcp("-"), null);
+});
+
+test("amountRangeFromKmaPcp: keeps each band as its bounds, and only bands", () => {
+  assert.deepEqual(amountRangeFromKmaPcp("1mm 미만"), { lowMm: 0, highMm: 1 });
+  assert.deepEqual(amountRangeFromKmaPcp("30.0~50.0mm"), { lowMm: 30, highMm: 50 });
+  assert.deepEqual(amountRangeFromKmaPcp("50.0mm 이상"), { lowMm: 50, highMm: null });
+  assert.equal(amountRangeFromKmaPcp("2.0mm"), null);
+  assert.equal(amountRangeFromKmaPcp("강수없음"), null);
+  assert.equal(amountRangeFromKmaPcp(undefined), null);
 });

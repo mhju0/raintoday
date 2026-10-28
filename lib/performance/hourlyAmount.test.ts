@@ -4,10 +4,12 @@ import {
   amountBlocks,
   amountSwitchVerdict,
   amountWeights,
+  blendAmountError,
   blendBlockAmount,
+  isWetBlock,
   observedHourIndex,
   providerAmountErrors,
-  providerBlockAmount,
+  providerBlockRange,
   type AmountBlock,
 } from "./hourlyAmount.ts";
 import type {
@@ -70,9 +72,17 @@ test("an hour-ending stamp names the hour before it, and the next date's 00:00 i
 
 test("a block amount needs all three of its hours; a gap is unknown, never dry", () => {
   const full = forecast("open-meteo", { 22: 0.5, 23: 1, 24: 1.5 });
-  assert.equal(providerBlockAmount(full, DATE, 21, "ending"), 3);
+  assert.deepEqual(providerBlockRange(full, DATE, 21, "ending"), { lowMm: 3, highMm: 3 });
   const gap = forecast("open-meteo", { 22: 0.5, 23: null, 24: 1.5 });
-  assert.equal(providerBlockAmount(gap, DATE, 21, "ending"), null);
+  assert.equal(providerBlockRange(gap, DATE, 21, "ending"), null);
+});
+
+test("a band fills its hour, and the block's bounds add up; one open band leaves the top open", () => {
+  const banded = forecast("kma", { 22: 0.5, 23: null, 24: 1.5 });
+  banded.hours[1].amountRangeMm = { lowMm: 0, highMm: 1 };
+  assert.deepEqual(providerBlockRange(banded, DATE, 21, "ending"), { lowMm: 2, highMm: 3 });
+  banded.hours[2] = { ...banded.hours[2], amountMm: null, amountRangeMm: { lowMm: 50, highMm: null } };
+  assert.deepEqual(providerBlockRange(banded, DATE, 21, "ending"), { lowMm: 50.5, highMm: null });
 });
 
 test("blocks keep only those every scored provider and the station fill completely", () => {
@@ -100,8 +110,38 @@ test("the average renormalizes over the providers that carry an amount", () => {
 });
 
 function block(date: string, observedMm: number, om: number, vc: number, stationId = "106"): AmountBlock {
-  return { stationId, targetDate: date, start: 9, observedMm, forecastMm: { "open-meteo": om, "visual-crossing": vc } };
+  return {
+    stationId,
+    targetDate: date,
+    start: 9,
+    observedMm,
+    forecastMm: { "open-meteo": om, "visual-crossing": vc },
+    forecastRangeMm: {},
+  };
 }
+
+function banded(observedMm: number, lowMm: number, highMm: number | null): AmountBlock {
+  return { ...block(DATE, observedMm, 0, 0), forecastRangeMm: { kma: { lowMm, highMm } } };
+}
+
+test("a band misses by its distance to the measured rain, and nothing when the rain falls inside it", () => {
+  const blocks = [banded(2, 1, 3), banded(5, 1, 3), banded(60, 50, null), banded(0, 1, 3)];
+  // A band always forecasts rain, so even the dry block is wet.
+  assert.ok(blocks.every(isWetBlock));
+  const kma = providerAmountErrors(blocks, ["kma"]).kma;
+  assert.equal(kma?.wetBlocks, 4);
+  assert.equal(kma?.bandBlocks, 4);
+  // Misses 0, 2 (under), 0, 1 (over).
+  assert.equal(kma?.meanAbsErrorMm, 0.75);
+  assert.equal(kma?.biasMm, -0.25);
+});
+
+test("the averages leave out blocks with a band, since a band is never turned into a number", () => {
+  const blocks = [banded(2, 1, 3), block(DATE, 2, 3, 5)];
+  const plain = blendAmountError(blocks, null);
+  assert.equal(plain.wetBlocks, 1);
+  assert.equal(plain.meanAbsErrorMm, 2);
+});
 
 test("the provider that misses by less gets more weight, held under the cap", () => {
   const blocks = [block(DATE, 2, 2.5, 4), block(DATE, 0, 0, 0)];

@@ -97,10 +97,15 @@ export function morningWindowHours(
     const endsDay = kst.date === nextDate && kst.hour === 0;
     if (!inDay && !endsDay) return [];
     const amount = hour.precipitationAmount;
+    const amountMm = amount !== null && amount !== undefined && Number.isFinite(amount) && amount >= 0 ? amount : null;
+    const range = hour.precipitationAmountRange;
+    const validRange = amountMm === null && range != null && Number.isFinite(range.lowMm) && range.lowMm >= 0 &&
+      (range.highMm === null || (Number.isFinite(range.highMm) && range.highMm >= range.lowMm));
     return [{
       time: hour.time,
       probability: validProbability(hour.precipitationProbability) ? hour.precipitationProbability : null,
-      amountMm: amount !== null && amount !== undefined && Number.isFinite(amount) && amount >= 0 ? amount : null,
+      amountMm,
+      ...(validRange ? { amountRangeMm: { lowMm: range.lowMm, highMm: range.highMm } } : {}),
     }];
   });
 }

@@ -10,7 +10,9 @@
  * Each provider is scored on the same blocks, so a provider that started publishing
  * hourly amounts later narrows the dates: pass `--from` to the first date all of
  * them carry. Providers that document no hour-stamp convention are scored under
- * both. Opens the database read-only and writes nothing.
+ * both. A KMA band is scored by the distance from the measured rain to the band
+ * (`bandBlocks`), and blocks with a band are left out of both averages. Opens the
+ * database read-only and writes nothing.
  */
 import {
   amountBlocks,
@@ -50,6 +52,7 @@ if (!connectionUrl) {
 const round = (value: number | null) => (value === null ? null : Math.round(value * 1000) / 1000);
 const summary = (error: AmountError | undefined) => ({
   wetBlocks: error?.wetBlocks ?? 0,
+  bandBlocks: error?.bandBlocks ?? 0,
   meanAbsErrorMm: round(error?.meanAbsErrorMm ?? null),
   biasMm: round(error?.biasMm ?? null),
 });

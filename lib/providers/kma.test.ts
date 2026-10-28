@@ -288,4 +288,5 @@ test("each forecast hour carries its 1시간 강수량 (PCP) as an amount", asyn
   const { hourly } = await kmaProvider.read();
 
   assert.deepEqual(hourly.map((hour) => hour.precipitationAmount), [2, null, null]);
+  assert.deepEqual(hourly.map((hour) => hour.precipitationAmountRange), [null, { lowMm: 0, highMm: 1 }, null]);
 });
