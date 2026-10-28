@@ -1305,3 +1305,12 @@ Nothing grades against it yet.
 **Still open.** Grading (part 3): map a provider hour starting at `HH:00` to the row ending
 `HH+1:00`, decide how an unknown hour affects a dry verdict, exclude late captures, and grant
 `raintoday_web` SELECT on both new tables before the scoring record reads them.
+
+## 2026-10-28 — Agent handoff moves to private memory
+
+**Decision.** The owner moved agent memory out of every repository. `docs/PROJECT_HANDOFF.md`
+and the local Claude environment inventory now live in the private, git-ignored `.memory/`
+folder shared by Claude Code and Codex, and `.memory/handoff.md` carries the current state
+and next step. This ledger, the ADRs and `docs/ROADMAP.md` stay the public record; older
+entries that name the handoff are left as written. Agents may merge their own PRs once
+checks pass, under the owner's global rules, which the Releases section already assumes.

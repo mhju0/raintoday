@@ -44,7 +44,6 @@ next-env.d.ts
 # local design/research artifacts; canonical public docs remain trackable
 /docs/design/
 /docs/superpowers/
-/docs/CLAUDE_ENV_INVENTORY.md
 
 # Local assistant and editor configuration. These files support individual
 # workflows but are not part of the application or its public documentation.
@@ -60,6 +59,9 @@ CLAUDE.local.md
 *.backup
 .aider*
 GEMINI.md
+# Private agent memory and write locks shared by Claude and Codex
+.memory/
+.locks/
 skills-lock.json
 .github/copilot-instructions.md
 

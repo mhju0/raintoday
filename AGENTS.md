@@ -2,7 +2,7 @@
 
 - Maintenance scope is correctness, security, compatibility and operations. New product scope requires an explicit owner request. `README.md` is the public overview; `CONTEXT.md` is the domain glossary. For deployment, credentials, backups or incident response, read `docs/OPERATIONS.md`.
 
-- Resolve conflicting evidence in this order: source/tests → Git → `docs/DECISIONS.md` → `docs/ROADMAP.md` → `docs/PROJECT_HANDOFF.md` → historical Claude material.
+- Resolve conflicting evidence in this order: source/tests → Git → `docs/DECISIONS.md` → `docs/ROADMAP.md` → `.memory/handoff.md`.
 - Use Node 24 (the CI version) and npm with `package-lock.json`.
 - Install: `npm ci`. Develop: `npm run dev`. Production: `npm run build`, then `npm start`.
 - Full check: `npm run verify` (lint, typecheck, tests, build). `npm run typecheck` generates Next route types first, including in fresh worktrees. Targeted tests and browser/DB verification: `docs/VERIFYING.md`.
@@ -38,9 +38,8 @@ Before starting, ask whether antislop applies during implementation or as an aft
 Store durable audit findings and follow-ups in `docs/audits/ui/`; put temporary dumps and drafts in ignored `.scratch/`. This repository location supersedes a skill's default `anti-slop/` output path.
 <!-- antislop:end -->
 
-## Agent handoff
+## Agent memory
 
-- At session start, read `docs/PROJECT_HANDOFF.md`.
-- Before ending a session where you made decisions, changed architecture, or left work unfinished, append a dated entry: what changed, decisions and why, open issues, next step. Keep it brief and append-only.
-- When the file exceeds ~200 lines, condense the oldest entries into a short dated summary. Never delete unresolved open issues.
-- Durable rules belong in AGENTS.md, not in the handoff file.
+- At session start, read `.memory/README.md` (private, git-ignored).
+- Before ending a session that changed something or left work unfinished, update `.memory/handoff.md`.
+- Product and engineering decisions go in `docs/DECISIONS.md` and `docs/adr/`; the owner's preferences about agent work go in `.memory/decisions.md`.
