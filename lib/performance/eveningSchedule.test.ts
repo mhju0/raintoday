@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -38,11 +38,13 @@ function runWait(name: string, now: number, options: {
   try {
     const output = join(directory, "output");
     const sleeps = join(directory, "sleeps");
+    const script = join(directory, "wait.sh");
     const seconds = secondsUntilSlotOpens([`--schedule=${options.schedule ?? cron}`], new Date(now));
-    const result = spawnSync("bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", "-c", `
+    writeFileSync(script, `
 node() { if [[ "$NODE_FAILS" == true ]]; then return 1; fi; echo "$FAKE_SECONDS"; }
 sleep() { if [[ "$SLEEP_FAILS" == true ]]; then return 1; fi; echo "$1" >> "$SLEEPS"; }
-${shell(name)}`], {
+${shell(name)}`);
+    const result = spawnSync("bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", script], {
       encoding: "utf8",
       timeout: 5_000,
       env: {
@@ -153,21 +155,25 @@ test("all capture attempts require the explicit opened gate and retain retry dep
     const dependencies = body.match(/needs: (.+)/)![1].replace(/[\[\] ]/g, "").split(",");
     assert.deepEqual(dependencies, ["wait", ...Array.from({ length: attempt - 1 }, (_, i) => `capture_${i + 1}`)]);
     const expression = body.match(/if: \$\{\{ (.+) \}\}/)![1];
-    const allowed = (opened: string, succeeded = "false", cancelled = false): boolean => {
-      const evaluated = expression.replaceAll("always()", "true").replaceAll("cancelled()", String(cancelled))
-        .replaceAll("needs.wait.outputs.opened", JSON.stringify(opened))
-        .replace(/needs\.capture_\d\.outputs\.succeeded/g, JSON.stringify(succeeded));
-      return Function(`return ${evaluated}`)() as boolean;
-    };
-    assert.equal(allowed(""), false, `attempt ${attempt} runs after a failed wait`);
-    assert.equal(allowed("false"), false);
-    assert.equal(allowed("true"), true);
-    assert.equal(allowed("true", "false", true), false);
-    if (attempt > 1) assert.equal(allowed("true", "true"), false);
+    assert.equal(expression, [
+      "always()",
+      "!cancelled()",
+      "needs.wait.outputs.opened == 'true'",
+      ...Array.from({ length: attempt - 1 }, (_, i) => `needs.capture_${i + 1}.outputs.succeeded != 'true'`),
+    ].join(" && "), `attempt ${attempt} must require an open slot and no previous success`);
   }
-  const verdict = spawnSync("bash", ["-e", "-o", "pipefail", "-c", shell("verdict")], {
-    encoding: "utf8",
-    env: { ...process.env, CAPTURE_1_SUCCEEDED: "", CAPTURE_2_SUCCEEDED: "", CAPTURE_3_SUCCEEDED: "" },
-  });
-  assert.equal(verdict.status, 1, "a closed gate must leave the run red");
+  const directory = mkdtempSync(join(tmpdir(), "evening-verdict-"));
+  try {
+    const script = join(directory, "verdict.sh");
+    writeFileSync(script, shell("verdict"));
+    const verdict = spawnSync("bash", ["--noprofile", "--norc", "-e", "-o", "pipefail", script], {
+      encoding: "utf8",
+      timeout: 5_000,
+      env: { ...process.env, CAPTURE_1_SUCCEEDED: "", CAPTURE_2_SUCCEEDED: "", CAPTURE_3_SUCCEEDED: "" },
+    });
+    assert.ifError(verdict.error);
+    assert.equal(verdict.status, 1, "a closed gate must leave the run red");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
