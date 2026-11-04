@@ -521,7 +521,7 @@ test("only a cron fired ahead of its slot waits; the morning run and a dispatch 
   assert.equal(secondsUntilSlotOpens([], noon), 0);
 });
 
-test("every early-fired cron is a known capture cron and its wait fits one runner job", () => {
+test("every early-fired cron is a known capture cron and its wait fits its runner jobs", () => {
   for (const [cron, opensAtKstMinute] of Object.entries(SCHEDULE_SLOT_OPENS)) {
     assert.ok(
       cron in SCHEDULE_COHORTS || cron === MORNING_SCHEDULE || cron === EVENING_SCHEDULE,
@@ -531,8 +531,9 @@ test("every early-fired cron is a known capture cron and its wait fits one runne
     const firesAt = new Date(Date.UTC(2026, 9, 12, hour, minute));
     const longest = secondsUntilSlotOpens([`--schedule=${cron}`], firesAt);
     assert.equal(longest, (opensAtKstMinute - ((hour * 60 + minute + 540) % 1440)) * 60);
-    // GitHub ends a hosted job at six hours; the workflow's wait job allows 345 minutes.
-    assert.ok(longest > 0 && longest <= 330 * 60, `${cron} waits ${longest}s`);
+    // Evening has two wait jobs; each job's actual shell budget is exercised separately.
+    const budget = cron === EVENING_SCHEDULE ? (300 + 330) * 60 : 330 * 60;
+    assert.ok(longest > 0 && longest <= budget, `${cron} waits ${longest}s`);
   }
 });
 
@@ -583,6 +584,7 @@ test("the Morning Slot waits from its early fire until 07:00 KST, and a late sta
 test("the Evening Slot waits from its early fire until 19:30 KST, and a late start does not wait", () => {
   const argv = [`--schedule=${EVENING_SCHEDULE}`];
   const at = (time: string) => new Date(`2026-10-28T${time}+09:00`);
+  assert.equal(secondsUntilSlotOpens(argv, at("10:05:00")), 565 * 60);
   assert.equal(secondsUntilSlotOpens(argv, at("14:05:00")), 325 * 60);
   assert.equal(secondsUntilSlotOpens(argv, at("19:00:00")), 30 * 60);
   assert.equal(secondsUntilSlotOpens(argv, at("19:30:00")), 0);
@@ -615,7 +617,10 @@ for (const { slot, file, flag } of hourlySlots) {
     const workflow = workflowFile(file);
     const jobsBody = workflow.slice(workflow.indexOf("\njobs:"));
     const jobNames = Array.from(jobsBody.matchAll(/^ {2}([a-z][\w-]*):$/gm), (m) => m[1]);
-    assert.deepEqual(jobNames, ["wait", "capture_1", "capture_2", "capture_3", "verdict"]);
+    assert.deepEqual(jobNames, [
+      ...(slot === "Evening" ? ["wait_early"] : []),
+      "wait", "capture_1", "capture_2", "capture_3", "verdict",
+    ]);
     const bodyOf = (name: string): string => {
       const start = jobsBody.indexOf(`\n  ${name}:\n`);
       const rest = jobsBody.slice(start + 1);
@@ -627,9 +632,11 @@ for (const { slot, file, flag } of hourlySlots) {
     assert.match(wait, /continue-on-error: true/);
     assert.match(wait, /timeout-minutes: 345/);
     assert.match(bodyOf("capture_1"), /needs: wait/);
-    assert.match(bodyOf("capture_1"), /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
-    assert.match(bodyOf("capture_2"), /needs:\s*capture_1/);
-    assert.match(bodyOf("capture_3"), /needs:\s*\[capture_1, capture_2\]/);
+    if (slot === "Morning") {
+      assert.match(bodyOf("capture_1"), /if: \$\{\{ always\(\) && !cancelled\(\) \}\}/);
+      assert.match(bodyOf("capture_2"), /needs:\s*capture_1/);
+      assert.match(bodyOf("capture_3"), /needs:\s*\[capture_1, capture_2\]/);
+    }
     assert.match(bodyOf("capture_2"), /ATTEMPT_OFFSET_SECONDS: "600"/);
     assert.match(bodyOf("capture_3"), /ATTEMPT_OFFSET_SECONDS: "1500"/);
     const secretsOf = (name: string): string[] =>

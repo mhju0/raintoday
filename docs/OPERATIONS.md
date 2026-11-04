@@ -24,9 +24,19 @@ capture is late (October 13, 2026: started 20:06 KST). `morning-forecast` is tri
 01:30 KST and waits in the same way until 07:00 KST; it is flagged after 30 hours without a
 completed scheduled run. After every station's Morning Capture it reads ASOS hourly
 rainfall for the two newest complete days, so an ASOS failure fails the run without
-delaying a capture. `evening-forecast` is triggered at 14:05 KST and waits until 19:30 KST
+delaying a capture. `evening-forecast` is triggered at 10:05 KST and waits until 19:30 KST
 to take every station's Evening Capture of tomorrow, hour by hour; it reads no
-observations and is flagged after 30 hours without a completed scheduled run. The workflow also
+observations and is flagged after 30 hours without a completed scheduled run. Its two wait
+jobs split the potentially 9-hour-25-minute wait so neither exceeds the hosted runner's
+six-hour limit. The first sleeps at most five hours; the final wait must finish before
+any capture attempt can run. If the first wait fails, the final wait can recover only
+when the remaining delay fits its 330-minute sleep budget; otherwise the run fails
+without writing an early capture. GitHub created all six runs on October 29–November 3
+after the old 19:30 target, with trigger delays of 5 hours 44 minutes to 8 hours 16 minutes.
+The earlier trigger absorbs those observed delays, but a longer delay, a dropped schedule
+or a runner outage can still make a capture late or missing. Check stored `captured_at`
+values after the next scheduled run; setup and provider reads also take time.
+The workflow also
 creates weekly and monthly review issues; an unfinished checklist remains open
 instead of being duplicated. Check off each task with evidence before closing it.
 

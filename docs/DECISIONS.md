@@ -1460,3 +1460,33 @@ is ever turned into a single number.
   between 30 and 50. Bands are rare outside "1mm 미만", which is narrow, so KMA's error is
   read with its `bandBlocks` count beside it. The served page is unchanged: bands are never
   drawn.
+
+## 2026-11-04 — Give Evening Captures enough scheduler buffer
+
+**Supersedes only the 14:05 KST trigger** in the 2026-10-28 hourly-blend decision.
+The Evening Slot remains 19:30 KST. This repairs collection timing; it does not move
+the forecast's grading moment or change provider freshness policy.
+
+**Evidence.** All six scheduled `evening-forecast` runs from October 29 through
+November 3 were created after the slot, 5 hours 44 minutes to 8 hours 16 minutes after
+their 14:05 trigger. Every wait logged zero seconds. Runner allocation took seconds,
+so the old 5-hour-25-minute buffer was already exhausted before the workflow began.
+For example, [November 3's run](https://github.com/mhju0/raintoday/actions/runs/41638046276)
+was created at 21:42:58 KST, finished its wait at 21:43:04, and began the capture step
+at 21:44:14. This identifies schedule-event delay, rather than an excessive sleep,
+as the principal cause.
+
+**Change.** Trigger at 10:05 KST, giving 9 hours 25 minutes of buffer. Split the wait
+across two jobs because a GitHub-hosted job may run for at most six hours. The first
+wait sleeps at most five hours. The final wait opens an explicit gate only after its
+wait succeeds; all three capture attempts require that gate. A failed first wait may
+recover through the final wait if the remaining sleep fits 330 minutes; a longer
+remaining wait fails rather than timing out into an early capture. The three attempts,
+their spacing and provider requirements stay the same. Daily cohorts and the Morning
+Slot are unchanged. Existing captures remain immutable.
+
+**Limits.** GitHub scheduling is best effort. Replaying observed delays establishes
+buffer coverage, not future punctuality. Setup and provider reads still take time.
+The next natural scheduled run and its stored capture timestamps must be checked;
+no extra production captures are dispatched as validation. Moving the Evening Slot
+to follow a newer model run remains a separate decision.
