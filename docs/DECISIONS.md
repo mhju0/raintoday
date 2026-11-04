@@ -1490,3 +1490,24 @@ buffer coverage, not future punctuality. Setup and provider reads still take tim
 The next natural scheduled run and its stored capture timestamps must be checked;
 no extra production captures are dispatched as validation. Moving the Evening Slot
 to follow a newer model run remains a separate decision.
+
+## 2026-11-04 — Validate npm's cyclic audit reports without bypassing the gate
+
+**Evidence.** npm 11.12.1's November 4 report has 16 moderate package records, no
+high/critical findings, an ESLint dependency cycle anchored to a `minimatch` advisory,
+and three omitted reverse `effects` entries. The validator's acyclic traversal rejected
+it first; requiring a complete reverse map would reject it again. npm serializes
+[`via` from advisories and `effects` from a separate relationship set](https://github.com/npm/cli/blob/v11.12.1/workspaces/arborist/lib/vuln.js),
+so those fields cannot be required to be exact inverses.
+
+**Correction.** Resolve every dependency reference before computing severity. Starting
+only from actual advisory objects, propagate maximum severity until it stops changing.
+Reject any record that remains unanchored, including pure cycles, or contradicts its
+computed severity. Check that each reported effect exists and points back through
+`via`, without demanding omitted reverse entries. This preserves acyclic results and
+accepts the authentic cyclic report.
+
+**Security boundary.** All high/critical findings remain blocking. Malformed records,
+missing references, invented effects, contradictory totals and command failures remain
+blocking. No exception list, dependency update or audit bypass is introduced. The
+authentic report and hostile variants exercise these requirements.

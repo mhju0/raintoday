@@ -11,6 +11,12 @@ blocks CI. There is no exception list; lower-severity findings stay visible in t
 The temporary braces exception (GHSA-vfj7-8cjw-p6xm) expired on 2026-10-25 and was removed
 after the Next.js 16.4.3 upgrade cleared the chain.
 
+The audit validator accepts dependency cycles only when their severity can be traced
+to a real advisory. Missing dependency references, unanchored cycles, contradictory
+severities and invalid reported effects still fail. npm can omit reverse `effects`
+entries, so the validator checks the entries it supplies without requiring a complete
+reverse map. This compatibility rule does not exempt any high/critical finding.
+
 ## Routine review
 
 The `maintenance` workflow runs after collection/health runs and every six hours.

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { parseAuditCommand, validateAuditReport } from "./dependency-audit.ts";
 
@@ -580,6 +581,93 @@ function addFinding(report: Fixture, name = "new-package", severity = "high") {
   recount(report);
 }
 
+function anchoredCycle(level = "moderate"): Fixture {
+  const report = fresh();
+  for (const record of Object.values(report.vulnerabilities)) record.severity = level;
+  advisory(report).severity = level;
+  report.vulnerabilities.braces.via.push("micromatch");
+  report.vulnerabilities.micromatch.effects.push("braces");
+  recount(report);
+  return report;
+}
+
+test("authentic npm report with an advisory-anchored moderate cycle passes", () => {
+  const report = readFileSync(new URL("./fixtures/dependency-audit-moderate-cycle.json", import.meta.url), "utf8");
+  assert.deepEqual(check(parseAuditCommand(command(report, 0))), { vulnerabilityCount: 16 });
+});
+
+test("anchored cycles propagate the maximum to every descendant regardless of record or via order", () => {
+  for (const level of ["info", "low", "moderate", "high", "critical"]) {
+    for (const reverseRecords of [false, true]) {
+      for (const reverseVia of [false, true]) {
+        const report = anchoredCycle(level);
+        const lower = advisory(report);
+        lower.severity = level === "info" ? "info" : "low";
+        const later = report.vulnerabilities.micromatch;
+        later.via.push({ ...lower, name: "micromatch", dependency: "micromatch", severity: level });
+        if (reverseVia) {
+          for (const record of Object.values(report.vulnerabilities)) record.via.reverse();
+        }
+        if (reverseRecords) report.vulnerabilities = Object.fromEntries(Object.entries(report.vulnerabilities).reverse());
+        if (level === "high" || level === "critical") {
+          assert.throws(() => check(report), /unreviewed high\/critical/);
+        } else {
+          assert.deepEqual(check(report), { vulnerabilityCount: 5 });
+        }
+      }
+    }
+  }
+});
+
+test("a self-loop passes only when grounded in an advisory", () => {
+  const report = fresh();
+  report.vulnerabilities.braces.via.push("braces");
+  report.vulnerabilities.braces.effects.push("braces");
+  assert.equal(check(report).vulnerabilityCount, 5);
+  report.vulnerabilities.braces.via = ["braces"];
+  assert.throws(() => check(report), /unresolved|unanchored/);
+});
+
+test("unanchored cycles cannot justify their declared severity, even alongside a grounded component", () => {
+  for (const level of ["info", "moderate"]) {
+    const report = anchoredCycle(level);
+    addFinding(report, "grounded", "low");
+    report.vulnerabilities.braces.via = ["micromatch"];
+    assert.throws(() => check(report), /unresolved|unanchored/);
+  }
+});
+
+test("understated, overstated and self-supporting cyclic severities block", () => {
+  for (const [actual, declared] of [["moderate", "low"], ["moderate", "high"], ["high", "moderate"], ["critical", "moderate"]]) {
+    const report = anchoredCycle(actual);
+    for (const record of Object.values(report.vulnerabilities)) record.severity = declared;
+    recount(report);
+    assert.throws(() => check(report), /contradictory propagated severity/);
+  }
+});
+
+test("omitted effects are valid but every supplied effect must name a real reverse dependency", () => {
+  const omitted = fresh();
+  for (const record of Object.values(omitted.vulnerabilities)) record.effects = [];
+  assert.equal(check(omitted).vulnerabilityCount, 5);
+  for (const effect of ["missing", "eslint-config-next"]) {
+    const report = fresh();
+    report.vulnerabilities.braces.effects.push(effect);
+    assert.throws(() => check(report), /contradictory effects/);
+  }
+});
+
+test("an advisory anchor cannot mask an unresolved via reference or null advisory", () => {
+  const missing = fresh();
+  missing.vulnerabilities.braces.via.push("missing");
+  assert.throws(() => check(missing), /unresolved advisory dependency/);
+  const report = fresh();
+  assert.throws(() => check({
+    ...report,
+    vulnerabilities: { ...report.vulnerabilities, braces: { ...report.vulnerabilities.braces, via: [advisory(report), null] } },
+  }), /expected object/);
+});
+
 test("clean report passes", () => {
   const report = fresh();
   report.vulnerabilities = {};
@@ -621,7 +709,7 @@ test("malformed records, errors, unsupported reports and contradictory totals bl
     (r: Fixture) => { r.vulnerabilities.braces.nodes = []; },
     (r: Fixture) => { r.vulnerabilities.braces.via = []; },
     (r: Fixture) => { r.vulnerabilities.braces.fixAvailable = null; },
-    (r: Fixture) => { r.vulnerabilities.braces.effects = []; },
+    (r: Fixture) => { r.vulnerabilities.braces.effects = ["missing"]; },
     (r: Fixture) => { r.metadata.vulnerabilities.high = 4; },
     (r: Fixture) => { r.metadata.vulnerabilities.total = 6; },
     (r: Fixture) => { r.metadata.dependencies.total = -1; },
@@ -638,13 +726,11 @@ test("malformed records, errors, unsupported reports and contradictory totals bl
   }
 });
 
-test("unresolved, cyclic and altered dependency relationships block", () => {
+test("unresolved and altered dependency relationships block", () => {
   const missing = fresh();
   missing.vulnerabilities.micromatch.via = ["missing"];
+  missing.vulnerabilities.braces.effects = [];
   assert.throws(() => check(missing), /unresolved/);
-  const cyclic = fresh();
-  cyclic.vulnerabilities.braces.via = ["micromatch"];
-  assert.throws(() => check(cyclic), /cyclic/);
   const wrong = fresh();
   wrong.vulnerabilities["eslint-config-next"].via = ["braces"];
   assert.throws(() => check(wrong), /effects|dependency/);
