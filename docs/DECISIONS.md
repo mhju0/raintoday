@@ -1511,3 +1511,18 @@ accepts the authentic cyclic report.
 missing references, invented effects, contradictory totals and command failures remain
 blocking. No exception list, dependency update or audit bypass is introduced. The
 authentic report and hostile variants exercise these requirements.
+
+## 2026-11-05 — Preserve npm's empty package range strings
+
+After PR #237 merged, [CI on main](https://github.com/mhju0/raintoday/actions/runs/41951406424)
+received a different authentic report: 14 moderate findings, zero high/critical and
+four package-level `range` values equal to an empty string. npm's range simplifier
+can return that value, and its vulnerability serializer preserves it. The validator
+must accept package ranges as strings, including empty strings, without normalizing
+them or discarding any record. Missing and non-string package ranges remain invalid;
+direct-advisory ranges remain nonempty. Severity, graph, metadata and command checks
+are unchanged, and empty package ranges cannot bypass high/critical rejection.
+
+The timing fix in 2.5.2 was deployed, but its GitHub release was held because main CI
+failed this compatibility check. The 2.5.3 follow-up carries the correction and the
+pending release notes; the exact failed report is retained as a regression fixture.

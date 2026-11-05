@@ -16,6 +16,8 @@ to a real advisory. Missing dependency references, unanchored cycles, contradict
 severities and invalid reported effects still fail. npm can omit reverse `effects`
 entries, so the validator checks the entries it supplies without requiring a complete
 reverse map. This compatibility rule does not exempt any high/critical finding.
+Package-level `range` strings can be empty, as emitted by npm's range simplifier;
+missing or non-string ranges still fail, and direct-advisory ranges remain nonempty.
 
 ## Routine review
 
