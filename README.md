@@ -24,7 +24,7 @@ The interface is in Korean. Open the app and choose **서울**, **부산**, **�
 
 ## Engineering highlights
 
-**Forecasts saved before outcomes.** A scheduled collector stores immutable next-day forecasts and later pairs them with completed KMA ASOS observations in PostgreSQL. Morning and evening capture groups are scheduled and scored separately; GitHub Actions can start late or miss a run. A read-only database snapshot on October 15, 2026 found 9,712 forecast captures and 5,529 station-day observations across 97 KMA stations. These totals exclude retrospective seed comparisons. Seoul’s morning scoring record that day was phasing in recent-evidence weighting: the weighted and equal blends both displayed mean Brier 0.088 over 52 benchmark comparisons. This dated, rounded result is not evidence of an overall accuracy advantage. Since 2.3.0, a 07:00 KST run also saves each station's hourly rain chances for the rest of the day, 2.3.1 stores hourly ASOS rainfall for grading them later, and since 2.4.0 a 19:30 KST run saves every hour of tomorrow. Nothing is graded or shown from these yet.
+**Forecasts saved before outcomes.** A scheduled collector stores immutable next-day forecasts and later pairs them with completed KMA ASOS observations in PostgreSQL. Morning and evening capture groups are scheduled and scored separately; GitHub Actions can start late or miss a run. A read-only database snapshot on October 15, 2026 found 9,712 forecast captures and 5,529 station-day observations across 97 KMA stations. These totals exclude retrospective seed comparisons. Seoul’s morning scoring record that day was phasing in recent-evidence weighting: the weighted and equal blends both displayed mean Brier 0.088 over 52 benchmark comparisons. This dated, rounded result is not evidence of an overall accuracy advantage. Since 2.3.0, a 07:00 KST run also saves each station's hourly rain chances for the rest of the day, and 2.3.1 stores hourly ASOS rainfall for grading them. Since 2.4.0, a 19:30 KST run saves every hour of tomorrow. Since 2.5.0, hourly rain amounts from KMA and WeatherAPI are captured too, and an offline report (`npm run performance:hourly-amounts`) scores them against observed rainfall. The served forecast does not read any of these hourly captures yet.
 
 **Evidence controls the blend.** Recent-performance influence applies only to tomorrow and requires sufficient wet/dry samples and a prospective benchmark no worse than equal weighting. Eligible archive evidence can provide a limited adjustment while recent records accumulate; otherwise the app uses equal influence. Retrospective evidence never enters the prospective benchmark.
 
@@ -62,13 +62,13 @@ Open [localhost:3000](http://localhost:3000). Open-Meteo provides a keyless base
 npm run verify
 ```
 
-Verification runs lint, type checking, library/component/route tests, and a production build. CI also runs the PostgreSQL contract against a disposable database. The SQL contract truncates tables; never point `PERFORMANCE_STORE_CONTRACT_URL` at production.
+Verification runs lint, type checking, a dependency-compatibility check, library/component/route tests, and a production build. CI also runs the PostgreSQL contract against a disposable database. The SQL contract truncates tables; never point `PERFORMANCE_STORE_CONTRACT_URL` at production.
 
 ## Scope and documentation
 
 South Korea, precipitation, and a Korean-language interface. Station observations may differ from weather at the selected location. Provider availability and forecast horizons vary. Weather information is not suitable for safety-critical decisions.
 
-Maintained for correctness, security, compatibility, and operations. Same-day morning capture (2.3.0–2.3.1) is the latest addition.
+Maintained for correctness, security, compatibility, and operations. The current release is 2.5.4. Hourly rain-amount capture and scoring (2.5.0 and 2.5.1) is the latest feature; later releases are maintenance.
 
 - [Forecast contract and architecture](docs/FORECAST_CONTRACT.md)
 - [Domain and terminology](CONTEXT.md)
