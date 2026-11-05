@@ -596,6 +596,46 @@ test("authentic npm report with an advisory-anchored moderate cycle passes", () 
   assert.deepEqual(check(parseAuditCommand(command(report, 0))), { vulnerabilityCount: 16 });
 });
 
+test("authentic npm report with empty aggregate ranges passes", () => {
+  const report = readFileSync(new URL("./fixtures/dependency-audit-empty-ranges.json", import.meta.url), "utf8");
+  assert.deepEqual(check(parseAuditCommand(command(report, 0))), { vulnerabilityCount: 14 });
+});
+
+test("aggregate ranges accept empty strings but reject missing and non-string values", () => {
+  const empty = fresh();
+  for (const record of Object.values(empty.vulnerabilities)) record.range = "";
+  assert.equal(check(empty).vulnerabilityCount, 5);
+  for (const range of [undefined, null, 42, false, [], {}]) {
+    const report = fresh();
+    assert.throws(() => check({
+      ...report,
+      vulnerabilities: { ...report.vulnerabilities, braces: { ...report.vulnerabilities.braces, range } },
+    }), /malformed vulnerability record/);
+  }
+  const report = fresh();
+  const missing: Record<string, unknown> = { ...report.vulnerabilities.braces };
+  delete missing.range;
+  assert.throws(() => check({ ...report, vulnerabilities: { ...report.vulnerabilities, braces: missing } }), /malformed vulnerability record/);
+});
+
+test("actual advisory ranges still require a nonempty string", () => {
+  for (const range of [undefined, null, 42, false, ""]) {
+    const report = fresh();
+    assert.throws(() => check({
+      ...report,
+      vulnerabilities: { ...report.vulnerabilities, braces: { ...report.vulnerabilities.braces, via: [{ ...advisory(report), range }] } },
+    }), /missing advisory range/);
+  }
+});
+
+test("empty aggregate ranges do not exempt high or critical findings", () => {
+  for (const level of ["high", "critical"]) {
+    const report = anchoredCycle(level);
+    for (const record of Object.values(report.vulnerabilities)) record.range = "";
+    assert.throws(() => check(parseAuditCommand(command(JSON.stringify(report), 1))), /unreviewed high\/critical/);
+  }
+});
+
 test("anchored cycles propagate the maximum to every descendant regardless of record or via order", () => {
   for (const level of ["info", "low", "moderate", "high", "critical"]) {
     for (const reverseRecords of [false, true]) {

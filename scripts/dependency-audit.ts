@@ -60,7 +60,7 @@ export function validateAuditReport(input: unknown): { vulnerabilityCount: numbe
   const counts: Record<Severity, number> = { info: 0, low: 0, moderate: 0, high: 0, critical: 0 };
   for (const [name, value] of Object.entries(vulnerabilities)) {
     const record = object(value, name);
-    requireCondition(record.name === name && typeof record.isDirect === "boolean" && nonemptyString(record.range), `${name}: malformed vulnerability record`);
+    requireCondition(record.name === name && typeof record.isDirect === "boolean" && typeof record.range === "string", `${name}: malformed vulnerability record`);
     counts[severity(record.severity)] += 1;
     const nodes = strings(record.nodes, `${name} nodes`);
     requireCondition(nodes.length > 0 && nodes.every((node) => node.startsWith("node_modules/") && !node.includes("..")), `${name}: invalid installation path`);
