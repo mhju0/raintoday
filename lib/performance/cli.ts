@@ -153,15 +153,16 @@ export function manualMorningHourMismatch(argv: readonly string[], now: Date): s
 }
 
 /**
- * The cron of `.github/workflows/evening-forecast.yml`, 14:05 KST, and the KST
+ * The cron of `.github/workflows/evening-forecast.yml`, 10:05 KST, and the KST
  * minute its Evening Slot opens, 19:30.
  *
  * 19:30 follows the 18 cohort rather than sharing its minute, so the two runs do
- * not read every provider for 97 stations at once. It fires 5.4 hours early and
- * waits, as the 18 cohort and the Morning Slot do, so a late scheduler start still
- * lands the same evening. Decision 2026-10-28.
+ * not read every provider for 97 stations at once. It fires 9 hours 25 minutes
+ * early and waits across two jobs: the original 5 hours 25 minutes could not
+ * absorb the observed scheduler delay of up to 8 hours 16 minutes. The final
+ * wait opens an explicit gate before any capture attempt. Decision 2026-11-04.
  */
-export const EVENING_SCHEDULE = "5 5 * * *";
+export const EVENING_SCHEDULE = "5 1 * * *";
 const EVENING_SLOT_OPENS_MINUTE = 19 * 60 + 30;
 
 /** KST hours in which a manually dispatched Evening Capture may run. */

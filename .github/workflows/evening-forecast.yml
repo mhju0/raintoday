@@ -3,11 +3,11 @@ name: evening-forecast
 on:
   workflow_dispatch:
   schedule:
-    # 14:05 KST, held by `wait` until 19:30 KST. GitHub starts schedules hours late,
+    # 10:05 KST, held by two wait jobs until 19:30 KST. GitHub starts schedules hours late,
     # and an Evening Capture is graded as tomorrow's forecast a reader saw that
     # evening, so the run fires early and waits. See `EVENING_SCHEDULE` in
     # lib/performance/cli.ts.
-    - cron: "5 5 * * *"
+    - cron: "5 1 * * *"
 
 concurrency:
   group: evening-forecast
@@ -24,10 +24,49 @@ permissions:
 # says how late it was. A manual dispatch outside 19:00–20:59 KST is refused by
 # the capture itself.
 jobs:
-  wait:
+  wait_early:
     runs-on: ubuntu-latest
     timeout-minutes: 345
     continue-on-error: true
+    outputs:
+      skip_wait: ${{ steps.early.outputs.skip_wait }}
+    steps:
+      - name: Checkout code
+        timeout-minutes: 1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        timeout-minutes: 2
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
+      - name: Wait through the early part of the buffer
+        id: early
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          seconds="$(node scripts/performance-slot-wait.ts --schedule="$SCHEDULE")"
+          if (( seconds == 0 )); then
+            echo "skip_wait=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if (( seconds > 18000 )); then
+            seconds=18000
+          fi
+          echo "Waiting ${seconds}s before checking the Evening Slot again."
+          sleep "$seconds"
+
+  wait:
+    needs: wait_early
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    continue-on-error: true
+    outputs:
+      opened: ${{ steps.open.outputs.opened }}
     steps:
       - name: Checkout code
         timeout-minutes: 1
@@ -42,16 +81,27 @@ jobs:
           node-version: "24"
 
       - name: Wait for the Evening Slot to open
+        id: open
         env:
           SCHEDULE: ${{ github.event.schedule }}
+          SKIP_WAIT: ${{ needs.wait_early.outputs.skip_wait }}
         run: |
-          seconds="$(node scripts/performance-slot-wait.ts --schedule="$SCHEDULE")"
+          if [[ "$SKIP_WAIT" == "true" ]]; then
+            seconds=0
+          else
+            seconds="$(node scripts/performance-slot-wait.ts --schedule="$SCHEDULE")"
+          fi
+          if (( seconds > 19800 )); then
+            echo "::error::The remaining slot wait exceeds this job's safe budget."
+            exit 1
+          fi
           echo "Waiting ${seconds}s for the Evening Slot."
           sleep "$seconds"
+          echo "opened=true" >> "$GITHUB_OUTPUT"
 
   capture_1:
     needs: wait
-    if: ${{ always() && !cancelled() }}
+    if: ${{ always() && !cancelled() && needs.wait.outputs.opened == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     continue-on-error: true
@@ -114,8 +164,8 @@ jobs:
         run: echo "::warning::Evening capture attempt 1 did not succeed; trying a fresh runner."
 
   capture_2:
-    needs: capture_1
-    if: ${{ always() && !cancelled() && needs.capture_1.outputs.succeeded != 'true' }}
+    needs: [wait, capture_1]
+    if: ${{ always() && !cancelled() && needs.wait.outputs.opened == 'true' && needs.capture_1.outputs.succeeded != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     continue-on-error: true
@@ -192,8 +242,8 @@ jobs:
         run: echo "::warning::Evening capture attempt 2 did not succeed; trying a fresh runner."
 
   capture_3:
-    needs: [capture_1, capture_2]
-    if: ${{ always() && !cancelled() && needs.capture_1.outputs.succeeded != 'true' && needs.capture_2.outputs.succeeded != 'true' }}
+    needs: [wait, capture_1, capture_2]
+    if: ${{ always() && !cancelled() && needs.wait.outputs.opened == 'true' && needs.capture_1.outputs.succeeded != 'true' && needs.capture_2.outputs.succeeded != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 50
     continue-on-error: true

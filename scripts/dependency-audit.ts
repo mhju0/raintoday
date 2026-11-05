@@ -29,10 +29,6 @@ function severity(value: unknown): Severity {
   return value as Severity;
 }
 
-function sameStrings(actual: string[], expected: string[]): boolean {
-  return actual.length === expected.length && actual.every((item) => expected.includes(item));
-}
-
 function validateAdvisory(value: unknown, name: string): ObjectValue {
   const advisory = object(value, `${name} advisory`);
   requireCondition(Number.isSafeInteger(advisory.source) && Number(advisory.source) > 0, `${name}: invalid advisory source`);
@@ -83,25 +79,41 @@ export function validateAuditReport(input: unknown): { vulnerabilityCount: numbe
   for (const item of SEVERITIES) requireCondition(totals[item] === counts[item], `contradictory ${item} vulnerability total`);
   requireCondition(totals.total === records.size, "contradictory vulnerability total");
 
-  const resolved = new Map<string, Severity>();
-  function resolve(name: string, visiting = new Set<string>()): Severity {
-    requireCondition(!visiting.has(name), `cyclic advisory relationship: ${name}`);
-    const prior = resolved.get(name);
-    if (prior) return prior;
-    const record = records.get(name);
-    requireCondition(record, `unresolved advisory dependency: ${name}`);
-    visiting.add(name);
-    const via = record.via as unknown[];
-    const levels = via.map((item) => typeof item === "string" ? resolve(item, visiting) : severity(object(item, name).severity));
-    visiting.delete(name);
-    const level = SEVERITIES[Math.max(...levels.map((item) => SEVERITIES.indexOf(item)))];
-    requireCondition(record.severity === level, `${name}: contradictory propagated severity`);
-    const expectedEffects = [...records.entries()].filter(([, other]) => (other.via as unknown[]).includes(name)).map(([otherName]) => otherName);
-    requireCondition(sameStrings(record.effects as string[], expectedEffects), `${name}: contradictory effects`);
+  const resolved = new Map<string, number>();
+  for (const [name, record] of records) {
+    let level = -1;
+    for (const via of record.via as unknown[]) {
+      if (typeof via === "string") requireCondition(records.has(via), `unresolved advisory dependency: ${via}`);
+      else level = Math.max(level, SEVERITIES.indexOf(severity(object(via, name).severity)));
+    }
+    // npm can omit reverse effects; every supplied effect must still be a real edge.
+    for (const effect of record.effects as string[]) {
+      const target = records.get(effect);
+      requireCondition(target && (target.via as unknown[]).includes(name), `${name}: contradictory effects`);
+    }
     resolved.set(name, level);
-    return level;
   }
-  for (const name of records.keys()) resolve(name);
+
+  // Cycles propagate only severity grounded in actual advisories, never declarations.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [name, record] of records) {
+      let level = resolved.get(name)!;
+      for (const via of record.via as unknown[]) {
+        if (typeof via === "string") level = Math.max(level, resolved.get(via)!);
+      }
+      if (level !== resolved.get(name)) {
+        resolved.set(name, level);
+        changed = true;
+      }
+    }
+  }
+  for (const [name, record] of records) {
+    const level = resolved.get(name)!;
+    requireCondition(level >= 0, `unresolved advisory severity (unanchored cycle): ${name}`);
+    requireCondition(record.severity === SEVERITIES[level], `${name}: contradictory propagated severity`);
+  }
 
   const blocked = [...records.entries()].filter(([, record]) => SEVERITIES.indexOf(severity(record.severity)) >= SEVERITIES.indexOf("high"));
   requireCondition(blocked.length === 0, `unreviewed high/critical vulnerability: ${blocked.map(([name]) => name).join(", ")}`);
