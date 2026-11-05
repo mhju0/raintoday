@@ -310,6 +310,14 @@ alerts and Dependabot security updates enabled in repository settings. Review
 ordinary upgrades quarterly or when a compatibility fix or support deadline
 requires one.
 
+The minimatch override applies only to the affected `>=7 <11.0.1` family. Legacy
+lint plugins retain their callable 3.x API; typescript-estree uses the patched named
+API. `npm run test:dependency-compatibility` exercises those resolutions and real
+lint-rule branches in local verification and CI. Recheck consumer APIs before
+broadening a transitive override. TypeScript 7 and ESLint 10 remain held by lint-stack
+peer compatibility; Node type definitions follow the Node 24 runtime. Postgres.js 4
+requires a separate review of its parameter-inference and transaction changes.
+
 PRs require `verify`, `store-contract` and `Dependency review`. Patch/minor Dependabot
 updates with one verified Dependabot commit can enable auto-merge after those checks;
 majors and additional commits require manual review. The privileged automation never
