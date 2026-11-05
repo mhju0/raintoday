@@ -1526,3 +1526,26 @@ are unchanged, and empty package ranges cannot bypass high/critical rejection.
 The timing fix in 2.5.2 was deployed, but its GitHub release was held because main CI
 failed this compatibility check. The 2.5.3 follow-up carries the correction and the
 pending release notes; the exact failed report is retained as a regression fixture.
+
+## 2026-11-05 — Refresh compatible dependencies and scope minimatch remediation
+
+The dependency cleanup starts from one open medium-severity development alert,
+GHSA-g3hv-75wg-m249. The global minimatch 10.2.6 override keeps the affected family
+vulnerable and also replaces the callable minimatch 3.x API required by legacy lint
+plugins. The override now targets only `>=7 <11.0.1`, resolving that family to patched
+11.0.4 while legacy consumers use 3.1.5. Compatibility tests resolve the package from
+each consumer and exercise callable matching, `makeRe()` lint rules and the modern
+named matcher. The audit validator and severity threshold are unchanged.
+
+Runtime and tooling dependencies move to current compatible minor/patch versions,
+including matched Next.js/eslint-config-next and React/React DOM versions. The sharp
+override is removed because Next.js already requires the fixed `^0.35.5` range.
+Setup Node, Scorecard and CodeQL action updates remain pinned to verified upstream
+release commits. Routine Dependabot version PRs remain disabled; automatic security
+updates remain enabled.
+
+TypeScript 7 and ESLint 10 are held because the latest lint-stack peers still exclude
+them. Node types remain aligned with Node 24. Postgres.js stays on 3.4.9: version 4
+changes parameter inference and transaction/error behavior and needs a separate
+persistence review. These holds are explicit compatibility boundaries, not audit
+exceptions or suppressed security alerts.
