@@ -68,7 +68,7 @@ Verification runs lint, type checking, a dependency-compatibility check, library
 
 South Korea, precipitation, and a Korean-language interface. Station observations may differ from weather at the selected location. Provider availability and forecast horizons vary. Weather information is not suitable for safety-critical decisions.
 
-Maintained for correctness, security, compatibility, and operations. The current release is 2.5.4. Hourly rain-amount capture and scoring (2.5.0 and 2.5.1) is the latest feature; later releases are maintenance.
+Maintained for correctness, security, compatibility, and operations. The current release is 2.5.5. Hourly rain-amount capture and scoring (2.5.0 and 2.5.1) is the latest feature; later releases are maintenance.
 
 - [Forecast contract and architecture](docs/FORECAST_CONTRACT.md)
 - [Domain and terminology](CONTEXT.md)

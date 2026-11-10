@@ -152,7 +152,11 @@ async function captureStationWindow(
   // rewritten. A missing key is permanent, so `needs-config` is not a fault.
   const faultedProviders: FaultedProvider[] = snapshots.flatMap((snapshot) =>
     compared.has(snapshot.id) && snapshot.status.availability === "error"
-      ? [{ provider: snapshot.id as FaultedProvider["provider"], message: snapshot.status.message }]
+      ? [{
+        provider: snapshot.id as FaultedProvider["provider"],
+        message: snapshot.status.message,
+        ...(snapshot.status.cause ? { cause: snapshot.status.cause } : {}),
+      }]
       : []);
   if (faultedProviders.length > 0) {
     return { status: "faulted", reason: "provider-fault", capture: null, faultedProviders };

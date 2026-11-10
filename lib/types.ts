@@ -111,6 +111,8 @@ export interface WeatherProviderStatus {
   availability: ProviderAvailability;
   /** Korean human-readable explanation */
   message: string;
+  /** Key-free technical reason, such as `timeout` or `HTTP 503`. Set only when `availability` is `error`. */
+  cause?: string;
   /** Names only — never values */
   missingEnvVars: string[];
   /** ISO timestamp of the data currently served, if any */

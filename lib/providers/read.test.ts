@@ -3,7 +3,7 @@ import test from "node:test";
 import { clearCache } from "../cache.ts";
 import { createForecastLocation } from "../location.ts";
 import type { CurrentWeather, DailyForecast, HourlyForecast } from "../types.ts";
-import { createWeatherProvider } from "./read.ts";
+import { createWeatherProvider, providerFailureCause } from "./read.ts";
 
 const current: CurrentWeather = {
   time: "2026-07-14T00:00:00.000Z",
@@ -214,6 +214,7 @@ test("createWeatherProvider isolates a loader failure as an empty error snapshot
       name: "Pirate Weather",
       availability: "error",
       message: "error",
+      cause: "unclassified Error",
       missingEnvVars: [],
       lastUpdated: null,
       fromCache: false,
@@ -265,6 +266,7 @@ test("createWeatherProvider falls back to the generic error when failure classif
       name: "KMA",
       availability: "error",
       message: "error",
+      cause: "unclassified Error",
       missingEnvVars: [],
       lastUpdated: null,
       fromCache: false,
@@ -291,4 +293,59 @@ test("createWeatherProvider preserves distinct adapter and status display names"
 
   assert.equal(provider.name, "기상청 (KMA)");
   assert.equal(snapshot.status.name, "기상청 단기예보 (KMA)");
+});
+
+test("providerFailureCause names timeouts, network codes, HTTP statuses and data.go.kr codes", () => {
+  const timeout = new DOMException("The operation was aborted due to timeout", "TimeoutError");
+  const reset = new TypeError("fetch failed", {
+    cause: Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }),
+  });
+  const connectTimeout = new TypeError("fetch failed", {
+    cause: Object.assign(new Error("Connect Timeout Error"), { code: "UND_ERR_CONNECT_TIMEOUT" }),
+  });
+  const refused = new TypeError("fetch failed", {
+    cause: new AggregateError([Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" })]),
+  });
+
+  assert.equal(providerFailureCause(timeout), "timeout");
+  assert.equal(providerFailureCause(reset), "network ECONNRESET");
+  assert.equal(providerFailureCause(connectTimeout), "timeout UND_ERR_CONNECT_TIMEOUT");
+  assert.equal(providerFailureCause(refused), "network ECONNREFUSED");
+  assert.equal(providerFailureCause(new Error("KMA short-term getVilageFcst: HTTP 503 non-JSON")), "HTTP 503");
+  assert.equal(providerFailureCause(new Error("KMA short-term getUltraSrtNcst: resultCode 99")), "resultCode 99");
+  assert.equal(providerFailureCause(new Error("KMA short-term getVilageFcst: non-JSON response")), "non-JSON response");
+  assert.equal(providerFailureCause(new Error("WeatherAPI 401 — invalid or expired API key")), "HTTP 401");
+  assert.equal(providerFailureCause(new Error("Open-Meteo HTTP 502")), "HTTP 502");
+  assert.equal(providerFailureCause(new Error("response body too large")), "response body too large");
+  assert.equal(providerFailureCause("not an error"), "unclassified unknown");
+});
+
+test("providerFailureCause never echoes error text that could hold a key", () => {
+  const leaky = new Error("GET https://api.example/v1?key=SECRET123&q=seoul failed", {
+    cause: new Error("serviceKey=SECRET123"),
+  });
+  const cause = providerFailureCause(leaky);
+
+  assert.equal(cause, "unclassified Error");
+  assert.ok(!cause.includes("SECRET123"));
+});
+
+test("createWeatherProvider records the key-free cause of a failed read", async () => {
+  clearCache();
+  const provider = createWeatherProvider({
+    id: "kma",
+    name: "KMA",
+    messages,
+    missingConfiguration: () => [],
+    ttlMs: 60_000,
+    load: async () => Promise.reject(new TypeError("fetch failed", {
+      cause: Object.assign(new Error("read ECONNRESET serviceKey=SECRET"), { code: "ECONNRESET" }),
+    })),
+  });
+
+  const snapshot = await provider.read();
+
+  assert.equal(snapshot.status.message, "error");
+  assert.equal(snapshot.status.cause, "network ECONNRESET");
+  assert.ok(!JSON.stringify(snapshot).includes("SECRET"));
 });
