@@ -29,6 +29,51 @@ function emptySnapshot(id: WeatherProviderStatus["id"], status: WeatherProviderS
   return { id, status, current: null, hourly: [], daily: [] };
 }
 
+const MAX_CAUSE_DEPTH = 4;
+
+/** Error text this codebase throws itself, quoted as is because it can hold no key. */
+const OWN_FAILURE_TEXTS = [
+  "response body too large",
+  "unexpected response content type",
+  "non-JSON response",
+  "invalid JSON",
+  "missing resultCode",
+] as const;
+
+/**
+ * A short reason a provider read failed, such as `timeout`, `network ECONNRESET`
+ * or `HTTP 503`, for operators reading capture logs.
+ *
+ * Key-free by construction: it never returns error text. Output is built only from
+ * an error's name, a Node/undici error code, a three-digit HTTP status, a
+ * data.go.kr result code, or text listed in `OWN_FAILURE_TEXTS`. Provider errors
+ * can carry a request URL, and some providers put their key in the query string.
+ */
+export function providerFailureCause(error: unknown): string {
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+  for (let depth = 0; depth <= MAX_CAUSE_DEPTH && current instanceof Error && !seen.has(current); depth += 1) {
+    seen.add(current);
+    if (current.name === "TimeoutError" || current.name === "AbortError") return "timeout";
+    const code = (current as NodeJS.ErrnoException).code;
+    if (typeof code === "string" && /^(?:E[A-Z]{2,20}|UND_ERR_[A-Z_]{2,30})$/u.test(code)) {
+      return code === "UND_ERR_CONNECT_TIMEOUT" || code === "ETIMEDOUT" ? `timeout ${code}` : `network ${code}`;
+    }
+    const message = current.message;
+    const resultCode = /\b(resultCode|returnReasonCode) (\d{1,3})\b/u.exec(message);
+    if (resultCode) return `${resultCode[1]} ${resultCode[2]}`;
+    const status = /\bHTTP (\d{3})\b/u.exec(message) ?? /\b([1-5]\d{2}) —/u.exec(message);
+    if (status) return `HTTP ${status[1]}`;
+    const own = OWN_FAILURE_TEXTS.find((text) => message.includes(text));
+    if (own) return own;
+    current = current instanceof AggregateError && current.errors.length > 0
+      ? current.errors[0]
+      : current.cause;
+  }
+  const name = error instanceof Error && /^[A-Za-z]{1,40}$/u.test(error.name) ? error.name : "unknown";
+  return `unclassified ${name}`;
+}
+
 function failureMessage(definition: WeatherProviderDefinition, error: unknown): string {
   try {
     return definition.failureMessage?.(error) ?? definition.messages.error;
@@ -87,6 +132,7 @@ export function createWeatherProvider(definition: WeatherProviderDefinition): We
           name: statusName,
           availability: "error",
           message: failureMessage(definition, error),
+          cause: providerFailureCause(error),
           missingEnvVars: [],
           lastUpdated: null,
           fromCache: false,

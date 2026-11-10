@@ -25,6 +25,8 @@ export interface FaultedProvider {
   provider: PrecipProviderId;
   /** The provider's own explanation. Never carries a key; see WeatherProviderStatus. */
   message: string;
+  /** Key-free technical reason from `WeatherProviderStatus.cause`, when the read recorded one. */
+  cause?: string;
 }
 
 export interface CaptureStationResult {

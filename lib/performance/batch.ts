@@ -385,7 +385,7 @@ export async function runPerformanceBatch(
       }
       if (capture.status === "faulted") {
         const message = `could not read ${capture.faultedProviders
-          .map((fault) => `${fault.provider} (${fault.message})`)
+          .map((fault) => `${fault.provider} (${fault.message}${fault.cause ? `; ${fault.cause}` : ""})`)
           .join(", ")}`;
         if (retry) {
           retry.failure.message = message;

@@ -176,6 +176,21 @@ test("a provider that could not be read refuses the capture instead of storing a
   assert.deepEqual(await store.loadMorningCaptures("108"), []);
 });
 
+test("a faulted morning capture keeps the provider's key-free cause", async () => {
+  const store = new InMemoryPerformanceStore();
+  await store.syncStations([station], "2026-10-22");
+  const kma = snapshot("kma", [], "error");
+  kma.status.cause = "timeout";
+  const result = await captureStationMorningForecast({
+    station,
+    now: SEVEN_AM,
+    store,
+    readForecasts: async () => [snapshot("open-meteo", [hour("2026-10-22T09:00:00+09:00", 60)]), kma],
+  });
+
+  assert.deepEqual(result.faultedProviders, [{ provider: "kma", message: "kma timed out", cause: "timeout" }]);
+});
+
 test("nothing in the window skips the station without storing anything", async () => {
   const store = new InMemoryPerformanceStore();
   await store.syncStations([station], "2026-10-22");

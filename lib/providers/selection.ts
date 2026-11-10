@@ -34,13 +34,14 @@ export function selectComparedForecasts(snapshots: readonly ProviderSnapshot[], 
       condition: daily?.condition ?? "unknown" as WeatherCondition,
       available: Boolean(daily && probability !== null && Number.isFinite(probability) && probability >= 0 && probability <= 100),
       fault: snapshot.status.availability === "error" ? snapshot.status.message : null,
+      faultCause: snapshot.status.availability === "error" ? snapshot.status.cause : undefined,
     }];
   });
   const forecasts: CapturedProviderForecast[] = rows.flatMap((row) => row.available
     ? [{ provider: row.id, probability: row.probability, amountMm: row.amountMm }]
     : []);
   const faultedProviders = rows.flatMap((row) => row.fault !== null
-    ? [{ provider: row.id, message: row.fault }]
+    ? [{ provider: row.id, message: row.fault, ...(row.faultCause ? { cause: row.faultCause } : {}) }]
     : []);
   return { rows, forecasts, faultedProviders };
 }

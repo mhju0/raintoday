@@ -552,6 +552,41 @@ test("the 06 cohort reads a day ASOS has already published rather than yesterday
   assert.equal(await readObservationDate("18", new Date("2026-08-25T18:10:00+09:00")), "2026-08-24");
 });
 
+test("a capture failure line carries the provider's key-free cause next to its message", async () => {
+  // 2026-11-10: every morning attempt reported only "기상청 API 호출에 실패했습니다",
+  // so a timeout, an HTTP 5xx and a dropped connection all read the same.
+  const kmaDown: ProviderSnapshot = {
+    id: "kma",
+    status: {
+      id: "kma",
+      name: "기상청",
+      availability: "error",
+      message: "기상청 API 호출에 실패했습니다",
+      cause: "HTTP 503",
+      missingEnvVars: [],
+      lastUpdated: null,
+      fromCache: false,
+    },
+    current: null,
+    hourly: [],
+    daily: [],
+  };
+
+  const result = await runPerformanceBatch({
+    cohort: "18",
+    now: new Date("2026-08-13T18:10:00+09:00"),
+    store: new InMemoryPerformanceStore(),
+    fetchStations: async () => stations.slice(0, 1),
+    fetchObservation: async () => ({ status: "absent" }),
+    readForecasts: async () => [forecastSnapshot(), kmaDown],
+  });
+
+  assert.deepEqual(
+    result.failures.filter((failure) => failure.phase === "capture").map((failure) => failure.message),
+    ["could not read kma (기상청 API 호출에 실패했습니다; HTTP 503)"],
+  );
+});
+
 test("a cohort that could not reach a provider fails rather than storing a short capture", async () => {
   const store = new InMemoryPerformanceStore();
   const kmaDown: ProviderSnapshot = {
