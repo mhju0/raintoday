@@ -4,10 +4,11 @@ The project is maintained for correctness, security and provider compatibility.
 New features need an explicit scope decision. Security support covers current `main`;
 see the [reporting policy](../.github/SECURITY.md).
 
-CI runs `npm run test:dependency-audit` before `npm run audit:dependencies`, which runs
-the complete `npm audit --json --audit-level=high` with developer, optional and peer
-dependencies included. Any high/critical finding, malformed report or command failure
-blocks CI. There is no exception list; lower-severity findings stay visible in the output.
+PR CI runs `npm run test:dependency-audit` (offline validator tests) and the separate
+required Dependency review check. The weekly `dependency-audit` workflow runs
+`npm run audit:dependencies`, the complete `npm audit --json --audit-level=high` with
+developer, optional and peer dependencies included. Any high/critical finding, malformed
+report or command failure fails that run. There is no exception list; lower-severity findings stay visible in the output.
 The temporary braces exception (GHSA-vfj7-8cjw-p6xm) expired on 2026-10-25 and was removed
 after the Next.js 16.4.3 upgrade cleared the chain.
 

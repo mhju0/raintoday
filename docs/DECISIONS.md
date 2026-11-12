@@ -1493,6 +1493,8 @@ to follow a newer model run remains a separate decision.
 
 ## 2026-11-04 — Validate npm's cyclic audit reports without bypassing the gate
 
+_Superseded in part by "Run the live npm audit weekly instead of in the required PR check" (2026-11-12)._
+
 **Evidence.** npm 11.12.1's November 4 report has 16 moderate package records, no
 high/critical findings, an ESLint dependency cycle anchored to a `minimatch` advisory,
 and three omitted reverse `effects` entries. The validator's acyclic traversal rejected
@@ -1549,3 +1551,24 @@ them. Node types remain aligned with Node 24. Postgres.js stays on 3.4.9: versio
 changes parameter inference and transaction/error behavior and needs a separate
 persistence review. These holds are explicit compatibility boundaries, not audit
 exceptions or suppressed security alerts.
+
+## 2026-11-12 — Run the live npm audit weekly instead of in the required PR check
+
+**Evidence.** `verify` failed on its `Audit dependencies` step in 16 of the last 30
+failed `ci.yml` runs. Some were real high-severity advisories on Dependabot branches;
+the November 4 and 5 failures were validator mismatches with npm's report format. The
+step queries npm's live advisory database, so a newly published advisory can fail an
+unrelated pull request.
+
+**Decision.** `npm run audit:dependencies` moves to `scripts/check.sh --part audit`,
+run by the new scheduled `dependency-audit` workflow (weekly, plus manual dispatch).
+`verify` keeps `test:dependency-audit` and `test:dependency-compatibility`, which are
+offline and deterministic. The `verify` and `Dependency review` check names are
+unchanged, and Dependency review still blocks high-severity runtime dependency changes
+on every pull request. The full local gate (`scripts/check.sh` with no part) still runs
+the audit. The validator and severity threshold are unchanged.
+
+**Consequence.** Superseded in part: "Validate npm's cyclic audit reports without
+bypassing the gate" (2026-11-04) described the audit as blocking CI; it now blocks only
+the weekly run. A new high/critical advisory on a development-only or transitive
+dependency is detected within a week rather than on the next pull request.
