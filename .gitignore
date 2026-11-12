@@ -47,7 +47,8 @@ next-env.d.ts
 
 # Local assistant and editor configuration. These files support individual
 # workflows but are not part of the application or its public documentation.
-.claude/
+.claude/*
+!.claude/settings.json
 .serena/
 .agents/
 .cursor/

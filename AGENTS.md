@@ -5,7 +5,7 @@
 - Resolve conflicting evidence in this order: source/tests → Git → `docs/DECISIONS.md` → `docs/ROADMAP.md` → `.memory/handoff.md`.
 - Use Node 24 (the CI version) and npm with `package-lock.json`.
 - Install: `npm ci`. Develop: `npm run dev`. Production: `npm run build`, then `npm start`.
-- Full check: `npm run verify` (lint, typecheck, tests, build). `npm run typecheck` generates Next route types first, including in fresh worktrees. Targeted tests and browser/DB verification: `docs/VERIFYING.md`.
+- Done means `scripts/check.sh` prints GATE: PASS; paste the last lines. `npm run typecheck` generates Next route types first, including in fresh worktrees. Targeted tests and browser/DB verification: `docs/VERIFYING.md`.
 - Library tests execute TypeScript directly in Node; relative runtime imports in test-reachable `lib/` modules need explicit `.ts` extensions.
 
 <!-- BEGIN:nextjs-agent-rules -->
