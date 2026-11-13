@@ -1356,7 +1356,6 @@ html {
   /* Room for the date tag, which hangs above its column rather than covering
      the period label. */
   padding-top: 1rem;
-  touch-action: pan-y;
 }
 
 .local-ribbon-grid.has-mm {

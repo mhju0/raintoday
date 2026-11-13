@@ -17,6 +17,63 @@ const candidate = {
   source: "kakao",
 };
 
+test.describe("touch ribbon navigation", () => {
+  test.use({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
+
+  for (const viewportWidth of [320, 375]) {
+    test(`finger swipes scroll the ribbon horizontally and the page vertically at ${viewportWidth}px`, async ({ page, context }) => {
+      await page.setViewportSize({ width: viewportWidth, height: 812 });
+      await page.route("**/api/local-forecast", (route) => route.fulfill({ json: rainForecast }));
+      await page.goto("/?lat=37.499&lon=127.037&name=역삼1동&area=h");
+      const scroller = page.locator(".local-ribbon-scroll");
+      await expect(scroller).toBeVisible();
+      await scroller.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
+      const bounds = await scroller.boundingBox();
+      expect(bounds).not.toBeNull();
+      const { x, y, width, height } = bounds!;
+      expect(await scroller.evaluate((element) => element.scrollWidth)).toBeGreaterThan(width);
+
+      // Native touch input exercises gesture arbitration; setting scrollLeft or
+      // dispatching DOM pointer events would bypass touch-action entirely.
+      const session = await context.newCDPSession(page);
+      const swipe = async (fromX: number, fromY: number, toX: number, toY: number) => {
+        await session.send("Input.dispatchTouchEvent", {
+          type: "touchStart", touchPoints: [{ x: fromX, y: fromY }],
+        });
+        for (let step = 1; step <= 12; step++) {
+          await session.send("Input.dispatchTouchEvent", {
+            type: "touchMove",
+            touchPoints: [{ x: fromX + (toX - fromX) * step / 12, y: fromY + (toY - fromY) * step / 12 }],
+          });
+          await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+        }
+        await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      };
+
+      const pageTop = await page.evaluate(() => window.scrollY);
+      await swipe(x + width - 30, y + height / 2, x + 30, y + height / 2);
+      await expect.poll(() => scroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(80);
+      expect(await page.evaluate(() => window.scrollY)).toBeCloseTo(pageTop, 0);
+      for (let swipeIndex = 0; swipeIndex < 2; swipeIndex++) {
+        await swipe(x + width - 30, y + height / 2, x + 30, y + height / 2);
+      }
+      await expect.poll(async () => {
+        const lastColumn = await page.locator(".local-ribbon-col").last().boundingBox();
+        return lastColumn!.x + lastColumn!.width;
+      }).toBeLessThanOrEqual(x + width + 1);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewportWidth);
+
+      const rightwardScroll = await scroller.evaluate((element) => element.scrollLeft);
+      await swipe(x + 30, y + height / 2, x + width - 30, y + height / 2);
+      await expect.poll(() => scroller.evaluate((element) => element.scrollLeft)).toBeLessThan(rightwardScroll - 80);
+
+      await swipe(x + width / 2, y + height - 20, x + width / 2, y + 20);
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(pageTop + 80);
+      await session.detach();
+    });
+  }
+});
+
 function mixedRibbonForecast(withAmounts: boolean) {
   const probabilities = [10, 60, 75, 60, 0, null, 10, 60];
   const labels = ["지금", "오후", "오후", "저녁", "밤", "새벽", "새벽", "아침"];
