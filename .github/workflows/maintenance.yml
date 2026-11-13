@@ -2,7 +2,7 @@ name: maintenance
 
 on:
   workflow_run:
-    workflows: [local-performance, service-health]
+    workflows: [local-performance, service-health, dependency-audit]
     types: [completed]
     branches: [main]
   schedule:
