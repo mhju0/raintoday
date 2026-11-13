@@ -25,7 +25,9 @@ missing or non-string ranges still fail, and direct-advisory ranges remain nonem
 The `maintenance` workflow runs after collection/health runs and every six hours.
 It opens or updates one incident per failing workflow and closes it after a fresh
 successful monitored run. Collection monitoring uses scheduled runs only; service
-health monitoring also accepts manual read-only checks. It flags a missing completed collection after 18 hours,
+health monitoring also accepts manual read-only checks. The weekly `dependency-audit` run is
+monitored the same way: a failed audit opens or updates its incident, the next successful
+run (scheduled or manual) closes it, and no completed run in 8 days counts as missing. It flags a missing completed collection after 18 hours,
 measured from when the last one finished, and a missing health check after 10 hours, including disabled workflows. The evening
 collection is triggered at 12:40 KST and shows as in progress, in its `wait` job, until
 18:10 KST; that is not a hang. When GitHub starts it after 18:10 the wait is zero and the
@@ -52,7 +54,7 @@ instead of being duplicated. Check off each task with evidence before closing it
 Service health now flags even one missing provider. The site can remain usable
 while this check is red. A collection failure still refuses faulted forecast captures.
 
-- Weekly: inspect failed `local-performance`, `morning-forecast`, `evening-forecast` and `service-health` runs, provider gaps,
+- Weekly: inspect failed `local-performance`, `morning-forecast`, `evening-forecast`, `service-health` and `dependency-audit` runs, provider gaps,
   Dependabot PRs and Vercel/Neon usage. A green capture can still omit faulted stations.
 - Monthly and before significant data changes: take a private backup and restore it to
   an isolated database. Check provider accounts' credential expiry dates and quotas.
