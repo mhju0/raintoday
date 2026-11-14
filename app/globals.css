@@ -1391,6 +1391,8 @@ html {
    printed in the column beneath it, so it stays aria-hidden. */
 .local-ribbon-readout {
   position: absolute;
+  width: max-content;
+  max-width: 100cqw;
   top: 1.5rem;
   transform: translateX(-50%);
   z-index: 5;
@@ -1404,7 +1406,7 @@ html {
   word-spacing: var(--local-mono-gap);
   font-size: var(--t-label);
   color: var(--local-ink-2);
-  white-space: nowrap;
+  white-space: normal;
   pointer-events: none;
 }
 

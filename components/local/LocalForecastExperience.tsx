@@ -312,6 +312,8 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   if (messageShown && !messageHeld) setMessageHeld(true);
   if (!messageShown && messageHeld && query.trim() === "") setMessageHeld(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const resultsRef = useRef<HTMLUListElement | null>(null);
+  const revealKeyboardResult = useRef(false);
 
   // Returning from a forecast puts the user back here on purpose, so land them
   // on the control they came back to use. Never on first paint — auto-focusing
@@ -321,6 +323,33 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   }, [autoFocus]);
 
   const visibleResults = expanded ? results : [];
+
+  useLayoutEffect(() => {
+    const revealInViewport = revealKeyboardResult.current;
+    revealKeyboardResult.current = false;
+    const list = resultsRef.current;
+    const option = list?.children[activeResultIndex];
+    if (!expanded || !list || !option) return;
+    const bounds = list.getBoundingClientRect();
+    const selected = option.getBoundingClientRect();
+    const top = bounds.top + list.clientTop;
+    const bottom = top + list.clientHeight;
+    // Typing and refreshed matches scroll only the popup. Explicit arrow
+    // navigation may also reveal an option below the phone's visible screen.
+    if (selected.top < top) list.scrollTop += selected.top - top;
+    else if (selected.bottom > bottom) list.scrollTop += selected.bottom - bottom;
+    if (revealInViewport) {
+      const viewport = window.visualViewport;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+      const visibleOption = option.getBoundingClientRect();
+      if (visibleOption.bottom > viewportBottom) {
+        window.scrollBy({ top: visibleOption.bottom - viewportBottom, behavior: "instant" });
+      } else if (visibleOption.top < viewportTop) {
+        window.scrollBy({ top: visibleOption.top - viewportTop, behavior: "instant" });
+      }
+    }
+  }, [activeResultIndex, expanded, results]);
 
   // An in-flight search must not land on top of a coordinate the visitor has
   // already committed, whichever of the two ways in they took.
@@ -433,6 +462,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             ref={inputRef}
             value={query}
             onChange={(event) => {
+              revealKeyboardResult.current = false;
               search.updateQuery(event.target.value);
               setExpanded(true);
               setActiveResultIndex(0);
@@ -452,6 +482,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             onKeyDown={(event) => {
               if (event.key === "ArrowDown" && results.length > 0) {
                 event.preventDefault();
+                revealKeyboardResult.current = !expanded || activeResultIndex !== (activeResultIndex + 1) % results.length;
                 // Re-opening a list the user dismissed is the whole point of
                 // collapsing rather than discarding it.
                 if (!expanded) {
@@ -462,6 +493,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
                 setActiveResultIndex((current) => (current + 1) % results.length);
               } else if (event.key === "ArrowUp" && results.length > 0) {
                 event.preventDefault();
+                revealKeyboardResult.current = !expanded || activeResultIndex !== (activeResultIndex <= 0 ? results.length - 1 : activeResultIndex - 1);
                 if (!expanded) {
                   setExpanded(true);
                   setActiveResultIndex(results.length - 1);
@@ -492,6 +524,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
 
         <ul
           id={listboxId}
+          ref={resultsRef}
           className="local-search-results"
           aria-label="대한민국 행정구역 검색 결과"
           role="listbox"

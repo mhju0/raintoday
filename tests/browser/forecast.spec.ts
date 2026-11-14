@@ -17,6 +17,72 @@ const candidate = {
   source: "kakao",
 };
 
+for (const [width, height] of [[320, 700], [375, 812], [375, 1100]]) {
+  test(`keyboard search selection stays visible at ${width}×${height}px`, async ({ page }) => {
+    const names = ["역삼1동", "역삼2동", "삼성1동", "삼성2동", "대치1동", "대치2동", "대치4동", "도곡1동", "도곡2동", "논현1동"];
+    const results = names.map((name, index) => ({ ...candidate, id: String(index), name, label: `서울특별시 강남구 ${name}` }));
+    let matchedResults = results;
+    await page.setViewportSize({ width, height });
+    await page.route("**/api/locations/search**", (route) => route.fulfill({ json: { results: matchedResults } }));
+    await page.route("**/api/local-forecast", (route) => route.fulfill({ json: rainForecast }));
+    await page.goto("/");
+    const search = page.getByRole("combobox", { name: "대한민국 지역 검색" });
+    await search.fill("강남구");
+    await expect(page.getByRole("option")).toHaveCount(10);
+    const pageTop = await page.evaluate(() => window.scrollY);
+    const checkSelection = async (index: number) => {
+      const option = page.getByRole("option").nth(index);
+      await expect(option).toHaveAttribute("aria-selected", "true");
+      await expect(search).toHaveAttribute("aria-activedescendant", await option.getAttribute("id") as string);
+      await expect(search).toBeFocused();
+      const bounds = await option.evaluate((element) => {
+        const item = element.getBoundingClientRect();
+        const list = element.parentElement!.getBoundingClientRect();
+        return { top: item.top - list.top, bottom: item.bottom - list.bottom, screenTop: item.top, screenBottom: item.bottom };
+      });
+      expect(bounds.top).toBeGreaterThanOrEqual(-1);
+      expect(bounds.bottom).toBeLessThanOrEqual(1);
+      expect(bounds.screenTop).toBeGreaterThanOrEqual(-1);
+      expect(bounds.screenBottom).toBeLessThanOrEqual(height + 1);
+      if (height === 1100) expect(await page.evaluate(() => window.scrollY)).toBe(pageTop);
+    };
+    await checkSelection(0);
+    for (let step = 1; step <= 10; step++) {
+      await search.press("ArrowDown");
+      await checkSelection(step % 10);
+    }
+    for (let step = 1; step <= 10; step++) {
+      await search.press("ArrowUp");
+      await checkSelection((10 - step) % 10);
+    }
+    await search.press("Escape");
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await search.press("ArrowUp");
+    await checkSelection(9);
+    const beforeTyping = await page.evaluate(() => window.scrollY);
+    matchedResults = results.slice(0, 1);
+    await search.fill("강남구 역삼1동");
+    await expect(page.getByRole("option")).toHaveCount(1);
+    expect(await page.evaluate(() => window.scrollY)).toBe(beforeTyping);
+    await search.press("ArrowDown");
+    matchedResults = results;
+    await search.fill("강남구 동");
+    await expect(page.getByRole("option")).toHaveCount(10);
+    expect(await page.evaluate(() => window.scrollY)).toBe(beforeTyping);
+    await search.press("ArrowUp");
+    await checkSelection(9);
+    await search.press("Escape");
+    await search.press("ArrowDown");
+    await checkSelection(0);
+    await search.press("ArrowUp");
+    await checkSelection(9);
+    const chosenForecast = page.waitForRequest("**/api/local-forecast");
+    await search.press("Enter");
+    expect((await chosenForecast).postDataJSON().name).toBe(results[9].label);
+    await expect(page.locator(".local-dashboard")).toBeVisible();
+  });
+}
+
 test.describe("touch ribbon navigation", () => {
   test.use({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
 
@@ -398,6 +464,37 @@ for (const width of [390, 768, 1440]) {
       expect(bounds.selected[1], `column ${column} in view`).toBeLessThanOrEqual(bounds.scroller[1] + 1);
     }
   });
+}
+
+for (const width of [320, 375]) {
+  for (const fontSize of [100, 200]) {
+    test(`the full scrub readout fits at ${width}px with text at ${fontSize}%`, async ({ page }) => {
+      await openForecast(page, width, mixedRibbonForecast(true));
+      await page.evaluate((size) => { document.documentElement.style.fontSize = `${size}%`; }, fontSize);
+      await page.locator(".local-ribbon-grid").focus();
+      for (let column = 0; column < 8; column++) {
+        await page.keyboard.press("ArrowRight");
+        const overflow = await page.locator(".local-ribbon-readout").evaluate((element) => {
+          const readout = element.getBoundingClientRect();
+          const scroller = element.closest(".local-ribbon-scroll")!.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(element);
+          const text = [...range.getClientRects()];
+          return {
+            left: scroller.left - readout.left,
+            right: readout.right - scroller.right,
+            top: scroller.top - readout.top,
+            bottom: readout.bottom - scroller.bottom,
+            text: Math.max(...text.map((rect) => Math.max(readout.left - rect.left, rect.right - readout.right, readout.top - rect.top, rect.bottom - readout.bottom))),
+            content: element.scrollWidth - element.clientWidth,
+          };
+        });
+        for (const [edge, pixels] of Object.entries(overflow)) {
+          expect(pixels, `block ${column + 1}, ${edge}`).toBeLessThanOrEqual(1);
+        }
+      }
+    });
+  }
 }
 
 for (const width of [320, 390, 1440]) {
