@@ -67,7 +67,12 @@ npm run test:browser
 It checks location selection, evidence expansion and timeline keyboard interaction
 at 390 px and 1440 px, and that the search field marks focus with its own border
 while buttons keep the keyboard focus ring. It runs against the last `npm run build`,
-so rebuild after changing CSS or components. CI installs Chromium and runs it after the production build.
+so rebuild after changing CSS or components. CI installs only Chromium's headless shell
+(`--with-deps --only-shell chromium`), with no headed/full Chrome download, and runs the
+suite after the production build. The full suite runs with full parallelism across two workers
+in CI; local runs default to one worker. Retries stay disabled, and CI rejects `test.only`.
+On failure, retained traces and other `test-results/` evidence are uploaded as a run-specific
+artifact for seven days; no artifact is uploaded on success.
 The suite starts its own server on port 3101; leave that port free. It supplements
 manual scoring-page, responsive and assistive-technology checks rather than proving
 full accessibility conformance. Browser output belongs in ignored test directories.
