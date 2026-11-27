@@ -7,6 +7,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "http://localhost/",
   pretendToBeVisual: true,
 });
+test.after(() => dom.window.close());
 
 for (const [name, value] of Object.entries({
   window: dom.window,

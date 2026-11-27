@@ -56,10 +56,9 @@ function periodAmount(block: HourlyRibbonBlock) {
   return block.sum === null && block.completeHours < 3 ? "합계 없음" : amountText(block.sum);
 }
 
-export function useHourlyRibbon(data: HourlyComparison | undefined) {
+export function useForecastClock() {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
-    if (!data) return;
     let timer: number | undefined;
     const sync = () => {
       window.clearTimeout(timer);
@@ -78,7 +77,11 @@ export function useHourlyRibbon(data: HourlyComparison | undefined) {
       document.removeEventListener("visibilitychange", sync);
       window.removeEventListener("pageshow", sync);
     };
-  }, [data]);
+  }, []);
+  return now;
+}
+
+export function useHourlyRibbon(data: HourlyComparison | undefined, now: number) {
   return useMemo(() => {
     if (!data) return null;
     const viewedAt = Math.max(now, data.asOf);
@@ -280,7 +283,7 @@ export function ForecastComparisonDetail({ data, start, place, home, onReturn }:
   home: string;
   onReturn(event: MouseEvent<HTMLAnchorElement>): void;
 }) {
-  const hourly = useHourlyRibbon(data);
+  const hourly = useHourlyRibbon(data, useForecastClock());
   const block = hourly?.blocks.find((period) => period.start === start);
   const [choice, setChoice] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);

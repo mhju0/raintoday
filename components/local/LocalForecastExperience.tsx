@@ -18,7 +18,7 @@ import {
   type ForecastLocationSelection,
 } from "@/lib/locationPrecision";
 import type { ForecastLocationSearchResult } from "@/lib/locationSearch";
-import { ForecastComparisonDetail, HourlyForecastComparison, hourlyProbabilityText, useHourlyRibbon } from "./HourlyForecastComparison";
+import { ForecastComparisonDetail, HourlyForecastComparison, hourlyProbabilityText, useForecastClock, useHourlyRibbon } from "./HourlyForecastComparison";
 import { useLocationCandidateSearch } from "./useLocationCandidateSearch";
 
 type ViewState =
@@ -47,6 +47,7 @@ interface ForecastEntry {
   id: string;
   location: ChosenForecastLocation;
   forecast: LocalForecastView;
+  receivedAt: number;
   stored: boolean;
   reading?: { top: number; focus: string; period: number | null };
 }
@@ -1113,8 +1114,7 @@ function modernAnswer({ data, hourly, forecast }: {
     forecast.today?.precipitationAmountMm ?? null, RAIN_ONSET_PROBABILITY);
   const { current, date, first, disagreement, primaryWet, primaryStrong, morning, dry, comparedHours, remainingHours } = evidence;
   const wetToday = first && kstStamp(first.start).startsWith(date);
-  const title = !current ? "오늘 우산 안내를 새로 확인하세요"
-    : primaryWet && primaryStrong || morning ? "오늘 우산을 꼭 챙기세요"
+  const title = primaryWet && primaryStrong || morning ? "오늘 우산을 꼭 챙기세요"
     : primaryWet ? "오늘 작은 우산을 챙기세요"
     : disagreement ? "오늘 비 예보가 엇갈려요"
     : wetToday ? "오늘 비가 올 수 있어요"
@@ -1150,8 +1150,9 @@ function forecastAmount(value: number): string {
   return value > 0 && value < 0.01 ? "0.01 mm 미만" : `${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(value)} mm`;
 }
 
-function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref, onRecord, onCompare, onSelectPeriod, selectedPeriod, refreshFailed }: {
+function ForecastDashboard({ forecast, receivedAt, selection, onReset, onRefresh, recordHref, onRecord, onCompare, onSelectPeriod, selectedPeriod, refreshFailed }: {
   forecast: LocalForecastView;
+  receivedAt: number;
   selection: ForecastLocationSelection;
   onReset(): void;
   onRefresh(): void;
@@ -1175,12 +1176,14 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
   const today = forecast.today ?? null;
   const tomorrow = forecast.recommendation;
   const comparison = forecast.hourlyComparison;
-  const hourly = useHourlyRibbon(comparison);
+  const now = useForecastClock();
+  const hourly = useHourlyRibbon(comparison, now);
   const answer = comparison && hourly ? modernAnswer({ data: comparison, hourly, forecast }) : null;
-  const currentDate = hourly ? kstStamp(hourly.viewedAt).slice(0, 10) : null;
+  const currentDate = kstStamp(hourly?.viewedAt ?? Math.max(now, receivedAt)).slice(0, 10);
+  const dateChanged = answer ? !answer.current : currentDate !== kstStamp(receivedAt).slice(0, 10);
   const laterOutlook = forecast.outlook.filter((reading) => reading.date !== forecast.targetDate);
-  const refreshReason = answer && !answer.current ? "날짜가 바뀌어 이전 응답을 표시합니다." : hourly?.refreshReason;
-  const timeline = forecast.timeline;
+  const refreshReason = dateChanged ? "날짜가 바뀌어 이전 응답을 표시합니다." : hourly?.refreshReason;
+  const timeline = !hourly && dateChanged ? null : forecast.timeline;
   const blocks = timeline?.blocks ?? [];
   const run = timeline?.reading.firstRun ?? null;
   const laterRun = timeline?.reading.laterRun ?? null;
@@ -1314,9 +1317,9 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
       </div>
 
       <section className="local-answer" aria-labelledby="forecast-heading">
-        <p className="local-kicker">{answer ? "오늘 자정까지 · 우산 안내" : "비 예보"}</p>
+        <p className="local-kicker">{answer || dateChanged ? "오늘 자정까지 · 우산 안내" : "비 예보"}</p>
         <h1 id="forecast-heading" ref={headingRef} tabIndex={-1}>
-          {answer ? answer.title : timeline
+          {dateChanged ? "오늘 우산 안내를 새로 확인하세요" : answer ? answer.title : timeline
             ? <RainSentence run={run} endsTomorrow={runEndsTomorrow} peak={peak} hours={hours} />
             : <HeadlineDay day={today ?? tomorrow} label={today ? "오늘" : "내일"} />}
         </h1>
@@ -1341,7 +1344,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
             <span>{timeline.threshold}% 이상인 시간대를 비 예상 구간으로 봅니다</span>
           </p>
         )}
-        {answer ? <p className="local-answer-action">{answer.note}</p> : <p className="local-answer-action">
+        {answer ? <p className="local-answer-action">{answer.note}</p> : !dateChanged && <p className="local-answer-action">
           {timeline
             ? umbrellaAdvice({ blocks, dayOffsets, threshold: timeline.threshold, run, endsTomorrow: runEndsTomorrow, today })
             : rainAction(
@@ -1356,6 +1359,9 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
         {comparison && <p className="local-hourly-note">예보 응답 시각{" "}
           <time dateTime={new Date(comparison.asOf).toISOString()}>{kstStamp(comparison.asOf).replace("T", " ")} KST</time>
           {answer?.coverage && <> · {answer.coverage}</>}
+        </p>}
+        {!comparison && dateChanged && <p className="local-hourly-note">이 화면에서 받은 시각{" "}
+          <time dateTime={new Date(receivedAt).toISOString()}>{kstStamp(receivedAt).replace("T", " ")} KST</time>
         </p>}
         {(refreshReason || refreshFailed) && <div className="local-error-actions">
           <p className="local-hourly-note" role="status">{refreshFailed ? "새 예보를 불러오지 못해 이전 예보를 표시합니다." : refreshReason}</p>
@@ -1485,7 +1491,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
           <section className="local-day" aria-labelledby="today-heading">
             <div className="local-day-head">
               <h2 id="today-heading" className="local-day-when">
-                {currentDate && today.date !== currentDate ? "이전 예보" : "오늘"} <span>{formatDate(today.date)}</span>
+                {dateChanged || (answer && today.date !== currentDate) ? "이전 예보" : "오늘"} <span>{formatDate(today.date)}</span>
               </h2>
               <span className="local-tag">{today.probabilityProviderCount != null && `확률 ${today.probabilityProviderCount}곳 · `}동일 비중</span>
             </div>
@@ -1512,7 +1518,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
                 number is always a plain average — claiming otherwise would
                 assert an accuracy nothing has measured. */}
             <p className="local-day-why">
-              오늘은 응답한 서비스의 예보를 <b>같은 비중으로 평균했습니다.</b>
+              이 날짜는 응답한 서비스의 예보를 <b>같은 비중으로 평균했습니다.</b>
             </p>
           </section>
         )}
@@ -1523,7 +1529,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
         >
           <div className="local-day-head">
             <h2 id="tomorrow-heading" className="local-day-when">
-              {answer && !answer.current ? "응답 기준" : "내일"} <span>{formatDate(forecast.targetDate)}</span>
+              {dateChanged ? "응답 기준" : "내일"} <span>{formatDate(forecast.targetDate)}</span>
             </h2>
             <span className={`local-tag${weighted ? " is-weighted" : ""}`}>
               {forecast.comparedProviderCount}개 서비스{" "}
@@ -1571,7 +1577,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
         {laterOutlook.length > 0 && (
           <section className="local-card local-outlook" aria-labelledby="outlook-heading">
             <div className="local-card-head">
-              <h2 id="outlook-heading">{answer && !answer.current ? "이전 응답의 이후 전망" : "모레부터의 전망"}</h2>
+              <h2 id="outlook-heading">{dateChanged ? "이전 응답의 이후 전망" : "모레부터의 전망"}</h2>
               <b>동일 비중</b>
             </div>
             <div
@@ -1599,7 +1605,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
       <div className="local-evidence-cards">
         <section className="local-card" aria-labelledby="influence-heading">
           <div className="local-card-head">
-            <h2 id="influence-heading">{answer && !answer.current ? "이전 응답의 익일 예보 비중" : "내일 예보에 적용한 비중"}</h2>
+            <h2 id="influence-heading">{dateChanged ? "이전 응답의 익일 예보 비중" : "내일 예보에 적용한 비중"}</h2>
             {spread.length > 1 && (
               <b>편차 {Math.round(Math.min(...spread))}–{Math.round(Math.max(...spread))}%</b>
             )}
@@ -1710,6 +1716,7 @@ export default function LocalForecastExperience() {
       const entry = {
         id: intent.entry?.id ?? crypto.randomUUID(),
         forecast,
+        receivedAt: Date.now(),
         location: input,
         stored: mode === "select" || intent.stored === true || intent.entry?.stored === true,
         reading: intent.entry?.reading,
@@ -1987,6 +1994,7 @@ export default function LocalForecastExperience() {
       {state.kind === "ready" && detailStart === null && (
         <ForecastDashboard
           forecast={state.forecast}
+          receivedAt={state.entry.receivedAt}
           selection={state.selection}
           onReset={() => returnToChooser(true)}
           onRefresh={() => {

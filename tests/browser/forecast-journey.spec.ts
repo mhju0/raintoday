@@ -145,6 +145,26 @@ test("a failed refresh keeps the aged forecast and a deliberate retry replaces i
   expect(requests).toBe(3);
 });
 
+test("legacy advice expires after KST midnight without guessing a provider issue time", async ({ page }) => {
+  const start = new Date("2026-11-22T23:59:00+09:00");
+  await page.clock.install({ time: new Date(start.getTime() - 2_000) });
+  await page.clock.pauseAt(start);
+  let requests = 0;
+  await page.route("**/api/local-forecast", (route) => {
+    requests += 1;
+    return route.fulfill({ json: response });
+  });
+  await page.goto(area);
+  await expect(page.getByText(/단독 예보/).first()).toBeVisible();
+  await page.clock.fastForward(60_002);
+  await page.evaluate(() => window.dispatchEvent(new Event("pageshow")));
+  await expect(page.locator("#forecast-heading")).toHaveText("오늘 우산 안내를 새로 확인하세요");
+  await expect(page.getByText(/단독 예보/)).toHaveCount(0);
+  await expect(page.locator(".local-answer")).toContainText("이 화면에서 받은 시각 2026-11-22 23:59 KST");
+  await expect(page.getByRole("button", { name: "예보 다시 불러오기" })).toBeVisible();
+  expect(requests).toBe(1);
+});
+
 test("a cold station-only return chooses a place explicitly even with a saved city", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("raintoday.last-location.v1", JSON.stringify({
     name: "제주", latitude: 33.513, longitude: 126.529, elevationM: null,
