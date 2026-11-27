@@ -81,10 +81,14 @@ export function useHourlyRibbon(data: HourlyComparison | undefined) {
     if (!data) return null;
     const viewedAt = Math.max(now, data.asOf);
     const blocks = hourlyRibbon(data, viewedAt);
+    const hasAverage = blocks.some(({ hours }) => hours.some((row) => row.chance.length >= 2 || row.amount.length >= 2));
     const responseEnd = hourlyComparisonEnd(data);
     const expired = kstStamp(viewedAt).slice(0, 10) > data.dates[1] ||
-      (responseEnd !== null && viewedAt >= responseEnd);
-    return { blocks, expired };
+      (responseEnd !== null && responseEnd > data.asOf && viewedAt >= responseEnd);
+    const agedEmptyAverage = !hasAverage && viewedAt - data.asOf >= HOUR_MS;
+    const refreshReason = expired ? "이 응답에서 유효한 예보 시간이 지났습니다."
+      : agedEmptyAverage ? "이전 응답에서 비교할 수 있는 시간대 예보가 없습니다." : null;
+    return { blocks, hasAverage, refreshReason };
   }, [data, now]);
 }
 
@@ -160,7 +164,7 @@ function ComparisonRows({ data, block, source }: { data: HourlyComparison; block
                     {spread ? spread.low === spread.high ? probability(spread.high) : `${probability(spread.low)}–${probability(spread.high)}` : "두 곳 미만"}
                     <Members members={row.chance} />
                   </td>
-                  <td>{amountText(hourlyMean(row.amount))}<Members members={row.amount} /></td>
+                  <td>{row.amount.length === 1 ? "두 곳 미만" : amountText(hourlyMean(row.amount))}<Members members={row.amount} /></td>
                 </>
               )}
             </tr>
@@ -171,10 +175,11 @@ function ComparisonRows({ data, block, source }: { data: HourlyComparison; block
   );
 }
 
-export function HourlyForecastComparison({ data, blocks, expired, onRefresh }: {
+export function HourlyForecastComparison({ data, blocks, hasAverage, refreshReason, onRefresh }: {
   data: HourlyComparison;
   blocks: HourlyRibbonBlock[];
-  expired: boolean;
+  hasAverage: boolean;
+  refreshReason: string | null;
   onRefresh(): void;
 }) {
   const [selectedStart, setSelectedStart] = useState<number | null>(null);
@@ -187,7 +192,6 @@ export function HourlyForecastComparison({ data, blocks, expired, onRefresh }: {
   const selectedIndex = Math.max(0, blocks.findIndex(({ start }) => start === selectedStart));
   const selected = blocks[selectedIndex];
   const source = data.sources.find(({ id }) => id === choice);
-  const hasAverage = blocks.some(({ hours }) => hours.some((row) => row.chance.length >= 2 || row.amount.length >= 2));
   const hasComparison = data.sources.some(({ status, hours }) => status !== "unavailable" && Object.keys(hours).length > 0);
 
   function move(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -276,9 +280,9 @@ export function HourlyForecastComparison({ data, blocks, expired, onRefresh }: {
           {!hasAverage ? "같은 시간에 두 곳 이상 발표한 수치가 있어야 평균을 표시합니다." : "지금 구간은 지난 시간과 진행 중인 시간을 뺍니다."}
         </p>
       )}
-      {expired && (
+      {refreshReason && (
         <div className="local-error-actions">
-          <p className="local-hourly-note" role="status">이 응답에서 유효한 예보 시간이 지났습니다.</p>
+          <p className="local-hourly-note" role="status">{refreshReason}</p>
           <button type="button" onClick={onRefresh}>예보 다시 불러오기</button>
         </div>
       )}

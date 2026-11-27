@@ -67,7 +67,7 @@ npm run performance:seed -- --start=2025-06-01 --end=2025-08-31
 4. Read the provider comparison, longer outlook and scoring evidence below; only the raw scoring table is folded and expands on request.
 5. Open the evidence-status link to the station's [`/behind-the-data`](https://raintoday.vercel.app/behind-the-data) record. Device-location links carry only the public station ID; area links carry the area's representative coordinate.
 
-The supporting evidence is shown below the answer. Tap a ribbon block or use the arrow keys to inspect it. The ribbon advances with the clock using the existing response. When its coverage expires, the page offers a manual refresh.
+The supporting evidence is shown below the answer. Tap a ribbon block or use the arrow keys to inspect it. The ribbon advances with the clock using the existing response. The page offers a manual refresh when coverage expires or an hour-old response has no comparable hourly values left.
 
 ## Architecture
 

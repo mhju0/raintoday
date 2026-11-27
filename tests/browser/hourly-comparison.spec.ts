@@ -305,3 +305,52 @@ test("elapsed hours and KST boundaries update in an open and resumed tab with ma
   await expect(refresh).toHaveCount(0);
   expect(requests).toBe(2);
 });
+
+test("an aged empty average can refresh before the last native hour expires", async ({ page }) => {
+  const now = at("2026-11-23T03:59:56");
+  const lostAverage = at("2026-11-23T05:00:02");
+  await page.clock.install({ time: at("2026-11-23T03:59:54") });
+  await page.clock.pauseAt(now);
+  const response = buildHourlyComparison(seoulHourlySnapshots, seoulCaptureTime);
+  const [open, kma, weather, visual] = response.sources;
+  const comparableEnd = at("2026-11-23T05:00:00").getTime();
+  open.hours = { [comparableEnd]: { chance: 25, amount: 0 } };
+  kma.hours = { [comparableEnd]: { chance: 35, amount: 0 } };
+  weather.hours = { [at("2026-11-23T06:00:00").getTime()]: { chance: 10, amount: 0 } };
+  visual.hours = {};
+  let requests = 0;
+  await page.route("**/api/local-forecast", (route) => {
+    requests += 1;
+    const hourlyComparison = requests === 1 ? response : {
+      ...response,
+      asOf: lostAverage.getTime(),
+      sources: [{ ...open, hours: {
+        [at("2026-11-23T07:00:00").getTime()]: { chance: null, amount: 0.2 },
+      } }],
+    };
+    return route.fulfill({ json: { ...forecast, hourlyComparison } });
+  });
+  await page.goto(seoulUrl);
+  const { panel, tiles, reveal, mode, table } = controls(page);
+  const refresh = panel.getByRole("button", { name: "예보 다시 불러오기" });
+  await expect(panel).toContainText("서비스 평균");
+  await expect(refresh).toHaveCount(0);
+  await page.clock.fastForward(lostAverage.getTime() - now.getTime());
+  await expect(panel).toContainText("평균 자료 부족");
+  await expect(refresh).toBeVisible();
+  await reveal.click();
+  await tiles.nth(1).getByRole("button").click();
+  await mode.selectOption("weather-api");
+  await expect(table.getByRole("row", { name: /06:00–07:00/ })).toContainText("10%06:00 제공사 시각");
+  expect(requests).toBe(1);
+
+  await refresh.click();
+  await expect(mode).toBeHidden();
+  await expect(panel).toContainText("평균 자료 부족");
+  await expect(refresh).toHaveCount(0);
+  await tiles.nth(1).getByRole("button").click();
+  await reveal.click();
+  await expect(table.getByRole("row", { name: /06:00–07:00/ }).getByRole("cell").last()).toHaveText("두 곳 미만1곳 · Open-Meteo");
+  await expect(table.getByRole("row", { name: /07:00–08:00/ }).getByRole("cell").last()).toHaveText("미발표0곳");
+  expect(requests).toBe(2);
+});

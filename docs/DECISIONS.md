@@ -1623,8 +1623,9 @@ hours. Each average still requires two aligned, fresh, numeric sources for its
 own metric. A one-source forecast can be inspected by name. Empty slots and
 partial blocks keep their time labels. Individual readings follow the response
 dates in the metric's own time convention. An aligned amount ending at midnight
-belongs to the previous day. The clock and comparisons reuse the
-response, and an expired response can be refreshed manually. Daily forecasting,
+belongs to the previous day. The clock and comparisons reuse the response.
+Refresh is manual when coverage expires or an hour-old response has no
+comparable hourly values left. Daily forecasting,
 provider requests and weighting retain the November 27 serving contract.
 The main umbrella advisory retains the existing rest-of-today and before-noon
 daily amount rules.
