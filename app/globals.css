@@ -3062,7 +3062,7 @@ html {
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  font-size: var(--t-label);
+  font-size: 0.875rem;
   color: var(--local-ink-2);
 }
 
@@ -3081,11 +3081,11 @@ html {
 
 .local-hourly-table th[scope="row"] {
   font-family: var(--local-mono);
-  font-size: 0.85em;
+  font-size: 0.95em;
 }
 
 .local-hourly-time-col {
-  width: 36%;
+  width: 34%;
 }
 
 .local-hourly-table th[scope="row"] span {
@@ -3094,5 +3094,20 @@ html {
 
 .local-hourly-table small {
   display: block;
+  font-size: inherit;
   color: var(--local-dim);
+}
+
+@media (max-height: 28rem) {
+  .local-ribbon-grid.local-hourly-grid {
+    grid-template-rows: auto auto min(var(--local-track), 3rem) auto;
+  }
+
+  .local-hourly-grid .local-ribbon-col {
+    row-gap: 0.2rem;
+  }
+
+  :is(#forecast-compare, #forecast-station, #forecast-evidence-status, #forecast-record) {
+    scroll-margin-block: 0.65rem;
+  }
 }

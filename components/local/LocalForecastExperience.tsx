@@ -719,13 +719,6 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   );
 }
 
-/** Days the provider called wrong, over the days it was scored. */
-function missedDays(score: LocalForecastView["evidence"]["scores"][number]): string {
-  const missed = score.misses + score.falseAlarms;
-  if (score.windowSampleCount <= 0) return `${missed}일`;
-  return `${score.windowSampleCount}일 중 ${missed}일`;
-}
-
 /** The wet-day miss rate — where the real difference between services lives. */
 function seedMissLabel(score: LocalForecastView["evidence"]["seedScores"][number]): string {
   if (score.wetDays <= 0) return "기록 없음";
@@ -775,7 +768,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref, onRecord }: {
   const rankLabel = (score: LocalForecastView["evidence"]["scores"][number]): string => {
     const position = recent.indexOf(score);
     if (position < 0) return "최근 7일 기록 없음";
-    return position === 0 ? "가장 잘 맞음" : `${position + 1}번째`;
+    return `${position + 1}위`;
   };
   const verdict = benchmark ? benchmarkVerdict(benchmark) : null;
 
@@ -853,17 +846,17 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref, onRecord }: {
         </>
       ) : emptyMessage === null ? (
         <>
-          <div className="local-score-table" role="table" aria-label="서비스별 최근 강수 예보 성능">
+          <div className="local-score-table" role="table" aria-label="서비스별 최근 7일 Brier 순위">
             <div className="local-score-row local-score-header" role="row">
               <span role="columnheader">서비스</span>
-              <span role="columnheader">최근 7일</span>
-              <span role="columnheader">빗나간 날</span>
+              <span role="columnheader">최근 7일 순위</span>
+              <span role="columnheader">Brier 점수</span>
             </div>
             {ranked.map((provider) => (
               <div className="local-score-row" role="row" key={provider.id}>
                 <strong role="cell">{provider.name}</strong>
                 <span role="cell">{rankLabel(provider)}</span>
-                <span role="cell">{missedDays(provider)}</span>
+                <span role="cell">{provider.last7DaysBrier?.toFixed(5) ?? "기록 없음"}</span>
               </div>
             ))}
           </div>
@@ -876,15 +869,15 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref, onRecord }: {
                   <span role="columnheader">서비스</span>
                   <span role="columnheader">최근 7일 Brier</span>
                   <span role="columnheader">60일 Brier</span>
-                  <span role="columnheader">누락&nbsp;· 오보</span>
+                  <span role="columnheader">60일 누락&nbsp;· 오보</span>
                   <span role="columnheader">비 온 날 강수량 오차</span>
                 </div>
-                {ranked.map((provider) => (
+                {scores.map((provider) => (
                   <div className="local-score-row" role="row" key={provider.id}>
                     <strong role="cell">{provider.name}</strong>
-                    <span role="cell">{provider.last7DaysBrier?.toFixed(3) ?? "기록 없음"}</span>
-                    <span role="cell">{provider.windowBrier.toFixed(3)}</span>
-                    <span role="cell">누락 {provider.misses}&nbsp;· 오보 {provider.falseAlarms}</span>
+                    <span role="cell">{provider.last7DaysBrier?.toFixed(5) ?? "기록 없음"}</span>
+                    <span role="cell">{provider.windowBrier.toFixed(5)}</span>
+                    <span role="cell">누락 {provider.misses}&nbsp;· 오보 {provider.falseAlarms}<br /><small>{provider.windowSampleCount}일 비교</small></span>
                     <span role="cell">
                       {provider.rainyAmountMae === null ? "기록 없음" : `${provider.rainyAmountMae.toFixed(1)}mm`}
                       {provider.rainyAmountSampleCount > 0 && `\u00a0· ${provider.rainyAmountSampleCount}일`}
@@ -894,8 +887,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref, onRecord }: {
               </div>
             </div>
             <p className="local-method-note">
-              Brier 점수는 예보 확률이 실제와 얼마나 어긋났는지를 0에 가까울수록 좋게
-              나타냅니다. <span className="local-keep">‘누락’은</span> 비가 왔는데 낮게 본 날, <span className="local-keep">‘오보’는</span> 비가 오지 않았는데
+              최근 7일 순위는 확률 예보의 Brier 점수로 정합니다. 점수는 낮을수록 좋으며 소수점 다섯 자리까지 표시합니다. <span className="local-keep">‘누락’은</span> 비가 왔는데 낮게 본 날, <span className="local-keep">‘오보’는</span> 비가 오지 않았는데
               높게 본 날입니다. 오전·오후 발표를 섞지 않고, 비가 오지 않은 날도 모두
               포함합니다. 최근 성능은 확률 예보의 영향만 조정하며 정확성을 보장하지
               않습니다.
@@ -914,8 +906,8 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref, onRecord }: {
           <b>{verdict}</b>
           <span>
             별도 사전 저장 예보 비교&nbsp;· {benchmark?.sampleCount}건&nbsp;· Brier <span className="local-keep">(낮을수록 좋음)</span>&nbsp;· 성능 반영{" "}
-            {benchmark?.adaptiveBrier?.toFixed(3) ?? "기록 없음"}&nbsp;· 단순 평균{" "}
-            {benchmark?.equalBrier?.toFixed(3) ?? "기록 없음"}. 판정은 반올림하기 전 점수를 사용합니다.
+            {benchmark?.adaptiveBrier?.toFixed(5) ?? "기록 없음"}&nbsp;· 단순 평균{" "}
+            {benchmark?.equalBrier?.toFixed(5) ?? "기록 없음"}. 소수점 다섯 자리까지 표시하며, 순위와 판정은 반올림하기 전 점수를 사용합니다.
           </span>
         </p>
       )}
@@ -1023,13 +1015,14 @@ function windowWords(run: NonNullable<TimelineReading["firstRun"]>, endsTomorrow
  *   hours decide;
  * - dry today but rain in the series tomorrow → today is fine, and says when.
  */
-function umbrellaAdvice({ blocks, dayOffsets, threshold, run, endsTomorrow, today }: {
+function umbrellaAdvice({ blocks, dayOffsets, threshold, run, endsTomorrow, today, beforeNoon }: {
   blocks: LocalForecastTimelineBlock[];
   dayOffsets: number[];
   threshold: number;
   run: TimelineReading["firstRun"];
   endsTomorrow: boolean;
   today: { precipitationAmountMm: number | null } | null;
+  beforeNoon: boolean;
 }): string {
   const rest = blocks.filter((block, index) => dayOffsets[index] === 0 && block.precipMax !== null);
   if (rest.length === 0) return "강수 정보를 충분히 모으지 못했어요.";
@@ -1039,7 +1032,7 @@ function umbrellaAdvice({ blocks, dayOffsets, threshold, run, endsTomorrow, toda
     return restPeak >= 70 || restMm >= 10 ? "오늘 우산을 꼭 챙기세요." : "오늘 작은 우산을 챙기면 마음이 놓여요.";
   }
   const dayMm = today?.precipitationAmountMm ?? null;
-  if (blocks[0].startHour < 12 && dayMm !== null && dayMm >= 10) {
+  if (beforeNoon && dayMm !== null && dayMm >= 10) {
     return `시간대별 예보에는 없지만 여러 서비스가 오늘 ${formatMm(dayMm)}mm를 예상해요. 우산을 챙기세요.`;
   }
   if (run && dayOffsets[run.startIndex] > 0) return `오늘은 우산 없이 괜찮아요. ${windowWords(run, endsTomorrow).onset}는 챙기세요.`;
@@ -1135,7 +1128,8 @@ function modernAnswer({ data, hourly, forecast }: {
             ` · ${averageWet ? "평균 강수량" : `${primary} 강수량`} ${forecastAmount(firstAmount)}`}.
         </span>}
         {disagreement && <span>
-          {" "}{advisoryClock(disagreement.start)}–{advisoryClock(disagreement.end)} · {primary} {hourlyProbabilityText(disagreement.primary)},
+          {" "}{disagreement.start !== first?.start && <>{advisoryClock(disagreement.start)}–{advisoryClock(disagreement.end)} · </>}
+          {primary} {hourlyProbabilityText(disagreement.primary)},
           {" "}서비스 평균 {hourlyProbabilityText(disagreement.chance)} ({disagreement.members.map(({ source }) => source.name).join(", ")}).
         </span>}
         {!disagreement && primaryWet && primary && <span>{" "}{primary}의 남은 시간대 예보를 참고했습니다.</span>}
@@ -1150,9 +1144,10 @@ function forecastAmount(value: number): string {
   return value > 0 && value < 0.01 ? "0.01 mm 미만" : `${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(value)} mm`;
 }
 
-function ForecastDashboard({ forecast, receivedAt, selection, onReset, onRefresh, recordHref, onRecord, onCompare, onSelectPeriod, selectedPeriod, refreshFailed }: {
+function ForecastDashboard({ forecast, receivedAt, now, selection, onReset, onRefresh, recordHref, onRecord, onCompare, onSelectPeriod, selectedPeriod, refreshFailed }: {
   forecast: LocalForecastView;
   receivedAt: number;
+  now: number;
   selection: ForecastLocationSelection;
   onReset(): void;
   onRefresh(): void;
@@ -1176,11 +1171,10 @@ function ForecastDashboard({ forecast, receivedAt, selection, onReset, onRefresh
   const today = forecast.today ?? null;
   const tomorrow = forecast.recommendation;
   const comparison = forecast.hourlyComparison;
-  const now = useForecastClock();
   const hourly = useHourlyRibbon(comparison, now);
   const answer = comparison && hourly ? modernAnswer({ data: comparison, hourly, forecast }) : null;
   const currentDate = kstStamp(hourly?.viewedAt ?? Math.max(now, receivedAt)).slice(0, 10);
-  const dateChanged = answer ? !answer.current : currentDate !== kstStamp(receivedAt).slice(0, 10);
+  const dateChanged = currentDate !== (comparison?.dates[0] ?? kstStamp(receivedAt).slice(0, 10));
   const laterOutlook = forecast.outlook.filter((reading) => reading.date !== forecast.targetDate);
   const refreshReason = dateChanged ? "날짜가 바뀌어 이전 응답을 표시합니다." : hourly?.refreshReason;
   const timeline = !hourly && dateChanged ? null : forecast.timeline;
@@ -1282,20 +1276,8 @@ function ForecastDashboard({ forecast, receivedAt, selection, onReset, onRefresh
         <div className="local-strip-place">
           <span className="local-strip-pin" aria-hidden><LocationMark /></span>
           <b>{forecast.locationName}</b>
-          {/* With a resolved place name, the source says how we got it. Without
-              one it only repeats the name — "현재 위치 · 현재 기기 위치" tells the
-              reader nothing — so show the accuracy instead.
-
-              The phone strip hides this line to stay short across a sticky
-              scroll. That is right while a name carries the location, and wrong
-              without one: "현재 위치" alone qualifies nothing, so mark the case
-              where this text is the only qualifier and let it through. */}
-          <span
-            className={`local-strip-meta${
-              forecast.locationName === DEVICE_PLACEHOLDER_NAME ? " is-sole-qualifier" : ""
-            }`}
-          >
-            {forecast.locationName === DEVICE_PLACEHOLDER_NAME
+          <span className="local-strip-meta">
+            {selection.kind === "area" || forecast.locationName === DEVICE_PLACEHOLDER_NAME
               ? locationDescription.precision
               : `${locationDescription.source}\u00a0· ${locationDescription.precision}`}
           </span>
@@ -1346,7 +1328,7 @@ function ForecastDashboard({ forecast, receivedAt, selection, onReset, onRefresh
         )}
         {answer ? <p className="local-answer-action">{answer.note}</p> : !dateChanged && <p className="local-answer-action">
           {timeline
-            ? umbrellaAdvice({ blocks, dayOffsets, threshold: timeline.threshold, run, endsTomorrow: runEndsTomorrow, today })
+            ? umbrellaAdvice({ blocks, dayOffsets, threshold: timeline.threshold, run, endsTomorrow: runEndsTomorrow, today, beforeNoon: Number(kstStamp(now).slice(11, 13)) < 12 })
             : rainAction(
               (today ?? tomorrow).precipitationProbability,
               (today ?? tomorrow).precipitationAmountMm,
@@ -1364,7 +1346,7 @@ function ForecastDashboard({ forecast, receivedAt, selection, onReset, onRefresh
           <time dateTime={new Date(receivedAt).toISOString()}>{kstStamp(receivedAt).replace("T", " ")} KST</time>
         </p>}
         {(refreshReason || refreshFailed) && <div className="local-error-actions">
-          <p className="local-hourly-note" role="status">{refreshFailed ? "새 예보를 불러오지 못해 이전 예보를 표시합니다." : refreshReason}</p>
+          <p className="local-hourly-note" role={dateChanged && !refreshFailed ? undefined : "status"}>{refreshFailed ? "새 예보를 불러오지 못해 이전 예보를 표시합니다." : refreshReason}</p>
           <button type="button" id="forecast-refresh" onClick={onRefresh}>{refreshFailed ? "다시 시도" : "예보 다시 불러오기"}</button>
         </div>}
       </section>
@@ -1686,6 +1668,7 @@ export default function LocalForecastExperience() {
   const [detailStart, setDetailStart] = useState<number | null>(null);
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [contextWarning, setContextWarning] = useState<string | null>(null);
+  const now = useForecastClock(state.kind === "ready");
 
   function cancelRequest() {
     generation.current += 1;
@@ -1773,7 +1756,7 @@ export default function LocalForecastExperience() {
         if (retained) rememberForecast({ ...retained, stored: false });
       }
     }
-    if (push) writeForecastHistory({ raintodayView: "chooser" }, "/", false);
+    if (push) writeForecastHistory({ raintodayView: "chooser", forecastEntry: lastEntry.current?.id }, "/", false);
     setDetailStart(null);
     setContextWarning(null);
     setRefreshFailed(false);
@@ -1785,12 +1768,20 @@ export default function LocalForecastExperience() {
     cancelRequest();
     setRefreshFailed(false);
     const entry = lastEntry.current;
-    if (entry && window.history.state?.raintodayView === "chooser") {
+    const history = window.history.state;
+    if (entry && history?.raintodayView === "chooser" && history.forecastEntry === entry.id) {
       window.history.back();
       return;
     }
-    if (entry) showEntry(entry, true);
-    else returnToChooser(false);
+    if (!entry) {
+      returnToChooser(false);
+      return;
+    }
+    const url = shareableSearch(entry.location) ?? `/#forecast=${entry.id}`;
+    writeForecastHistory({ raintodayView: "forecast", forecastEntry: entry.id }, url, true);
+    setDetailStart(null);
+    setContextWarning(null);
+    showEntry(entry, true);
   };
 
   useEffect(() => {
@@ -1857,10 +1848,15 @@ export default function LocalForecastExperience() {
 
   const errorRetry = state.kind === "error" ? state.retry : null;
 
+  const responseStamp = state.kind === "ready" ? state.forecast.hourlyComparison?.asOf ?? state.entry.receivedAt : null;
+  const responseDate = responseStamp === null ? null : kstStamp(responseStamp).slice(0, 10);
+  const isEarlierResponse = responseDate !== null && responseDate < kstStamp(now).slice(0, 10);
   const announcement = state.kind === "loading"
     ? `${state.label}의 예보를 불러오는 중입니다.`
     : state.kind === "ready"
-      ? `${state.forecast.locationName}의 ${state.forecast.today ? "오늘" : "내일"} 예보를 표시했습니다.`
+      ? isEarlierResponse
+        ? `${state.forecast.locationName}의 이전 응답입니다. ${formatDate(responseDate)}에 받았습니다. ${state.forecast.today ? `${formatDate(state.forecast.today.date)}와 ` : ""}${formatDate(state.forecast.targetDate)} 예보를 표시합니다. 오늘 안내는 예보를 다시 불러와 확인할 수 있습니다.`
+        : `${state.forecast.locationName}의 ${state.forecast.today ? "오늘" : "내일"} 예보를 표시했습니다.`
       : state.kind === "error"
         ? state.message
         : "";
@@ -1978,7 +1974,7 @@ export default function LocalForecastExperience() {
       )}
 
       {state.kind === "ready" && detailStart !== null && (
-        <ForecastComparisonDetail data={state.forecast.hourlyComparison} start={detailStart} place={state.forecast.locationName}
+        <ForecastComparisonDetail data={state.forecast.hourlyComparison} start={detailStart} place={state.forecast.locationName} now={now}
           home={shareableSearch(state.location) ?? "/"} onReturn={(event) => {
             if (!plainClick(event)) return;
             event.preventDefault();
@@ -1995,6 +1991,7 @@ export default function LocalForecastExperience() {
         <ForecastDashboard
           forecast={state.forecast}
           receivedAt={state.entry.receivedAt}
+          now={now}
           selection={state.selection}
           onReset={() => returnToChooser(true)}
           onRefresh={() => {

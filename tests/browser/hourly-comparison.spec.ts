@@ -144,9 +144,9 @@ test("threshold uses full precision and zero percent can still carry a tiny posi
   await expect(tiles.first().getByRole("button")).toHaveAccessibleName(/지금, 11월 23일 09:00–12:00, 최고 확률 0%, 강수량 합계 없음/);
   await expect(tiles.nth(1).getByRole("button")).toHaveAccessibleName(/39%/);
   await expect(tiles.nth(1)).not.toHaveClass(/is-wet/);
-  await expect(tiles.nth(2).getByRole("button")).toHaveAccessibleName(/40%.*비 예상/);
+  await expect(tiles.nth(2).getByRole("button")).toHaveAccessibleName(/40%.*비 가능성/);
   await expect(tiles.nth(2)).toHaveClass(/is-wet/);
-  await expect(tiles.nth(3).getByRole("button")).toHaveAccessibleName(/41%.*비 예상/);
+  await expect(tiles.nth(3).getByRole("button")).toHaveAccessibleName(/41%.*비 가능성/);
   await expect(tiles.nth(3)).toHaveClass(/is-wet/);
   await expect(tiles.nth(4).getByRole("button")).toHaveAccessibleName(/<40%/);
   await expect(tiles.nth(4)).not.toHaveClass(/is-wet/);

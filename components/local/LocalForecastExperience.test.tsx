@@ -837,7 +837,9 @@ test("a provider with no seven-day record is not ranked against ones that have i
     .map((row) => [...row.children].map((cell) => cell.textContent));
 
   assert.deepEqual(rows[0]?.[0], "Open-Meteo", "the only provider with a 7-day record leads");
-  assert.equal(rows[0]?.[1], "가장 잘 맞음");
+  assert.equal(rows[0]?.[1], "1위");
+  assert.equal(rows[0]?.[2], "0.20000");
+  assert.match(view.container.querySelector(".local-score-table.is-raw")?.textContent ?? "", /60일 누락.*30일 비교/);
   assert.equal(rows[1]?.[0], "기상청");
   assert.equal(rows[1]?.[1], "최근 7일 기록 없음", "and the other is not given a rank");
   await view.cleanup();
@@ -922,10 +924,7 @@ test("an unnamed device fix shows its accuracy rather than repeating itself", as
   await view.cleanup();
 });
 
-test("an unnamed device fix keeps its accuracy on a phone, where the strip hides the rest", async () => {
-  // The mobile strip hides the provenance line to stay short across a sticky
-  // scroll. With no resolved name there is nothing left but "현재 위치", so the
-  // accuracy is the only thing qualifying it and has to survive that rule.
+test("an unnamed device fix is qualified by its accuracy", async () => {
   window.localStorage.setItem(
     "raintoday.last-location.v1",
     JSON.stringify({
@@ -938,11 +937,11 @@ test("an unnamed device fix keeps its accuracy on a phone, where the strip hides
   );
 
   const meta = view.container.querySelector(".local-strip-place .local-strip-meta");
-  assert.ok(meta?.classList.contains("is-sole-qualifier"));
+  assert.equal(meta?.textContent, "위치 오차 약 20 m");
   await view.cleanup();
 });
 
-test("a named place drops the provenance on a phone rather than lengthening the strip", async () => {
+test("a named device fix keeps its accuracy next to the place", async () => {
   window.localStorage.setItem(
     "raintoday.last-location.v1",
     JSON.stringify({
@@ -955,11 +954,7 @@ test("a named place drops the provenance on a phone rather than lengthening the 
   );
 
   const meta = view.container.querySelector(".local-strip-place .local-strip-meta");
-  assert.equal(
-    meta?.classList.contains("is-sole-qualifier"),
-    false,
-    "the name already says where, so the strip stays one line",
-  );
+  assert.match(meta?.textContent ?? "", /위치 오차 약 20 m/);
   await view.cleanup();
 });
 
@@ -1416,7 +1411,8 @@ test("umbrella: an evening check with rain only tomorrow says today is fine", as
   assert.equal(advice, "오늘은 우산 없이 괜찮아요. 내일 자정부터는 챙기세요.");
 });
 
-test("umbrella: a dry hourly series cannot hide a heavy day total in the morning", async () => {
+test("umbrella: a dry hourly series cannot hide a heavy day total in the morning", async (t) => {
+  t.mock.method(Date, "now", () => Date.parse("2026-08-17T09:00:00+09:00"));
   const advice = await adviceFor({
     today: { ...dryToday, precipitationProbability: 80, precipitationAmountMm: 12.4 },
     timeline: seriesFrom(9, [10, 20, 20, 10, 10, 10, 10, 10]),
@@ -1424,7 +1420,8 @@ test("umbrella: a dry hourly series cannot hide a heavy day total in the morning
   assert.equal(advice, "시간대별 예보에는 없지만 여러 서비스가 오늘 12.4mm를 예상해요. 우산을 챙기세요.");
 });
 
-test("umbrella: in the evening a heavy day total may already have fallen, so the hours decide", async () => {
+test("umbrella: in the evening a heavy day total may already have fallen, so the hours decide", async (t) => {
+  t.mock.method(Date, "now", () => Date.parse("2026-08-17T21:00:00+09:00"));
   const advice = await adviceFor({
     today: { ...dryToday, precipitationProbability: 82, precipitationAmountMm: 33.1 },
     timeline: seriesFrom(21, [31, 10, 10, 10, 10, 10, 10, 10]),

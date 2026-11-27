@@ -56,9 +56,10 @@ function periodAmount(block: HourlyRibbonBlock) {
   return block.sum === null && block.completeHours < 3 ? "합계 없음" : amountText(block.sum);
 }
 
-export function useForecastClock() {
+export function useForecastClock(enabled: boolean) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
+    if (!enabled) return;
     let timer: number | undefined;
     const sync = () => {
       window.clearTimeout(timer);
@@ -77,7 +78,7 @@ export function useForecastClock() {
       document.removeEventListener("visibilitychange", sync);
       window.removeEventListener("pageshow", sync);
     };
-  }, []);
+  }, [enabled]);
   return now;
 }
 
@@ -173,7 +174,9 @@ export function HourlyForecastComparison({ blocks, hasAverage, onCompare, onSele
   const [atEnd, setAtEnd] = useState(false);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const scroller = useRef<HTMLDivElement>(null);
-  const selectedIndex = Math.max(0, blocks.findIndex(({ start }) => start === selectedStart));
+  const matchingIndex = blocks.findIndex(({ start }) => start === selectedStart);
+  const selectionExpired = selectedStart !== null && matchingIndex < 0;
+  const selectedIndex = Math.max(0, matchingIndex);
   const selected = blocks[selectedIndex];
 
   useLayoutEffect(() => {
@@ -230,7 +233,7 @@ export function HourlyForecastComparison({ blocks, hasAverage, onCompare, onSele
               ? chanceHours ? `남은 ${chanceHours}시간 반영` : completeHours ? "남은 시간 자료 부족" : "온전히 남은 시간 없음"
               : chanceHours > 0 && chanceHours < 3 ? `확률 ${chanceHours}/3시간` : "";
             const accessible = [label, `${day(start)} ${rangeLabel(start, end)}`, `최고 확률 ${probability(peak)}`,
-              `강수량 ${periodAmount(block)}`, qualifier, isWet ? "비 예상" : ""].filter(Boolean).join(", ");
+              `강수량 ${periodAmount(block)}`, qualifier, isWet ? "비 가능성" : ""].filter(Boolean).join(", ");
             return (
               <li key={start} className={`local-ribbon-col${isWet ? " is-wet" : ""}${daybreak ? " is-daybreak" : ""}${inspected ? " is-scrubbed" : ""}`}
                 aria-current={index === 0 ? "time" : undefined}>
@@ -256,13 +259,17 @@ export function HourlyForecastComparison({ blocks, hasAverage, onCompare, onSele
           })}
         </ol>
       </div>
-      {selectedStart === selected.start && (
-        <p className="local-hourly-readout" role="status"><b>{day(selected.start)} {rangeLabel(selected.start, selected.end)}</b>{" "}
+      {selectedStart !== null && (
+        <p className="local-hourly-readout" role="status">
+          {selectionExpired && <>선택했던 시간대는 현재 범위를 벗어났어요. 지금 시간대를 표시합니다.{" "}</>}
+          <b>{day(selected.start)} {rangeLabel(selected.start, selected.end)}</b>{" "}
           · 최고 확률 {probability(selected.peak)} · 강수량 {periodAmount(selected)}
         </p>
       )}
+      <a className="local-compare-link" id="forecast-compare" href={`#compare=${selected.start}`}
+        onClick={(event) => onCompare(event, selected.start)}>이 시간대의 예보 비교</a>
       <p className="local-hourly-note">
-        <b>{RAIN_ONSET_PROBABILITY}% 이상</b>을 비 예상 구간으로 봅니다. 확률은 구간 안의 시간별 평균 중 최고값입니다.
+        <b>{RAIN_ONSET_PROBABILITY}% 이상</b>인 구간에 비 가능성을 표시합니다. 확률은 구간 안의 시간별 평균 중 최고값입니다.
         강수량은 온전한 세 시간의 평균값이 모두 있을 때 합산합니다.
       </p>
       {(blocks[0].completeHours < 3 || !hasAverage) && (
@@ -270,20 +277,19 @@ export function HourlyForecastComparison({ blocks, hasAverage, onCompare, onSele
           {!hasAverage ? "같은 시간에 두 곳 이상 발표한 수치가 있어야 평균을 표시합니다." : "지금 구간은 지난 시간과 진행 중인 시간을 뺍니다."}
         </p>
       )}
-      <a className="local-compare-link" id="forecast-compare" href={`#compare=${selected.start}`}
-        onClick={(event) => onCompare(event, selected.start)}>이 시간대의 예보 비교</a>
     </section>
   );
 }
 
-export function ForecastComparisonDetail({ data, start, place, home, onReturn }: {
+export function ForecastComparisonDetail({ data, start, place, home, now, onReturn }: {
   data?: HourlyComparison;
   start: number;
   place: string;
   home: string;
+  now: number;
   onReturn(event: MouseEvent<HTMLAnchorElement>): void;
 }) {
-  const hourly = useHourlyRibbon(data, useForecastClock());
+  const hourly = useHourlyRibbon(data, now);
   const block = hourly?.blocks.find((period) => period.start === start);
   const [choice, setChoice] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
