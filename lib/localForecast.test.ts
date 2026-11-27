@@ -97,6 +97,7 @@ test("local forecast targets the user's coordinate and applies only recent local
   assert.deepEqual(response.outlook, [{
     date: "2026-08-14",
     precipitationProbability: 68,
+    probabilityProviderCount: 2,
     precipitationAmountMm: 5,
     // One of the two providers in this fixture publishes no amount, so the amount
     // is a one-provider mean while the probability is a two-provider blend.

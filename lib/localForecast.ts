@@ -38,6 +38,8 @@ export interface LocalForecastEvidence {
 export interface LocalForecastDay {
   date: string;
   precipitationProbability: number | null;
+  /** Optional for readers using an older saved response. */
+  probabilityProviderCount?: number;
   precipitationAmountMm: number | null;
   /**
    * Providers behind the amount, which is not always the number behind the
@@ -165,6 +167,7 @@ function buildForecastDay(
   return {
     date,
     precipitationProbability: blend.probability,
+    probabilityProviderCount: forecasts.length,
     precipitationAmountMm: blend.amountMm,
     amountProviderCount: blend.amountProviderCount,
     temperatureMax: primary.temperatureMax,

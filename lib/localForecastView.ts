@@ -309,7 +309,7 @@ export function toLocalForecastView(response: LocalForecastResponse): LocalForec
       })),
     evidence: {
       status: response.performance.status,
-      statusLabel: STATUS_LABELS[response.performance.status],
+      statusLabel: response.performance.reason === "benchmark-regression" ? "성능 가중 중지" : STATUS_LABELS[response.performance.status],
       proximity: response.performance.station ? evidenceProximity(response.performance.station.distanceKm) : null,
       station: response.performance.station
         ? {
