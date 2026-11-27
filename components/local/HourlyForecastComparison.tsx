@@ -293,7 +293,7 @@ export function ForecastComparisonDetail({ data, start, place, home, onReturn }:
     <main className="local-dashboard local-hourly local-hourly-page" aria-labelledby="comparison-heading">
       <a className="local-compare-link" href={home} onClick={onReturn}>← 예보로 돌아가기</a>
       <h1 id="comparison-heading" ref={heading} tabIndex={-1}>시간대별 예보 비교</h1>
-      <p>{place} · {day(start)} {rangeLabel(start, start + 3 * HOUR_MS)} KST</p>
+      <p>{place} · {day(start)} <span className="local-keep">{rangeLabel(start, start + 3 * HOUR_MS)} KST</span></p>
       {data && block ? (
         <>
           <p className="local-hourly-note">조회 시각 <time dateTime={new Date(data.asOf).toISOString()}>{dated(data.asOf)} KST</time></p>

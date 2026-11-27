@@ -1228,6 +1228,10 @@ html {
   font-weight: 650;
 }
 
+.local-answer h1.local-advice-heading {
+  font-size: min(var(--t-display), 20cqi);
+}
+
 @container (max-width: 10rem) {
   .local-answer h1 {
     font-size: 2rem;
@@ -3031,10 +3035,11 @@ html {
 
 .local-hourly-page {
   padding-block: 1.25rem 3rem;
+  container-type: inline-size;
 }
 
 .local-hourly-page h1 {
-  font-size: var(--t-display);
+  font-size: min(var(--t-display), 24cqi);
   margin-block: 0.75rem;
 }
 

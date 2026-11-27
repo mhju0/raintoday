@@ -1318,7 +1318,7 @@ function ForecastDashboard({ forecast, receivedAt, selection, onReset, onRefresh
 
       <section className="local-answer" aria-labelledby="forecast-heading">
         <p className="local-kicker">{answer || dateChanged ? "오늘 자정까지 · 우산 안내" : "비 예보"}</p>
-        <h1 id="forecast-heading" ref={headingRef} tabIndex={-1}>
+        <h1 id="forecast-heading" className={answer || dateChanged ? "local-advice-heading" : undefined} ref={headingRef} tabIndex={-1}>
           {dateChanged ? "오늘 우산 안내를 새로 확인하세요" : answer ? answer.title : timeline
             ? <RainSentence run={run} endsTomorrow={runEndsTomorrow} peak={peak} hours={hours} />
             : <HeadlineDay day={today ?? tomorrow} label={today ? "오늘" : "내일"} />}
