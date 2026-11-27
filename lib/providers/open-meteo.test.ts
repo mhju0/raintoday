@@ -92,6 +92,24 @@ test("Open-Meteo hourly amounts are the mean of the runs behind its hourly proba
   assert.equal(snapshot.daily[0].precipitationAmount, 0.2);
 });
 
+test("Open-Meteo keeps sub-hundredth millimetre precision for comparison without changing the ribbon or daily amount", async () => {
+  const ensemble = {
+    hourly: {
+      time: ["2026-10-12T17:00"],
+      precipitation: [0],
+      precipitation_member01: [0.006],
+    },
+  };
+  globalThis.fetch = (async (input) =>
+    json(isEnsembleRequest(input) ? JSON.stringify(ensemble) : forecastBody)) as typeof fetch;
+
+  const snapshot = await openMeteoProvider.read();
+
+  assert.equal(snapshot.hourly[0].precipitationAmountUnrounded, 0.003);
+  assert.equal(snapshot.hourly[0].precipitationAmount, 0);
+  assert.equal(snapshot.daily[0].precipitationAmount, 0.2);
+});
+
 test("Open-Meteo hourly amounts stay missing when the runs behind the probability cannot be read", async () => {
   globalThis.fetch = (async (input) =>
     isEnsembleRequest(input)

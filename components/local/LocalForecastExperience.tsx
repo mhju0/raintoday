@@ -15,6 +15,7 @@ import {
   type ForecastLocationSelection,
 } from "@/lib/locationPrecision";
 import type { ForecastLocationSearchResult } from "@/lib/locationSearch";
+import { HourlyForecastComparison } from "./HourlyForecastComparison";
 import { useLocationCandidateSearch } from "./useLocationCandidateSearch";
 
 type ViewState =
@@ -1035,10 +1036,11 @@ function HeadlineDay({ day, label }: { day: { precipitationProbability: number |
     : <>{label} <span className="local-probability-label">강수확률 <b className="local-keep">{Math.round(day.precipitationProbability)}%</b></span></>;
 }
 
-function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
+function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref }: {
   forecast: LocalForecastView;
   selection: ForecastLocationSelection;
   onReset(): void;
+  onRefresh(): void;
   recordHref: string;
 }) {
   const locationDescription = describeForecastLocationSelection(selection);
@@ -1225,6 +1227,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
         </p>
       </section>
 
+      <HourlyForecastComparison data={forecast.hourlyComparison} onRefresh={onRefresh}>
       {timeline && (
         <section className="local-ribbon" aria-labelledby="ribbon-heading">
           <div className="local-ribbon-head">
@@ -1338,6 +1341,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
           <p className="local-ribbon-swipe">← 옆으로 밀어 24시간 전체 보기</p>
         </section>
       )}
+      </HourlyForecastComparison>
 
       <p className="local-kicker">{today ? "오늘\u00a0· 내일" : "내일"}&nbsp;<span>: 여러 서비스를 섞은 하루 숫자</span></p>
       <div className="local-days">
@@ -1767,6 +1771,7 @@ export default function LocalForecastExperience() {
           forecast={state.forecast}
           selection={state.selection}
           onReset={() => returnToChooser(true)}
+          onRefresh={() => void chooseLocation(state.location, false)}
           recordHref={recordHrefFor(state.location, state.forecast.evidence.station?.id)}
         />
       )}

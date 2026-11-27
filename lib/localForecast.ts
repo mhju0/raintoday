@@ -1,3 +1,4 @@
+import { buildHourlyComparison, type HourlyComparison } from "./forecast/hourlyComparison.ts";
 import { selectComparedForecasts } from "./providers/selection.ts";
 import { cachedFetch } from "./cache.ts";
 import type { ForecastLocation } from "./location.ts";
@@ -82,6 +83,7 @@ export interface LocalForecastResponse {
    * publishes one.
    */
   hourly: { entries: HourlyForecast[]; sourceName: string } | null;
+  hourlyComparison: HourlyComparison;
   recommendation: {
     precipitationProbability: number | null;
     precipitationAmountMm: number | null;
@@ -363,6 +365,7 @@ export async function readLocalForecast(
     hourly: hourlySource
       ? { entries: hourlySource.hourly.slice(0, RIBBON_HOURS), sourceName: hourlySource.status.name }
       : null,
+    hourlyComparison: buildHourlyComparison(snapshots, now),
     recommendation: {
       precipitationProbability: recommendation.precipitationProbability,
       precipitationAmountMm: recommendation.precipitationAmountMm,

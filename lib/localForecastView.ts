@@ -146,6 +146,7 @@ export interface LocalForecastView {
   tomorrowAmountRange: LocalForecastAmountRange | null;
   /** Time-of-day precipitation shape for the hero. Null when no provider publishes hourly. */
   timeline: LocalForecastTimelineView | null;
+  hourlyComparison: LocalForecastResponse["hourlyComparison"];
   influence: LocalForecastProviderInfluence[];
   evidence: LocalForecastEvidenceView;
 }
@@ -297,6 +298,7 @@ export function toLocalForecastView(response: LocalForecastResponse): LocalForec
       };
     })(),
     timeline,
+    hourlyComparison: response.hourlyComparison,
     influence: Object.entries(response.effectiveInfluence)
       .sort((a, b) => b[1] - a[1])
       .map(([id, influence]) => ({

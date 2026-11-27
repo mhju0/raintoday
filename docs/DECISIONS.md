@@ -1572,3 +1572,34 @@ the audit. The validator and severity threshold are unchanged.
 bypassing the gate" (2026-11-04) described the audit as blocking CI; it now blocks only
 the weekly run. A new high/critical advisory on a development-only or transitive
 dependency is detected within a week rather than on the next pull request.
+
+## 2026-11-27 — Compare live hourly providers by KST calendar date
+
+**Decision.** Keep the single-provider ribbon and live answer as the default.
+The hourly selector adds an equal average, a service comparison and individual
+provider views for today and tomorrow. Show one date and eight three-hour
+periods, with the times above the tiles, and offer exact hourly readings.
+This is a comparison of forecasts for the selected location. The next-day
+production forecast keeps its existing performance weighting and the hourly
+weighting release gate from October 28 still applies.
+
+**Time alignment.** Open-Meteo and KMA publish hour-ending probabilities and
+accumulations. Visual Crossing's hour-ending accumulation can join the amount
+comparison. Its probability and both WeatherAPI metrics are shown by provider
+timestamp with their alignment limits. Use the next day's 00:00 endpoint for
+the previous day's 23:00–00:00 aligned interval. Show elapsed and unpublished
+hours explicitly. KMA amount bands stay visible and do not enter numeric
+aggregates. Each metric needs two fresh numeric providers for an average, and
+a tile sums amounts only with three hourly amounts.
+
+**Serving.** Read the hourly data already returned by the location forecast's
+provider cache. Source and date switches use the same response. Pirate
+Weather keeps its daily role. The comparison adds no request for it and
+exposes no Pirate Weather hourly control. Archived station captures are a
+separate dataset and do not appear in the live location comparison.
+
+[Open-Meteo forecast variables](https://open-meteo.com/en/docs#hourly-parameter-definition) ·
+[Open-Meteo ensembles](https://open-meteo.com/en/docs/ensemble-api) ·
+[KMA forecast timing, PDF page 97](https://www.kma.go.kr/kma/servlet/NeoboardProcess?bid=policy_research&mode=download&num=66&fno=1&k=ATC202506171516021_10a47a5f-886e-49b7-875a-0c1088a29350.pdf#page=97) ·
+[Visual Crossing interval clarification](https://support.visualcrossing.com/hc/en-us/community/posts/6727993547661-Exact-periods-ranges-of-hourly-weather-timeline) ·
+[WeatherAPI hourly fields](https://www.weatherapi.com/docs/forecast-api/)

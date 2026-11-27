@@ -79,6 +79,7 @@ function response(overrides: Partial<LocalForecastResponse> = {}): LocalForecast
     captureCohort: "06",
     current: null,
     hourly: null,
+    hourlyComparison: { dates: ["2026-08-14", "2026-08-15"], asOf: Date.parse("2026-08-14T00:00:00Z"), sources: [] },
     today: null,
     recommendation: {
       precipitationProbability: 68,
