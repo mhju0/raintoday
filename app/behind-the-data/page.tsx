@@ -165,6 +165,11 @@ export default async function BehindTheDataPage({
             </p>
           </li>
         </ol>
+        <p className="btd-plain">
+          우산 안내는 오늘 자정까지 남은 시간의 기본 제공사 예보를 봅니다. 정오 전에는 오늘 하루 예상 강수량이
+          10 mm 이상이어도 우산을 권합니다. 같은 시간의 기본 제공사와 서비스 평균이 40% 기준을 두고 엇갈리면
+          각 수치와 출처를 함께 표시합니다. 이 안내는 아래 관측소 채점과 별개입니다.
+        </p>
       </section>
 
       <section className="btd-section" aria-labelledby="btd-evidence-heading">
@@ -422,7 +427,7 @@ export default async function BehindTheDataPage({
           기상청 ASOS 일자료. 행정구역 검색: Kakao Map. 서비스 영역: SGIS 시도 경계.
         </p>
         <p className="btd-foot-meta">
-          <Link href="/">← 예보로 돌아가기</Link>
+          <Link href={returnHref} prefetch={false} scroll={false}>← 예보로 돌아가기</Link>
           <span>읽은 시각 {readStamp.date} {readStamp.time}</span>
         </p>
       </footer>

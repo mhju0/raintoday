@@ -36,7 +36,7 @@ for (const width of [320, 390, 768, 1440]) {
     await expect(panel.getByRole("combobox")).toHaveCount(0);
     await expect(tiles).toHaveCount(8);
     await expect(tiles.first()).toHaveAttribute("aria-current", "time");
-    await expect(tiles.first().getByRole("button")).toHaveAccessibleName(/지금, 11월 22일 21:00–00:00, 최고 확률 0%, 강수량 합계 없음, 남은 1시간 반영/);
+    await expect(tiles.first().getByRole("button")).toHaveAccessibleName(/지금, 11월 22일 21:00–00:00, 최고 확률 0%, 강수량 합계 없음 · 온전한 3시간 필요, 남은 1시간 반영/);
     await expect(tiles.first().getByText("남은 1시간 반영")).toBeVisible();
     await expect(tiles.first().locator(".local-ribbon-bar")).toHaveCount(0);
     await expect(tiles.nth(1)).toHaveClass(/is-daybreak/);

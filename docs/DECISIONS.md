@@ -1646,3 +1646,9 @@ location only on success. Browser history stores opaque lookup IDs instead of
 device fixes. Existing rounded last-location storage remains the cold restore
 path. The scoring record preserves the originating forecast area or the
 same-tab return reference while its station picker changes the record subject.
+
+
+A comparison link opens a block from the eight periods shown on the rolling ribbon.
+If an older link falls outside that window, the comparison explains the range of
+the display without making a claim about the provider response's coverage. The
+hourly view has no separate calendar-day navigator.

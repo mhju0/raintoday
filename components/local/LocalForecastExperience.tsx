@@ -73,11 +73,17 @@ function plainClick(event: MouseEvent<HTMLAnchorElement>) {
   return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
 }
 
-function writeForecastHistory(view: { raintodayView: "chooser" | "forecast"; forecastEntry?: string; forecastDetail?: boolean }, url: string, replace: boolean) {
-  const state = { ...window.history.state, ...view };
+type ForecastHistory =
+  | { raintodayView: "chooser"; forecastReturn?: string }
+  | { raintodayView: "forecast"; forecastEntry: string; forecastDetail?: true };
+
+function writeForecastHistory(view: ForecastHistory, url: string, replace: boolean) {
+  const state = { ...window.history.state };
   delete state.location;
-  if (view.raintodayView === "chooser") delete state.forecastEntry;
-  if (!view.forecastDetail) delete state.forecastDetail;
+  delete state.forecastEntry;
+  delete state.forecastDetail;
+  delete state.forecastReturn;
+  Object.assign(state, view);
   if (replace) window.history.replaceState(state, "", url);
   else window.history.pushState(state, "", url);
 }
@@ -1112,6 +1118,7 @@ function modernAnswer({ data, hourly, forecast }: {
     : disagreement ? "오늘 비 예보가 엇갈려요"
     : wetToday ? "오늘 비가 올 수 있어요"
     : dry ? "오늘 비 가능성이 낮아요"
+    : remainingHours === 0 ? "자정까지 온전히 남은 예보 시간이 없어요"
     : "오늘 우산을 판단할 자료가 부족해요";
   const primary = forecast.timeline?.sourceName;
   const averageWet = first && (first.chance ?? -1) >= RAIN_ONSET_PROBABILITY;
@@ -1159,7 +1166,6 @@ function ForecastDashboard({ forecast, receivedAt, now, selection, onReset, onRe
   refreshFailed: boolean;
 }) {
   const locationDescription = describeForecastLocationSelection(selection);
-  const headingRef = useRef<HTMLHeadingElement | null>(null);
   const learned = forecast.blendMode === "learned";
   // Seed influence is real influence, so the bars are shown — but it comes from
   // past archives, not from measured skill at this station, and must not be
@@ -1264,12 +1270,6 @@ function ForecastDashboard({ forecast, receivedAt, now, selection, onReset, onRe
     readout.style.left = `${Math.min(Math.max(start + columnWidth / 2, least), most)}px`;
   });
 
-  // The chooser this replaced is gone from the DOM, so without this the whole
-  // swap leaves focus on <body> and a keyboard user restarts from the top.
-  useEffect(() => {
-    headingRef.current?.focus({ preventScroll: true });
-  }, []);
-
   return (
     <main className="local-dashboard">
       <div className="local-strip">
@@ -1300,7 +1300,7 @@ function ForecastDashboard({ forecast, receivedAt, now, selection, onReset, onRe
 
       <section className="local-answer" aria-labelledby="forecast-heading">
         <p className="local-kicker">{answer || dateChanged ? "오늘 자정까지 · 우산 안내" : "비 예보"}</p>
-        <h1 id="forecast-heading" className={answer || dateChanged ? "local-advice-heading" : undefined} ref={headingRef} tabIndex={-1}>
+        <h1 id="forecast-heading" className={answer || dateChanged ? "local-advice-heading" : undefined} tabIndex={-1}>
           {dateChanged ? "오늘 우산 안내를 새로 확인하세요" : answer ? answer.title : timeline
             ? <RainSentence run={run} endsTomorrow={runEndsTomorrow} peak={peak} hours={hours} />
             : <HeadlineDay day={today ?? tomorrow} label={today ? "오늘" : "내일"} />}
@@ -1749,14 +1749,19 @@ export default function LocalForecastExperience() {
 
   const returnToChooser = (push: boolean, forget = false) => {
     cancelRequest();
+    let forecastReturn: string | undefined;
     if (state.kind === "ready") {
       const retained = retainReading(state.entry.id, "forecast-switch");
+      const history = window.history.state;
+      if (retained && history?.raintodayView === "forecast" && history.forecastEntry === retained.id && !history.forecastDetail) {
+        forecastReturn = retained.id;
+      }
       if (forget && state.entry.stored) {
         clearStoredLocation();
         if (retained) rememberForecast({ ...retained, stored: false });
       }
     }
-    if (push) writeForecastHistory({ raintodayView: "chooser", forecastEntry: lastEntry.current?.id }, "/", false);
+    if (push) writeForecastHistory({ raintodayView: "chooser", forecastReturn }, "/", false);
     setDetailStart(null);
     setContextWarning(null);
     setRefreshFailed(false);
@@ -1769,7 +1774,7 @@ export default function LocalForecastExperience() {
     setRefreshFailed(false);
     const entry = lastEntry.current;
     const history = window.history.state;
-    if (entry && history?.raintodayView === "chooser" && history.forecastEntry === entry.id) {
+    if (entry && history?.raintodayView === "chooser" && history.forecastReturn === entry.id && retainedForecasts.has(entry.id)) {
       window.history.back();
       return;
     }
@@ -1809,7 +1814,7 @@ export default function LocalForecastExperience() {
         showEntry(entry, detail === null);
         return;
       }
-      const stored = initial && !requestedArea && !explicitChooser && !returnId && period === null ? readStoredLocation() : null;
+      const stored = initial && history?.raintodayView !== "chooser" && !requestedArea && !explicitChooser && !returnId && period === null ? readStoredLocation() : null;
       const target = fromLink ?? stored;
       if (target) chooseRef.current?.({ location: target, mode: "restore", stored: stored !== null });
       else {
@@ -1837,6 +1842,9 @@ export default function LocalForecastExperience() {
     const reading = returnReading.current;
     returnReading.current = undefined;
     window.scrollTo({ top: reading?.top ?? 0, behavior: "instant" });
+    if (typeof viewKey === "object" && detailStart === null && !reading) {
+      document.getElementById("forecast-heading")?.focus({ preventScroll: true });
+    }
     if (reading) {
       const frame = window.requestAnimationFrame(() => {
         window.scrollTo({ top: reading.top, behavior: "instant" });

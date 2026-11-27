@@ -52,8 +52,14 @@ function amountText(value: NonNullable<ReturnType<typeof hourlySourceReading>>["
   return `${exact.format(value.lowMm)}~${exact.format(value.highMm)} mm 미만`;
 }
 
-function periodAmount(block: HourlyRibbonBlock) {
-  return block.sum === null && block.completeHours < 3 ? "합계 없음" : amountText(block.sum);
+function periodAmount(block: HourlyRibbonBlock, explain = false) {
+  if (block.sum !== null) return amountText(block.sum);
+  if (block.completeHours < 3) return explain ? "합계 없음 · 온전한 3시간 필요" : "합계 없음";
+  if (block.hours.every(({ amount }) => amount.length === 0)) return "미발표";
+  if (block.hours.some(({ amount }) => amount.length === 1)) {
+    return explain ? "합계 없음 · 한 곳만 발표한 시간 포함" : "평균 자료 부족";
+  }
+  return explain ? "합계 없음 · 일부 시간 미발표" : "일부 미발표";
 }
 
 export function useForecastClock(enabled: boolean) {
@@ -237,7 +243,7 @@ export function HourlyForecastComparison({ blocks, hasAverage, onCompare, onSele
               ? chanceHours ? `남은 ${chanceHours}시간 반영` : completeHours ? "남은 시간 자료 부족" : "온전히 남은 시간 없음"
               : chanceHours > 0 && chanceHours < 3 ? `확률 ${chanceHours}/3시간` : "";
             const accessible = [label, `${day(start)} ${rangeLabel(start, end)}`, `최고 확률 ${probability(peak)}`,
-              `강수량 ${periodAmount(block)}`, qualifier, isWet ? "비 가능성" : ""].filter(Boolean).join(", ");
+              `강수량 ${periodAmount(block, true)}`, qualifier, isWet ? "비 가능성" : ""].filter(Boolean).join(", ");
             return (
               <li key={start} className={`local-ribbon-col${isWet ? " is-wet" : ""}${daybreak ? " is-daybreak" : ""}${inspected ? " is-scrubbed" : ""}`}
                 aria-current={index === 0 ? "time" : undefined}>
@@ -267,7 +273,7 @@ export function HourlyForecastComparison({ blocks, hasAverage, onCompare, onSele
         <p className="local-hourly-readout" role="status">
           {selectionExpired && <>선택했던 시간대는 현재 범위를 벗어났어요. 지금 시간대를 표시합니다.{" "}</>}
           <b>{day(selected.start)} {rangeLabel(selected.start, selected.end)}</b>{" "}
-          · 최고 확률 {probability(selected.peak)} · 강수량 {periodAmount(selected)}
+          · 최고 확률 {probability(selected.peak)} · 강수량 {periodAmount(selected, true)}
         </p>
       )}
       <a className="local-compare-link" id="forecast-compare" href={`#compare=${selected.start}`}
@@ -276,11 +282,11 @@ export function HourlyForecastComparison({ blocks, hasAverage, onCompare, onSele
         <b>{RAIN_ONSET_PROBABILITY}% 이상</b>인 구간에 비 가능성을 표시합니다. 확률은 구간 안의 시간별 평균 중 최고값입니다.
         강수량은 온전한 세 시간의 평균값이 모두 있을 때 합산합니다.
       </p>
-      {(blocks[0].completeHours < 3 || !hasAverage) && (
-        <p className="local-hourly-note">
-          {!hasAverage ? "같은 시간에 두 곳 이상 발표한 수치가 있어야 평균을 표시합니다." : "지금 구간은 지난 시간과 진행 중인 시간을 뺍니다."}
-        </p>
-      )}
+      {(blocks[0].completeHours < 3 || !hasAverage) && <p className="local-hourly-note">
+        {blocks[0].completeHours === 0 ? "지금 구간에는 온전히 남은 시간이 없어 평균에서 제외합니다."
+          : blocks[0].completeHours < 3 ? "지금 구간은 지난 시간과 진행 중인 시간을 뺍니다." : null}
+        {!hasAverage && " 같은 시간에 두 곳 이상 발표한 수치가 있어야 평균을 표시합니다."}
+      </p>}
     </section>
   );
 }
@@ -334,7 +340,9 @@ export function ForecastComparisonDetail({ data, start, place, home, now, onRetu
             </section>
           )}
         </>
-      ) : <p role="status">현재 응답에서 이 시간대의 예보를 확인할 수 없어요. 예보로 돌아가 표시된 시간대를 골라 주세요.</p>}
+      ) : hourly ? (
+        <p role="status">선택한 시간대는 현재 리본 범위 밖이에요. 예보로 돌아가 지금부터 표시된 8개 시간대 중 하나를 골라 주세요.</p>
+      ) : <p role="status">이전 단독 예보 응답에서는 서비스 비교를 볼 수 없어요. 예보로 돌아가 시간대별 수치를 확인하세요.</p>}
     </main>
   );
 }
