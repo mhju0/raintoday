@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildHourlyComparison, hourlyBlocks, hourlyMean, hourlyRows, kstStamp } from "./hourlyComparison.ts";
+import { buildHourlyComparison, hourlyBlocks, hourlyComparisonEnd, hourlyMean, hourlyRows, kstStamp } from "./hourlyComparison.ts";
 import { seoulCaptureTime, seoulHourlySnapshots } from "../../tests/browser/fixtures/seoul-hourly.ts";
 
 test("the same Seoul capture aligns interval ends, separates native metrics and retains numeric members", () => {
@@ -19,6 +19,8 @@ test("the same Seoul capture aligns interval ends, separates native metrics and 
   assert.ok(Math.abs(hourlyMean(rows[17].amount)! - 0.68) < 1e-12);
   assert.deepEqual(rows[17].details.find(({ source }) => source.id === "kma")?.amount, { lowMm: 0, highMm: 1 });
   assert.equal(kstStamp(rows[23].end), "2026-11-24T00:00");
+  assert.equal(hourlyComparisonEnd(comparison), rows[23].end);
+  assert.equal(hourlyRows(comparison, comparison.dates[1], undefined, rows[23].end)[23].elapsed, true);
   assert.equal(hourlyMean(rows[23].chance), 0);
   assert.equal(hourlyMean(rows[23].amount), 0.01 / 3);
 
@@ -64,4 +66,17 @@ test("elapsed, missing, duplicate, invalid, stale, and unrounded values keep dis
   assert.equal(partial.amountHours, 1);
   assert.equal(partial.sum, null);
   assert.equal(hourlyRows(comparison, comparison.dates[1]).filter((row) => row.chance.length >= 2).length, 0);
+});
+
+
+test("snapshot expiration follows the last supplied value on a partial day", () => {
+  const asOf = new Date("2026-11-23T14:30:00+09:00");
+  const [open, , weatherApi] = structuredClone(seoulHourlySnapshots);
+  open.hourly = open.hourly.slice(15, 16);
+  weatherApi.hourly = weatherApi.hourly.slice(15, 16);
+  assert.equal(hourlyComparisonEnd(buildHourlyComparison([], asOf)), null);
+  const aligned = buildHourlyComparison([open], asOf);
+  const native = buildHourlyComparison([weatherApi], asOf);
+  assert.equal(hourlyComparisonEnd(aligned), Date.parse("2026-11-23T15:00:00+09:00"));
+  assert.equal(hourlyComparisonEnd(native), Date.parse("2026-11-23T16:00:00+09:00"));
 });

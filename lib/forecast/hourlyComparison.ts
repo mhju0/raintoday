@@ -1,6 +1,6 @@
 import type { ProviderSnapshot } from "../types.ts";
 
-const HOUR_MS = 3_600_000;
+export const HOUR_MS = 3_600_000;
 const KST_OFFSET = 9 * HOUR_MS;
 
 // The three confirmed accumulations end at the published timestamp. Native
@@ -80,6 +80,28 @@ export function buildHourlyComparison(snapshots: readonly ProviderSnapshot[], no
   return { dates, asOf, sources };
 }
 
+/** Last displayable hour in the snapshot, bounded by the two dates it carries. */
+export function hourlyComparisonEnd(comparison: HourlyComparison): number | null {
+  const dayEnd = Date.parse(`${comparison.dates[1]}T00:00:00+09:00`) + 24 * HOUR_MS;
+  let latest: number | null = null;
+  for (const source of comparison.sources) {
+    if (source.status === "unavailable") continue;
+    const alignment = HOURLY_ALIGNMENT[source.id];
+    for (const [key, reading] of Object.entries(source.hours)) {
+      const stamp = Number(key);
+      for (const metric of ["chance", "amount"] as const) {
+        const value = reading[metric];
+        if (value === null || value === "invalid") continue;
+        // Native metrics have no confirmed interval. Keep their existing
+        // display rule: a stamp is readable through the hour it names.
+        const end = alignment[metric] ? stamp : stamp + HOUR_MS;
+        if (end <= dayEnd) latest = Math.max(latest ?? end, end);
+      }
+    }
+  }
+  return latest;
+}
+
 export type HourlyMode = "primary" | "average" | "compare" | HourlyProviderId;
 export type DetailedReading = HourlyReading & { source: HourlyProviderSeries };
 interface Member {
@@ -99,13 +121,18 @@ export function hourlyExtremes(members: readonly Member[]) {
   return { low: Math.min(...values), high: Math.max(...values) };
 }
 
-export function hourlyRows(comparison: HourlyComparison, date: string, selected?: HourlyProviderSeries) {
+export function hourlyRows(
+  comparison: HourlyComparison,
+  date: string,
+  selected?: HourlyProviderSeries,
+  viewedAt = comparison.asOf,
+) {
   const native = selected !== undefined && !HOURLY_ALIGNMENT[selected.id].chance;
   const midnight = Date.parse(`${date}T00:00:00+09:00`);
   return Array.from({ length: 24 }, (_, hour) => {
     const start = midnight + hour * HOUR_MS;
     const end = start + HOUR_MS;
-    const elapsed = native ? start < Math.floor(comparison.asOf / HOUR_MS) * HOUR_MS : end <= comparison.asOf;
+    const elapsed = native ? start < Math.floor(viewedAt / HOUR_MS) * HOUR_MS : end <= viewedAt;
     const details = comparison.sources.map((source): DetailedReading => {
       const alignment = HOURLY_ALIGNMENT[source.id];
       const reading = source.hours[end];

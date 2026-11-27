@@ -21,6 +21,7 @@ function controls(page: Page) {
 
 for (const width of [320, 768, 1440]) {
   test(`eight periods reflow at ${width}px and 200% text, with exact scope and no requests on controls`, async ({ page }) => {
+    await page.clock.setFixedTime(seoulCaptureTime);
     let requests = 0;
     await page.setViewportSize({ width, height: 900 });
     await page.route("**/api/local-forecast", (route) => {
@@ -106,6 +107,7 @@ for (const width of [320, 768, 1440]) {
 }
 
 test("a delayed previous location cannot restore its hourly values or local comparison choices", async ({ page }) => {
+  await page.clock.setFixedTime(seoulCaptureTime);
   let respond!: () => void;
   const paused = new Promise<void>((resolve) => { respond = resolve; });
   await page.route("**/api/local-forecast", async (route) => {
@@ -137,4 +139,73 @@ test("a delayed previous location cannot restore its hourly values or local comp
   await expect(panel.locator(".local-hourly-date")).toHaveText("2026-11-23 KST");
   await expect(exact).toContainText("강수확률 · 0곳");
   await expect(mode.locator('option[value="open-meteo"]')).toHaveCount(0);
+
+  await page.evaluate((url) => {
+    history.pushState(null, "", url);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, seoulUrl);
+  await expect(page.locator(".local-strip-place b")).toHaveText("서울");
+  await expect(mode).toHaveValue("primary");
+  await mode.selectOption("average");
+  await expect(date).toHaveValue("2026-11-22");
+});
+
+test("viewing time expires hours and relabels KST dates without requesting a forecast", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-11-22T22:59:55+09:00") });
+  await page.clock.pauseAt(new Date("2026-11-22T22:59:56+09:00"));
+  let requests = 0;
+  await page.route("**/api/local-forecast", (route) => {
+    requests += 1;
+    expect(route.request().postDataJSON().latitude).toBe(37.5714);
+    const payload = requests === 1 ? forecast : {
+      ...forecast,
+      hourlyComparison: buildHourlyComparison([], new Date("2026-11-24T00:00:00+09:00")),
+    };
+    return route.fulfill({ json: payload });
+  });
+  await page.goto(seoulUrl);
+  const { panel, mode, date, hour, exact } = controls(page);
+  await mode.selectOption("average");
+  await date.selectOption("2026-11-23");
+  await date.selectOption("2026-11-22");
+  await expect(date.locator("option:checked")).toHaveText("오늘");
+  await hour.selectOption("22");
+  await expect(exact.locator(".local-hourly-reading")).toContainText("미발표");
+  await page.clock.runFor(4_000);
+  await expect(exact.getByText("지난 시간", { exact: true })).toBeVisible();
+  await hour.selectOption("23");
+  await expect(exact.locator(".local-hourly-reading")).toContainText("0%");
+  await expect(panel.locator(".local-hourly-valid")).toHaveText("2026-11-22 23:00–2026-11-23 00:00 KST");
+
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await page.clock.fastForward(3_600_000);
+  await expect(date.locator("option:checked")).toHaveText("오늘");
+  await page.evaluate(() => {
+    Reflect.deleteProperty(document, "visibilityState");
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect(date.locator("option:checked")).toHaveText("2026-11-22");
+  await expect(date.locator('option[value="2026-11-23"]')).toHaveText("오늘");
+  await expect(exact.getByText("지난 시간", { exact: true })).toBeVisible();
+  await expect(panel.locator(".local-hourly-valid")).toHaveText("2026-11-22 23:00–2026-11-23 00:00 KST");
+  await date.selectOption("2026-11-23");
+  await hour.selectOption("0");
+  await expect(exact.locator(".local-hourly-reading")).toContainText("0%");
+  await page.clock.fastForward(24 * 3_600_000);
+  await expect(date.locator("option:checked")).toHaveText("2026-11-23");
+  const refresh = panel.getByRole("button", { name: "예보 다시 불러오기" });
+  await expect(refresh).toBeVisible();
+  expect(requests).toBe(1);
+
+  await refresh.click();
+  await expect(mode).toHaveValue("primary");
+  await mode.selectOption("average");
+  await expect(date).toHaveValue("2026-11-24");
+  await expect(date.locator("option:checked")).toHaveText("오늘");
+  await expect(refresh).toHaveCount(0);
+  await expect(exact.locator(".local-hourly-reading")).toContainText("미발표");
+  expect(requests).toBe(2);
 });

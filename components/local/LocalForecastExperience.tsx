@@ -1036,10 +1036,11 @@ function HeadlineDay({ day, label }: { day: { precipitationProbability: number |
     : <>{label} <span className="local-probability-label">강수확률 <b className="local-keep">{Math.round(day.precipitationProbability)}%</b></span></>;
 }
 
-function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
+function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref }: {
   forecast: LocalForecastView;
   selection: ForecastLocationSelection;
   onReset(): void;
+  onRefresh(): void;
   recordHref: string;
 }) {
   const locationDescription = describeForecastLocationSelection(selection);
@@ -1226,7 +1227,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
         </p>
       </section>
 
-      <HourlyForecastComparison data={forecast.hourlyComparison}>
+      <HourlyForecastComparison data={forecast.hourlyComparison} onRefresh={onRefresh}>
       {timeline && (
         <section className="local-ribbon" aria-labelledby="ribbon-heading">
           <div className="local-ribbon-head">
@@ -1770,6 +1771,7 @@ export default function LocalForecastExperience() {
           forecast={state.forecast}
           selection={state.selection}
           onReset={() => returnToChooser(true)}
+          onRefresh={() => void chooseLocation(state.location, false)}
           recordHref={recordHrefFor(state.location, state.forecast.evidence.station?.id)}
         />
       )}

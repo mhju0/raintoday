@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   HOURLY_ALIGNMENT,
+  HOUR_MS,
+  hourlyComparisonEnd,
   hourlyBlocks,
   hourlyExtremes,
   hourlyMean,
@@ -156,21 +158,62 @@ function availableSources(data: HourlyComparison, date: string) {
     hourlyRows(data, date, source).some(({ reading }) => reading && (reading.chance !== null || reading.amount !== null)));
 }
 
-export function HourlyForecastComparison({ data, children }: { data?: HourlyComparison; children: ReactNode }) {
-  return data ? <HourlyForecastModes data={data}>{children}</HourlyForecastModes> : children;
+function useViewingHour() {
+  const [hour, setHour] = useState(() => Math.floor(Date.now() / HOUR_MS) * HOUR_MS);
+  useEffect(() => {
+    let timer: number | undefined;
+    const sync = () => {
+      window.clearTimeout(timer);
+      if (document.visibilityState === "hidden") return;
+      const now = Date.now();
+      setHour(Math.floor(now / HOUR_MS) * HOUR_MS);
+      timer = window.setTimeout(sync, HOUR_MS - (now % HOUR_MS));
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    window.addEventListener("pageshow", sync);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener("pageshow", sync);
+    };
+  }, []);
+  return hour;
 }
 
-function HourlyForecastModes({ data, children }: { data: HourlyComparison; children: ReactNode }) {
-  const [mode, setMode] = useState<HourlyMode>(children ? "primary" : "average");
-  const [date, setDate] = useState(data.dates[0]);
-  const [hour, setHour] = useState<number | null>(null);
+interface HourlyForecastProps {
+  data?: HourlyComparison;
+  children: ReactNode;
+  onRefresh(): void;
+}
+
+export function HourlyForecastComparison({ data, children, onRefresh }: HourlyForecastProps) {
+  return data ? <HourlyForecastModes data={data} onRefresh={onRefresh}>{children}</HourlyForecastModes> : children;
+}
+
+function HourlyForecastModes({ data, children, onRefresh }: HourlyForecastProps & { data: HourlyComparison }) {
+  const viewingHour = useViewingHour();
+  const viewedAt = Math.max(viewingHour, data.asOf);
+  const today = kstStamp(viewingHour).slice(0, 10);
+  const tomorrow = kstStamp(viewingHour + 24 * HOUR_MS).slice(0, 10);
+  const [choice, setMode] = useState<HourlyMode>(children ? "primary" : "average");
+  const [chosenDate, setDate] = useState<string | null>(null);
+  const [hour, setHour] = useState<{ date: string; index: number } | null>(null);
+  const date = chosenDate ?? data.dates.find((value) => value >= today) ?? data.dates[1];
+  // Keep the source picker tied to what the response supplied for this date.
+  // An hour expiring must not drop the user's selected provider or date.
   const sources = useMemo(() => availableSources(data, date), [data, date]);
-  const source = sources.find(({ id }) => id === mode);
+  const source = sources.find(({ id }) => id === choice);
+  const mode = choice === "primary" || choice === "average" || source ? choice : "compare";
   const native = source !== undefined && !HOURLY_ALIGNMENT[source.id].chance;
-  const rows = useMemo(() => hourlyRows(data, date, source), [data, date, source]);
+  const responseEnd = useMemo(() => hourlyComparisonEnd(data), [data]);
+  const expired = today > data.dates[1] || (responseEnd !== null && viewedAt >= responseEnd);
+  const rows = useMemo(() => hourlyRows(data, date, source, viewedAt), [data, date, source, viewedAt]);
   const firstAvailable = rows.findIndex((row) => !row.elapsed &&
     (source ? row.reading && (row.reading.chance !== null || row.reading.amount !== null) : row.chance.length || row.amount.length));
-  const selectedHour = hour ?? Math.max(firstAvailable, rows.findIndex((row) => !row.elapsed), 0);
+  const selectedHour = hour?.date === date
+    ? hour.index
+    : Math.max(firstAvailable, rows.findIndex((row) => !row.elapsed), 0);
   const selected = rows[selectedHour];
 
   function changeDate(next: string) {
@@ -180,7 +223,7 @@ function HourlyForecastModes({ data, children }: { data: HourlyComparison; child
   }
 
   function inspectHour(next: number) {
-    setHour(next);
+    setHour({ date, index: next });
     document.getElementById("local-hourly-hour")?.focus();
   }
 
@@ -205,7 +248,7 @@ function HourlyForecastModes({ data, children }: { data: HourlyComparison; child
           <label>
             <span>예보 날짜</span>
             <select value={date} onChange={(event) => changeDate(event.target.value)}>
-              {data.dates.map((value, index) => <option key={value} value={value}>{index === 0 ? "오늘" : "내일"}</option>)}
+              {data.dates.map((value) => <option key={value} value={value}>{value === today ? "오늘" : value === tomorrow ? "내일" : value}</option>)}
             </select>
           </label>
         )}
@@ -219,6 +262,15 @@ function HourlyForecastModes({ data, children }: { data: HourlyComparison; child
               : `${source?.name} · 한국 시간 유효 구간`}
             {source?.status === "stale" && " · 이전 응답"}
           </p>
+          <p className="local-hourly-note">{data.dates[0] < today ? "이전 조회 자료" : "조회 기준"} {dated(data.asOf)} KST</p>
+          {expired && (
+            <>
+              <p className="local-hourly-note" role="status">이 응답에서 유효한 예보 시간이 지났습니다.</p>
+              <div className="local-error-actions">
+                <button type="button" onClick={onRefresh}>예보 다시 불러오기</button>
+              </div>
+            </>
+          )}
           <p className="local-hourly-date"><time dateTime={date}>{date}</time> <span>KST</span></p>
           <ol className="local-hourly-grid" aria-label="하루 여덟 구간">
             {hourlyBlocks(rows, mode, source).map(({ hours, peak, sum, chanceHours, amountHours, hasRange }) => {
@@ -257,7 +309,7 @@ function HourlyForecastModes({ data, children }: { data: HourlyComparison; child
           <div className="local-hourly-exact">
             <label>
               <span>{native ? "정확한 제공사 시각" : "정확한 한 시간"}</span>
-              <select id="local-hourly-hour" value={selectedHour} onChange={(event) => setHour(Number(event.target.value))}>
+              <select id="local-hourly-hour" value={selectedHour} onChange={(event) => setHour({ date, index: Number(event.target.value) })}>
                 {rows.map((row, index) => (
                   <option key={row.start} value={index}>{hourLabel(row, native)}{row.elapsed ? " · 지난 시간" : ""}</option>
                 ))}
@@ -280,7 +332,6 @@ function HourlyForecastModes({ data, children }: { data: HourlyComparison; child
             ) : <SourceTable row={selected} />)}
           </div>
           <FullDayTable rows={rows} mode={mode} source={source} native={native} onInspect={inspectHour} />
-          <p className="local-hourly-note">조회 기준 {dated(data.asOf)} KST</p>
         </>
       )}
     </section>
