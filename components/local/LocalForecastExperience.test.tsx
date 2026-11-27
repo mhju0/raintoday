@@ -5,10 +5,12 @@ import { JSDOM } from "jsdom";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "http://localhost/",
+  pretendToBeVisual: true,
 });
 
 for (const [name, value] of Object.entries({
   window: dom.window,
+  self: dom.window,
   document: dom.window.document,
   navigator: dom.window.navigator,
   HTMLElement: dom.window.HTMLElement,
@@ -354,6 +356,7 @@ function forecastPayload(overrides: Record<string, unknown> = {}) {
 
 async function mountExperience(fetchImpl: typeof fetch) {
   globalThis.fetch = fetchImpl;
+  window.history.replaceState(null, "", window.location.href);
   document.body.replaceChildren();
   const container = document.createElement("div");
   document.body.append(container);
@@ -493,7 +496,12 @@ test("a device coordinate is never written into the address bar", async () => {
   assert.equal(window.location.search, "", "no coordinates in the query string");
   const recordLinks = [...view.container.querySelectorAll<HTMLAnchorElement>('a[href^="/behind-the-data"]')];
   assert.ok(recordLinks.length > 0);
-  for (const link of recordLinks) assert.equal(link.getAttribute("href"), "/behind-the-data?station=none");
+  for (const link of recordLinks) {
+    const params = new URL(link.href).searchParams;
+    assert.equal(params.get("station"), "none");
+    assert.deepEqual([...params.keys()], ["station", "entry"]);
+  }
+  assert.equal(window.history.state.location, undefined);
   // Remembered, but no finer than the forecast grid can use: a raw fix would
   // pinpoint a dwelling, and anything on this origin can read the store.
   const stored = JSON.parse(window.localStorage.getItem("raintoday.last-location.v1") ?? "{}");
@@ -1423,14 +1431,14 @@ test("umbrella: in the evening a heavy day total may already have fallen, so the
   assert.equal(advice, "우산 없이 나서도 괜찮아 보여요.");
 });
 
-test("modern hourly responses keep the daily umbrella decision and noon boundary", async () => {
+test("an old modern response cannot apply its 10 mm safeguard to today's advice", async () => {
+  window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
   const hourlyComparison = { dates: ["2026-08-17", "2026-08-18"], asOf: Date.parse("2026-08-17T11:00:00+09:00"), sources: [] };
   const today = { ...dryToday, precipitationProbability: 80, precipitationAmountMm: 10 };
-  const probabilities = [10, 20, 20, 10, 10, 10, 10, 10];
-  assert.equal(await adviceFor({ today, hourlyComparison, timeline: seriesFrom(11, probabilities) }),
-    "시간대별 예보에는 없지만 여러 서비스가 오늘 10mm를 예상해요. 우산을 챙기세요.");
-  assert.equal(await adviceFor({ today, hourlyComparison: { ...hourlyComparison, asOf: hourlyComparison.asOf + 3_600_000 }, timeline: seriesFrom(12, probabilities) }),
-    "우산 없이 나서도 괜찮아 보여요.");
+  const view = await mountExperience(async () => Response.json(forecastPayload({ today, hourlyComparison })));
+  assert.match(view.container.querySelector("#forecast-heading")?.textContent ?? "", /새로 확인/);
+  assert.doesNotMatch(view.container.querySelector(".local-answer-action")?.textContent ?? "", /10mm|꼭 챙기세요/);
+  await view.cleanup();
 });
 
 test("the umbrella advice never contradicts the headline above it", async () => {
@@ -1655,7 +1663,11 @@ test("a GPS scoring record links to the matched station without a device coordin
   const view = await mountExperience(async () => Response.json(payload));
   const links = [...view.container.querySelectorAll<HTMLAnchorElement>('a[href^="/behind-the-data"]')];
   assert.ok(links.length > 0);
-  for (const link of links) assert.equal(link.getAttribute("href"), "/behind-the-data?station=108");
+  for (const link of links) {
+    const params = new URL(link.href).searchParams;
+    assert.equal(params.get("station"), "108");
+    assert.deepEqual([...params.keys()], ["station", "entry"]);
+  }
   await view.cleanup();
 });
 
@@ -1694,6 +1706,7 @@ test("the amount says how many services it came from when that is not the card's
         precipitationProbability: 85,
         precipitationAmountMm: 2.7,
         amountProviderCount: 2,
+        probabilityProviderCount: 3,
         temperatureMax: 28,
         temperatureMin: 23,
         condition: "rain",
@@ -1713,7 +1726,7 @@ test("the amount says how many services it came from when that is not the card's
     (cell) => cell.textContent ?? "",
   );
   assert.match(mms[0], /2\.7mm/);
-  assert.match(mms[0], /2곳 평균\u00a0· 확률은 4곳/, "an amount from fewer services says so");
+  assert.match(mms[0], /2곳 평균\u00a0· 확률은 3곳/, "today's amount and chance each use today's count");
   assert.match(mms[1], /0\.7mm/);
   assert.match(mms[1], /4곳 평균/);
   assert.doesNotMatch(mms[1], /확률은/, "no redundant marker when nothing is being narrowed");
@@ -1900,7 +1913,7 @@ test("each stratum opens with a kicker naming whose number it carries (D-11)", a
   const kickers = [...view.container.querySelectorAll(".local-kicker")].map((k) => k.textContent ?? "");
   assert.ok(kickers.some((k) => k === "비 예보"), "the verdict names itself");
   assert.ok(
-    kickers.some((k) => k.includes("여러 서비스를 섞은")),
+    kickers.some((k) => k.includes("여러 서비스의 예보")),
     "the day cards say they are the blend — the ribbon attribution rule, at first contact",
   );
   assert.ok(kickers.some((k) => k.startsWith("근거")), "the evidence stratum is labeled");
@@ -2216,7 +2229,7 @@ test("a forecast opens at the top of the page, not where the chooser was scrolle
     });
 
     assert.ok(view.container.querySelector("#forecast-heading"), "the forecast is showing");
-    assert.deepEqual(scrolls.at(-1), [0, 0], "the forecast view starts at its top");
+    assert.deepEqual(scrolls.at(-1), [{ top: 0, behavior: "instant" }], "the forecast view starts at its top");
     await view.cleanup();
   } finally {
     window.scrollTo = original;

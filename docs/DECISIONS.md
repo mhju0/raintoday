@@ -1629,3 +1629,20 @@ comparable hourly values left. Daily forecasting,
 provider requests and weighting retain the November 27 serving contract.
 The main umbrella advisory retains the existing rest-of-today and before-noon
 daily amount rules.
+
+## 2026-11-28 — Keep the forecast decision and its comparison in context
+
+The main answer considers the remaining KST day. It uses the primary service
+and retains the before-noon daily 10 mm safeguard. Same-hour disagreement with
+the average is attributed beside the decision. A dry statement requires
+comparable coverage of the remaining complete hours. The first supported
+hour and its own amount are independent of the three-hour ribbon statistic.
+An earlier day's response keeps its dates and offers manual refresh.
+
+The rolling ribbon links to a single in-page comparison view for the selected
+absolute KST period. Within the running tab, comparison, Back, and cancel reuse
+the accepted response. A retry inherits its original intent and commits a new
+location only on success. Browser history stores opaque lookup IDs instead of
+device fixes. Existing rounded last-location storage remains the cold restore
+path. The scoring record preserves the originating forecast area or the
+same-tab return reference while its station picker changes the record subject.

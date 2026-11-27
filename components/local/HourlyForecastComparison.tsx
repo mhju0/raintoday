@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
 import { periodNameForHour } from "@/lib/forecast/blocks";
 import {
   HOUR_MS,
@@ -37,6 +37,8 @@ function probability(value: number | "invalid" | null) {
   if (!wet(value) && rounded === String(RAIN_ONSET_PROBABILITY)) return `<${RAIN_ONSET_PROBABILITY}%`;
   return `${rounded}%`;
 }
+
+export { probability as hourlyProbabilityText };
 
 function amountText(value: NonNullable<ReturnType<typeof hourlySourceReading>>["value"], raw = false): string {
   if (value === "invalid") return "값 확인 불가";
@@ -88,28 +90,8 @@ export function useHourlyRibbon(data: HourlyComparison | undefined) {
     const agedEmptyAverage = !hasAverage && viewedAt - data.asOf >= HOUR_MS;
     const refreshReason = expired ? "이 응답에서 유효한 예보 시간이 지났습니다."
       : agedEmptyAverage ? "이전 응답에서 비교할 수 있는 시간대 예보가 없습니다." : null;
-    return { blocks, hasAverage, refreshReason };
+    return { blocks, hasAverage, refreshReason, viewedAt };
   }, [data, now]);
-}
-
-function HourlySummary({ blocks }: { blocks: HourlyRibbonBlock[] }) {
-  const first = blocks.find((block) => wet(block.peak));
-  const peak = blocks.reduce<HourlyRibbonBlock | null>((best, block) =>
-    block.peak !== null && (best?.peak == null || block.peak > best.peak) ? block : best, null);
-  const firstLabel = first && (first === blocks[0] ? "지금 구간" :
-    `${day(first.start) === day(blocks[0].start) ? "" : `${day(first.start)} `}${rangeLabel(first.start, first.end)} 구간`);
-  return (
-    <>
-      <p className="local-hourly-summary">
-        {firstLabel ? <><b>{firstLabel}</b>에 비 예상</> : peak
-          ? `확인된 시간은 ${RAIN_ONSET_PROBABILITY}% 미만이에요`
-          : "평균 강수확률 자료가 부족해요"}
-      </p>
-      {peak && <p className="local-hourly-note">
-        시간별 최고 <strong>{probability(peak.peak)}</strong> · {day(peak.start)} {rangeLabel(peak.start, peak.end)}
-      </p>}
-    </>
-  );
 }
 
 function Members({ members }: { members: HourlyRow["chance"] }) {
@@ -161,7 +143,9 @@ function ComparisonRows({ data, block, source }: { data: HourlyComparison; block
               ) : (
                 <>
                   <td>
-                    {spread ? spread.low === spread.high ? probability(spread.high) : `${probability(spread.low)}–${probability(spread.high)}` : "두 곳 미만"}
+                    {spread ? spread.low === spread.high ? probability(spread.high) : `${probability(spread.low)}–${probability(spread.high)}`
+                      : row.chance.length === 1 ? "두 곳 미만" : "미발표"}
+                    {spread && <small>평균 {probability(hourlyMean(row.chance))}</small>}
                     <Members members={row.chance} />
                   </td>
                   <td>{row.amount.length === 1 ? "두 곳 미만" : amountText(hourlyMean(row.amount))}<Members members={row.amount} /></td>
@@ -175,24 +159,33 @@ function ComparisonRows({ data, block, source }: { data: HourlyComparison; block
   );
 }
 
-export function HourlyForecastComparison({ data, blocks, hasAverage, refreshReason, onRefresh }: {
-  data: HourlyComparison;
+export function HourlyForecastComparison({ blocks, hasAverage, onCompare, onSelectPeriod, selectedStart: initialStart }: {
   blocks: HourlyRibbonBlock[];
   hasAverage: boolean;
-  refreshReason: string | null;
-  onRefresh(): void;
+  onCompare(event: MouseEvent<HTMLAnchorElement>, start: number): void;
+  onSelectPeriod(start: number): void;
+  selectedStart: number | null;
 }) {
-  const [selectedStart, setSelectedStart] = useState<number | null>(null);
-  const [choice, setChoice] = useState("compare");
+  const [selectedStart, setSelectedStart] = useState(initialStart);
   const [atEnd, setAtEnd] = useState(false);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const scroller = useRef<HTMLDivElement>(null);
-  const disclosure = useRef<HTMLDetailsElement>(null);
-  const summary = useRef<HTMLElement>(null);
   const selectedIndex = Math.max(0, blocks.findIndex(({ start }) => start === selectedStart));
   const selected = blocks[selectedIndex];
-  const source = data.sources.find(({ id }) => id === choice);
-  const hasComparison = data.sources.some(({ status, hours }) => status !== "unavailable" && Object.keys(hours).length > 0);
+
+  useLayoutEffect(() => {
+    if (initialStart === null) return;
+    const button = scroller.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]');
+    const track = scroller.current;
+    if (!track || !button) return;
+    const left = button.getBoundingClientRect().left - track.getBoundingClientRect().left;
+    track.scrollLeft += left;
+  }, [initialStart]);
+
+  function selectPeriod(start: number) {
+    setSelectedStart(start);
+    onSelectPeriod(start);
+  }
 
   function move(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     const next = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: blocks.length - 1 }[event.key];
@@ -205,21 +198,15 @@ export function HourlyForecastComparison({ data, blocks, hasAverage, refreshReas
     const viewport = scroller.current.getBoundingClientRect();
     button.focus({ preventScroll: true });
     scroller.current.scrollBy({ left: column.left < viewport.left ? column.left - viewport.left : Math.max(0, column.right - viewport.right) });
-    setSelectedStart(blocks[target].start);
+    selectPeriod(blocks[target].start);
   }
 
   return (
-    <section className="local-ribbon local-hourly" aria-labelledby="local-hourly-heading" onKeyDown={(event) => {
-      if (event.key === "Escape" && disclosure.current?.open) {
-        disclosure.current.open = false;
-        summary.current?.focus();
-      }
-    }}>
+    <section className="local-ribbon local-hourly" aria-labelledby="local-hourly-heading" >
       <div className="local-ribbon-head">
         <h2 id="local-hourly-heading" className="local-ribbon-src"><i aria-hidden />시간대별 강수 예보</h2>
         <span className="local-ribbon-note">{hasAverage ? "서비스 평균" : "평균 자료 부족"} · {day(blocks[0].start)} KST</span>
       </div>
-      <HourlySummary blocks={blocks} />
       <p className="local-hourly-swipe">
         {atEnd ? <><span aria-hidden="true">←</span> 앞 시간 보기</> : <>옆으로 넘겨 다음 시간 보기 <span aria-hidden="true">→</span></>}
       </p>
@@ -260,7 +247,7 @@ export function HourlyForecastComparison({ data, blocks, hasAverage, refreshReas
                 </span>
                 <button type="button" ref={(element) => { buttons.current[index] = element; }} className="local-hourly-hit"
                   aria-label={accessible} aria-pressed={inspected} tabIndex={index === selectedIndex ? 0 : -1}
-                  onClick={() => setSelectedStart(start)} onKeyDown={(event) => move(event, index)} />
+                  onClick={() => selectPeriod(start)} onKeyDown={(event) => move(event, index)} />
               </li>
             );
           })}
@@ -280,35 +267,61 @@ export function HourlyForecastComparison({ data, blocks, hasAverage, refreshReas
           {!hasAverage ? "같은 시간에 두 곳 이상 발표한 수치가 있어야 평균을 표시합니다." : "지금 구간은 지난 시간과 진행 중인 시간을 뺍니다."}
         </p>
       )}
-      {refreshReason && (
-        <div className="local-error-actions">
-          <p className="local-hourly-note" role="status">{refreshReason}</p>
-          <button type="button" onClick={onRefresh}>예보 다시 불러오기</button>
-        </div>
-      )}
-      {hasComparison && (
-        <details className="local-hourly-all" ref={disclosure}>
-          <summary ref={summary}>서비스별 예보</summary>
-          <div className="local-hourly-detail">
-            <label>
-              <span>서비스별 예보 보기</span>
-              <select value={source?.id ?? "compare"} onChange={(event) => setChoice(event.target.value)}>
-                <option value="compare">서비스 비교</option>
-                {data.sources.map(({ id, name, status }) => (
-                  <option key={id} value={id}>{name}{status === "stale" ? " · 이전 응답" : status === "unavailable" ? " · 응답 없음" : ""}</option>
-                ))}
-              </select>
-            </label>
-            <p className="local-hourly-note">
-              {source?.status === "stale" ? "이전 응답입니다. 평균에서 제외합니다. " : source?.status === "unavailable" ? "서비스 응답이 없습니다. " : ""}
-              {source ? "종료로 표시한 값은 해당 한 시간의 예보입니다. 제공사 시각은 값의 적용 구간을 확인할 수 없습니다."
-                : "리본에서 고른 구간을 봅니다. 지표별로 같은 시간에 발표된 최신 수치를 같은 비중으로 평균합니다."}
-            </p>
-            <ComparisonRows data={data} block={selected} source={source} />
-          </div>
-        </details>
-      )}
-      <p className="local-hourly-note">조회 기준 <time dateTime={new Date(data.asOf).toISOString()}>{dated(data.asOf)} KST</time></p>
+      <a className="local-compare-link" id="forecast-compare" href={`#compare=${selected.start}`}
+        onClick={(event) => onCompare(event, selected.start)}>이 시간대의 예보 비교</a>
     </section>
+  );
+}
+
+export function ForecastComparisonDetail({ data, start, place, home, onReturn }: {
+  data?: HourlyComparison;
+  start: number;
+  place: string;
+  home: string;
+  onReturn(event: MouseEvent<HTMLAnchorElement>): void;
+}) {
+  const hourly = useHourlyRibbon(data);
+  const block = hourly?.blocks.find((period) => period.start === start);
+  const [choice, setChoice] = useState("");
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { heading.current?.focus({ preventScroll: true }); }, []);
+  const source = data?.sources.find(({ id }) => id === choice);
+  return (
+    <main className="local-dashboard local-hourly local-hourly-page" aria-labelledby="comparison-heading">
+      <a className="local-compare-link" href={home} onClick={onReturn}>← 예보로 돌아가기</a>
+      <h1 id="comparison-heading" ref={heading} tabIndex={-1}>시간대별 예보 비교</h1>
+      <p>{place} · {day(start)} {rangeLabel(start, start + 3 * HOUR_MS)} KST</p>
+      {data && block ? (
+        <>
+          <p className="local-hourly-note">조회 시각 <time dateTime={new Date(data.asOf).toISOString()}>{dated(data.asOf)} KST</time></p>
+          <section className="local-hourly-detail" aria-label="같은 시간대의 서비스 비교">
+            <h2>같은 시간대의 서비스 비교</h2>
+            <p className="local-hourly-note">같은 한 시간의 최신 수치가 두 곳 이상이면 같은 비중으로 평균합니다. 지표마다 참여 서비스가 다를 수 있습니다.</p>
+            <ComparisonRows data={data} block={block} source={undefined} />
+          </section>
+          {data.sources.length > 0 && (
+            <section className="local-hourly-detail" aria-label="서비스 원값">
+              <h2>서비스 원값</h2>
+              <label>
+                <span>서비스별 예보 보기</span>
+                <select value={choice} onChange={(event) => setChoice(event.target.value)}>
+                  <option value="">서비스 선택</option>
+                  {data.sources.map(({ id, name, status }) => (
+                    <option key={id} value={id}>{name}{status === "stale" ? " · 이전 응답" : status === "unavailable" ? " · 응답 없음" : ""}</option>
+                  ))}
+                </select>
+              </label>
+              {source && <>
+                <p className="local-hourly-note">
+                  {source.status === "stale" ? "이전 응답을 표시하며 평균에서 제외합니다. " : source.status === "unavailable" ? "서비스 응답이 없습니다. " : ""}
+                  종료 시각은 해당 한 시간의 예보입니다. 제공사 시각은 적용 구간이 확인되지 않은 원래 표기입니다.
+                </p>
+                <ComparisonRows data={data} block={block} source={source} />
+              </>}
+            </section>
+          )}
+        </>
+      ) : <p role="status">현재 응답에서 이 시간대의 예보를 확인할 수 없어요. 예보로 돌아가 표시된 시간대를 골라 주세요.</p>}
+    </main>
   );
 }

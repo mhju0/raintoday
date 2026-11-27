@@ -2206,40 +2206,8 @@ html {
     --local-track: 122px;
   }
 
-  /* The location strip is the only navigation on a page about eleven phone
-     screens long, so it stays put instead of scrolling away in the first
-     screenful. Full-bleed across the page gutter. */
   .local-strip {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    margin-inline: -1rem;
-    padding-inline: 1rem;
-    background: color-mix(in srgb, var(--local-bg) 88%, transparent);
-    backdrop-filter: blur(14px);
-  }
-
-  /* The strip is sticky across the whole scroll, so the provenance line is
-     dropped here to keep it one row — the place name already says where. It is
-     kept only when there is no name to say it. */
-  .local-strip-place .local-strip-meta:not(.is-sole-qualifier) {
-    display: none;
-  }
-
-  /* Out of flex sizing on purpose. Wrapped as a flex item it widened the place
-     block past the row and pushed the temperature and the button onto a third
-     row — 74px of sticky bar became 128px. Positioned, it costs one line. Where
-     :has() is unsupported the padding below is not reserved and the line simply
-     sits inside the strip's existing padding, clear of the reading column,
-     rather than breaking the layout. */
-  .local-strip-place .local-strip-meta.is-sole-qualifier {
-    position: absolute;
-    left: 1rem;
-    bottom: 0.5rem;
-  }
-
-  .local-strip:has(.local-strip-meta.is-sole-qualifier) {
-    padding-bottom: 1.9rem;
+    gap: 0.75rem;
   }
 
   /* Eight blocks at this width would be 40px each. The ribbon — and only the
@@ -3044,6 +3012,45 @@ html {
   gap: 0.25rem;
   color: var(--local-ink-2);
   font-size: var(--t-label);
+}
+
+.local-compare-link,
+.local-journey-return button {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  color: var(--local-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.local-journey-return {
+  width: min(100% - 2rem, 1120px);
+  margin: 0 auto 2rem;
+}
+
+.local-hourly-page {
+  padding-block: 1.25rem 3rem;
+}
+
+.local-hourly-page h1 {
+  font-size: var(--t-display);
+  margin-block: 0.75rem;
+}
+
+.local-day-metric-label {
+  display: block;
+  font-size: var(--t-label);
+  font-weight: 400;
+  color: var(--local-ink-2);
+}
+
+.local-outlook {
+  margin-block: 1.5rem;
+}
+
+.local-outlook .local-wd-d {
+  white-space: normal;
 }
 
 .local-hourly-table {

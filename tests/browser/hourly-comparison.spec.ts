@@ -12,10 +12,12 @@ function controls(page: Page) {
   const panel = page.getByRole("region", { name: "시간대별 강수 예보" });
   return {
     panel,
-    mode: panel.getByRole("combobox", { name: "서비스별 예보 보기" }),
-    reveal: panel.getByText("서비스별 예보", { exact: true }),
+    mode: page.getByRole("combobox", { name: "서비스별 예보 보기" }),
+    reveal: panel.getByRole("link", { name: "이 시간대의 예보 비교" }),
+    back: page.getByRole("link", { name: "← 예보로 돌아가기" }),
     tiles: panel.getByRole("list", { name: "연속된 3시간 구간 8개" }).getByRole("listitem"),
-    table: panel.getByRole("table"),
+    table: page.getByRole("region", { name: "같은 시간대의 서비스 비교" }).getByRole("table"),
+    raw: page.getByRole("region", { name: "서비스 원값" }).getByRole("table"),
   };
 }
 
@@ -29,7 +31,7 @@ for (const width of [320, 390, 768, 1440]) {
       return route.fulfill({ json: forecast });
     });
     await page.goto(seoulUrl);
-    const { panel, mode, reveal, table, tiles } = controls(page);
+    const { panel, mode, reveal, table, raw, back, tiles } = controls(page);
     await expect(panel).toContainText("서비스 평균 · 11월 22일 KST");
     await expect(panel.getByRole("combobox")).toHaveCount(0);
     await expect(tiles).toHaveCount(8);
@@ -62,22 +64,27 @@ for (const width of [320, 390, 768, 1440]) {
     await expect(tiles.nth(1).getByRole("button")).toBeFocused();
     await tiles.nth(5).getByRole("button").click();
     await reveal.press("Enter");
-    await expect(mode).toHaveValue("compare");
-    await expect(table.getByRole("row", { name: /14:00–15:00/ })).toContainText("60%–100%2곳 · Open-Meteo, 기상청");
+    await expect(mode).toHaveValue("");
+    await expect(table.getByRole("row", { name: /14:00–15:00/ })).toContainText("60%–100%평균 80%2곳 · Open-Meteo, 기상청");
     await expect(table.getByRole("row", { name: /14:00–15:00/ })).toContainText("1.66 mm3곳");
+    await back.click();
+    await expect(reveal).toBeFocused();
     await tiles.nth(6).getByRole("button").click();
+    await reveal.click();
     await mode.selectOption("kma");
-    await expect(table.getByRole("row", { name: /17:00–18:00/ })).toContainText("1 mm 미만");
+    await expect(raw.getByRole("row", { name: /17:00–18:00/ })).toContainText("1 mm 미만");
     await mode.selectOption("weather-api");
-    await expect(table.getByRole("row", { name: /15:00–16:00/ })).toContainText("71%15:00 제공사 시각");
-    await expect(table.getByRole("row", { name: /15:00–16:00/ })).toContainText("0.85 mm15:00 제공사 시각");
+    await expect(raw.getByRole("row", { name: /15:00–16:00/ })).toContainText("71%15:00 제공사 시각");
+    await expect(raw.getByRole("row", { name: /15:00–16:00/ })).toContainText("0.85 mm15:00 제공사 시각");
     await mode.selectOption("visual-crossing");
-    await expect(table.getByRole("row", { name: /15:00–16:00/ })).toContainText("0.7 mm16:00 종료");
-    await expect(table.getByRole("row", { name: /15:00–16:00/ })).toContainText("100%15:00 제공사 시각");
+    await expect(raw.getByRole("row", { name: /15:00–16:00/ })).toContainText("0.7 mm16:00 종료");
+    await expect(raw.getByRole("row", { name: /15:00–16:00/ })).toContainText("100%15:00 제공사 시각");
     await expect(mode.locator('option[value="pirate-weather"]')).toHaveCount(0);
-    expect(await table.locator('th[scope="row"] span').evaluateAll((times) =>
+    expect(await raw.locator('th[scope="row"] span').evaluateAll((times) =>
       times.every((time) => time.getClientRects().length === 1))).toBe(true);
 
+    await back.click();
+    await expect(reveal).toBeFocused();
     const layout = await tiles.evaluateAll((elements) => ({
       tops: new Set(elements.map((el) => el.getBoundingClientRect().top)).size,
       page: document.documentElement.scrollWidth, viewport: window.innerWidth,
@@ -86,9 +93,7 @@ for (const width of [320, 390, 768, 1440]) {
     expect(layout.tops).toBe(1);
     expect(layout.labelsFit).toBe(true);
     expect(layout.page).toBeLessThanOrEqual(layout.viewport + 1);
-    await mode.press("Escape");
     await expect(mode).toBeHidden();
-    await expect(reveal).toBeFocused();
     expect(requests).toBe(1);
   });
 }
@@ -171,16 +176,15 @@ test("a partially published wet block and later wet hours stay separate in the h
     return route.fulfill({ json: { ...forecast, hourlyComparison: comparison } });
   });
   await page.goto(seoulUrl);
-  const { panel, tiles, reveal, table } = controls(page);
-  await expect(panel.getByText("12:00–15:00 구간에 비 예상")).toBeVisible();
-  await expect(panel.getByText(/시간별 최고 90% · 11월 23일 18:00–21:00/)).toBeVisible();
+  const { tiles, reveal, table } = controls(page);
+  await expect(page.locator(".local-answer-action")).toContainText("14:00–15:00");
+  await expect(page.locator(".local-answer-action")).not.toContainText("12:00부터");
   await expect(tiles.nth(1).getByRole("button")).toHaveAccessibleName(/최고 확률 80%.*확률 1\/3시간/);
   await tiles.nth(1).getByRole("button").click();
   await reveal.click();
-  await expect(table.getByRole("row", { name: /12:00–13:00/ })).toContainText("두 곳 미만");
-  await expect(table.getByRole("row", { name: /13:00–14:00/ })).toContainText("두 곳 미만");
+  await expect(table.getByRole("row", { name: /12:00–13:00/ })).toContainText("미발표");
+  await expect(table.getByRole("row", { name: /13:00–14:00/ })).toContainText("미발표");
   await expect(table.getByRole("row", { name: /14:00–15:00/ })).toContainText("80%");
-  await expect(page.locator(".local-answer-action")).toBeVisible();
   expect(requests).toBe(1);
 });
 
@@ -192,15 +196,18 @@ test("the response tail keeps the midnight-ending amount and hides third-date na
     return route.fulfill({ json: forecast });
   });
   await page.goto(seoulUrl);
-  const { tiles, reveal, mode, table } = controls(page);
+  const { tiles, reveal, mode, raw, back } = controls(page);
   await tiles.nth(4).getByRole("button").click();
   await reveal.click();
   await mode.selectOption("visual-crossing");
-  const preceding = table.getByRole("row", { name: /23:00–00:00/ });
+  const preceding = raw.getByRole("row", { name: /23:00–00:00/ });
   await expect(preceding.getByRole("cell").last()).toHaveText("0 mm00:00 종료");
+  await back.click();
   await tiles.nth(5).getByRole("button").click();
   await expect(tiles.nth(5).getByRole("button")).toHaveAccessibleName(/최고 확률 미발표, 강수량 미발표/);
-  const beyond = table.getByRole("row", { name: /00:00–01:00/ });
+  await reveal.click();
+  await mode.selectOption("visual-crossing");
+  const beyond = raw.getByRole("row", { name: /00:00–01:00/ });
   await expect(beyond.getByRole("cell").first()).toHaveText("응답 범위 밖");
   await expect(beyond.getByRole("cell").last()).toHaveText("응답 범위 밖");
   expect(requests).toBe(1);
@@ -229,19 +236,16 @@ test("one source stays available for inspection and a delayed location cannot re
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
   await expect(page.locator(".local-strip-place b")).toHaveText("제주");
-  const { mode, panel, reveal, tiles, table } = controls(page);
+  const { mode, panel, reveal, tiles, table, raw } = controls(page);
   await expect(panel).toContainText("평균 자료 부족");
   await expect(tiles).toHaveCount(8);
   await expect(tiles.nth(1).getByRole("button")).toHaveAccessibleName(/최고 확률 미발표/);
   await reveal.click();
   await expect(table).toContainText("1곳 · Open-Meteo");
   await mode.selectOption("open-meteo");
-  await expect(table.getByRole("row", { name: /23:00–00:00/ })).toContainText("0%");
-  const previous = page.waitForResponse((response) => response.url().endsWith("/api/local-forecast") && response.request().postDataJSON()?.latitude === 37.5714);
+  await expect(raw.getByRole("row", { name: /23:00–00:00/ })).toContainText("0%");
   respond();
-  await (await previous).finished();
-  await expect(page.locator(".local-strip-place b")).toHaveText("제주");
-  await expect(panel).toContainText("평균 자료 부족");
+  await expect(page.getByText(/제주 ·/)).toBeVisible();
   await expect(mode).toHaveValue("open-meteo");
 
   await page.evaluate((url) => {
@@ -252,7 +256,7 @@ test("one source stays available for inspection and a delayed location cannot re
   await expect(mode).toBeHidden();
   await expect(panel).toContainText("서비스 평균");
   await reveal.click();
-  await expect(mode).toHaveValue("compare");
+  await expect(mode).toHaveValue("");
 });
 
 test("elapsed hours and KST boundaries update in an open and resumed tab with manual-only recovery", async ({ page }) => {
@@ -269,14 +273,15 @@ test("elapsed hours and KST boundaries update in an open and resumed tab with ma
     return route.fulfill({ json: payload });
   });
   await page.goto(seoulUrl);
-  const { panel, mode, reveal, table, tiles } = controls(page);
+  const { panel, reveal, table, back, tiles } = controls(page);
   await expect(tiles.first().getByRole("button")).toHaveAccessibleName(/21:00–00:00, 최고 확률 0%/);
   await reveal.click();
   await expect(table.getByRole("row", { name: /22:00–23:00/ })).toContainText("진행 중인 시간");
   await page.clock.runFor(4_002);
-  await expect(tiles.first().getByRole("button")).toHaveAccessibleName(/21:00–00:00, 최고 확률 미발표/);
   await expect(table.getByRole("row", { name: /22:00–23:00/ })).toContainText("지난 시간");
   await expect(table.getByRole("row", { name: /23:00–00:00/ })).toContainText("진행 중인 시간");
+  await back.click();
+  await expect(tiles.first().getByRole("button")).toHaveAccessibleName(/21:00–00:00, 최고 확률 미발표/);
 
   await page.evaluate(() => {
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
@@ -289,19 +294,19 @@ test("elapsed hours and KST boundaries update in an open and resumed tab with ma
     document.dispatchEvent(new Event("visibilitychange"));
   });
   await expect(tiles.first().getByRole("button")).toHaveAccessibleName(/지금, 11월 23일 00:00–03:00.*합계 없음/);
-  await expect(mode).toHaveValue("compare");
+  await expect(page.locator("#forecast-heading")).toContainText("새로 확인");
   await page.clock.fastForward(3 * 3_600_000);
   await expect(tiles.first().getByRole("button")).toHaveAccessibleName(/지금, 11월 23일 03:00–06:00/);
   await expect(tiles.last().getByRole("button")).toHaveAccessibleName(/11월 24일 00:00–03:00, 최고 확률 미발표/);
   await page.clock.fastForward(21 * 3_600_000);
-  const refresh = panel.getByRole("button", { name: "예보 다시 불러오기" });
+  const refresh = page.getByRole("button", { name: "예보 다시 불러오기" });
   await expect(refresh).toBeVisible();
   expect(requests).toBe(1);
 
   await refresh.click();
   await expect(tiles).toHaveCount(8);
   await expect(panel).toContainText("평균 자료 부족 · 11월 24일 KST");
-  await expect(reveal).toHaveCount(0);
+  await expect(reveal).toHaveCount(1);
   await expect(refresh).toHaveCount(0);
   expect(requests).toBe(2);
 });
@@ -311,7 +316,7 @@ test("an aged empty average can refresh before the last native hour expires", as
   const lostAverage = at("2026-11-23T05:00:02");
   await page.clock.install({ time: at("2026-11-23T03:59:54") });
   await page.clock.pauseAt(now);
-  const response = buildHourlyComparison(seoulHourlySnapshots, seoulCaptureTime);
+  const response = buildHourlyComparison(seoulHourlySnapshots, at("2026-11-23T00:30:00"));
   const [open, kma, weather, visual] = response.sources;
   const comparableEnd = at("2026-11-23T05:00:00").getTime();
   open.hours = { [comparableEnd]: { chance: 25, amount: 0 } };
@@ -323,6 +328,7 @@ test("an aged empty average can refresh before the last native hour expires", as
     requests += 1;
     const hourlyComparison = requests === 1 ? response : {
       ...response,
+      dates: ["2026-11-23", "2026-11-24"],
       asOf: lostAverage.getTime(),
       sources: [{ ...open, hours: {
         [at("2026-11-23T07:00:00").getTime()]: { chance: null, amount: 0.2 },
@@ -331,19 +337,20 @@ test("an aged empty average can refresh before the last native hour expires", as
     return route.fulfill({ json: { ...forecast, hourlyComparison } });
   });
   await page.goto(seoulUrl);
-  const { panel, tiles, reveal, mode, table } = controls(page);
-  const refresh = panel.getByRole("button", { name: "예보 다시 불러오기" });
+  const { panel, tiles, reveal, mode, table, raw, back } = controls(page);
+  const refresh = page.getByRole("button", { name: "예보 다시 불러오기" });
   await expect(panel).toContainText("서비스 평균");
   await expect(refresh).toHaveCount(0);
   await page.clock.fastForward(lostAverage.getTime() - now.getTime());
   await expect(panel).toContainText("평균 자료 부족");
   await expect(refresh).toBeVisible();
-  await reveal.click();
   await tiles.nth(1).getByRole("button").click();
+  await reveal.click();
   await mode.selectOption("weather-api");
-  await expect(table.getByRole("row", { name: /06:00–07:00/ })).toContainText("10%06:00 제공사 시각");
+  await expect(raw.getByRole("row", { name: /06:00–07:00/ })).toContainText("10%06:00 제공사 시각");
   expect(requests).toBe(1);
 
+  await back.click();
   await refresh.click();
   await expect(mode).toBeHidden();
   await expect(panel).toContainText("평균 자료 부족");

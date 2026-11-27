@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 function brier(value: number | null): string {
-  return value === null ? "기록 없음" : value.toFixed(3);
+  return value === null ? "기록 없음" : value.toFixed(5);
 }
 
 const INELIGIBLE_COPY = {
@@ -37,6 +37,27 @@ export default async function BehindTheDataPage({
   const params = await searchParams;
   const stationId = Array.isArray(params.station) ? params.station[0] : params.station;
   const { location, requested } = resolveRecordLocation(params);
+  const origin = params.origin !== undefined
+    ? typeof params.origin === "string" && params.origin.startsWith("?") ? new URLSearchParams(params.origin) : null
+    : stationId === undefined && requested
+      ? new URLSearchParams({ lat: String(location.latitude), lon: String(location.longitude),
+        name: typeof params.name === "string" ? params.name : location.name,
+        area: typeof params.area === "string" ? params.area : "h" })
+      : null;
+  const originName = origin?.get("name")?.trim();
+  const originKind = origin?.get("area");
+  const originLocation = origin && originName && originName.length <= 80 &&
+    (originKind === null || originKind === "b" || originKind === "h") &&
+    ["lat", "lon", "name", "area"].every((key) => origin.getAll(key).length <= 1)
+    ? resolveRecordLocation(Object.fromEntries(origin))
+    : null;
+  const returnSearch = originLocation?.requested && originName
+    ? `?${new URLSearchParams({
+      lat: originLocation.location.latitude.toFixed(5), lon: originLocation.location.longitude.toFixed(5),
+      name: originName, area: originKind === "b" ? "b" : "h",
+    })}` : "";
+  const entry = typeof params.entry === "string" && /^[0-9a-f-]{36}$/.test(params.entry) ? params.entry : "";
+  const returnHref = `/${returnSearch || "?choose=1"}${entry ? `#forecast=${entry}` : ""}`;
   const { evidence, readAt } = await readRecordEvidence(stationId ?? location, captureCohortAt(now), now);
   const readStamp = seoulTimestamp(readAt);
   const view = buildBehindTheDataView(evidence);
@@ -51,13 +72,16 @@ export default async function BehindTheDataPage({
     <div className="btd-page">
     <main className="btd">
       <header className="btd-mast">
-        <p className="local-eyebrow btd-crumb"><Link href="/">← 오늘비 예보</Link><span>&nbsp;· 채점 기록</span></p>
+        <p className="local-eyebrow btd-crumb"><Link href={returnHref} prefetch={false} scroll={false}>{returnSearch || entry ? "← 선택한 위치의 예보로" : "← 예보 위치 고르기"}</Link><span>&nbsp;· 채점 기록</span></p>
         <h1>이 예보를 어떻게 채점하는가</h1>
         <p className="btd-lede">
           내일 예보에 반영하는 서비스별 비중과 그 근거를 보여드립니다. 관측소의
           비교 기록이 충분하면 최근 채점 결과를 쓰고, 기록이 부족한 동안에는 과거 모델
           자료를 일부 반영하거나 같은 비중으로 평균합니다.
         </p>
+        {returnSearch && originLocation?.requested && <p className="btd-lede">
+          예보 위치 {originName} · {originKind === "b" ? "법정구역 대표 위치" : "행정구역 대표 위치"}
+        </p>}
       </header>
 
       {/* ── Layer 1: the state, and one sentence anyone can act on ── */}
@@ -91,12 +115,18 @@ export default async function BehindTheDataPage({
               <dd>{view.station.name}{stationId === undefined ? `\u00a0· ${view.station.distanceKm.toFixed(1)}km\u00a0· ${evidenceProximity(view.station.distanceKm) === "local" ? "지역 기록" : "광역 기록"}` : ""}</dd>
             </div>
           ) : null}
+          {requested && stationId === undefined && (
+            <div>
+              <dt>기록 요청 지역</dt>
+              <dd>{location.name}</dd>
+            </div>
+          )}
           <div>
             <dt>읽은 시각</dt>
             <dd><span className="local-keep">{readStamp.date}</span> <span className="local-keep">{readStamp.time}</span></dd>
           </div>
         </dl>
-        <RecordStationPicker stationName={view.station?.name ?? null} />
+        <RecordStationPicker stationName={view.station?.name ?? null} origin={returnSearch} entry={entry} />
         <p className="btd-plain">
           최근 기록으로 계산한 가중치는 필요한 표본이 모이고, 단순 평균보다 점수가
           나쁘지 않을 때 적용합니다. 표본이 부족하거나 점수가 더 나쁘면 적용을 중지합니다.
@@ -111,8 +141,8 @@ export default async function BehindTheDataPage({
           <li>
             <h3>발표되지 않은 값은 <span className="local-keep">‘미발표’로</span> 표시합니다</h3>
             <p>
-              그래프에 쓰는 서비스가 확률을 발표하지 않은 시간대는 빗금으로 표시합니다.
-              발표된 <span className="local-keep">0%는</span> 숫자와 얇은 막대로 표시해 누락된 값과 구분합니다.
+              평균을 낼 수 있는 확률 자료가 없는 시간대는 빗금으로 표시합니다.
+              발표된 <span className="local-keep">0%는</span> 바닥선과 숫자로 표시합니다.
             </p>
           </li>
           <li>
@@ -123,10 +153,15 @@ export default async function BehindTheDataPage({
             </p>
           </li>
           <li>
-            <h3>시간대 그래프는 여러 서비스를 섞은 값이 아닙니다</h3>
+            <h3>시간대 예보는 서비스 평균부터 보여요</h3>
             <p>
-              시간대 그래프는 제목에 적힌 <em>한 서비스</em>의 예보입니다.
-              <span className="local-keep">오늘·내일</span> 카드는 여러 서비스의 예보를 평균한 값입니다.
+              같은 한 시간에 최신 수치를 낸 서비스가 두 곳 이상이면 지표마다 같은 비중으로 평균합니다.
+              구간 확률은 시간별 평균 중 최고값이며, 강수량 합계는 세 시간 모두 평균값이 있을 때 표시합니다.
+              비교할 수 없는 시각과 강수량 범위는 서비스 원값에서 확인할 수 있습니다.
+            </p>
+            <p>
+              한 곳만 발표한 값은 개별 예보에서 볼 수 있습니다. 평균 기능을 제공하기 전의 응답은
+              서비스 이름과 함께 단독 예보를 표시합니다. 관측소 성능에 따른 비중은 내일 하루 예보에만 적용합니다.
             </p>
           </li>
         </ol>
@@ -148,10 +183,10 @@ export default async function BehindTheDataPage({
                   <th scope="col">표본</th>
                   <th scope="col">비 온 날</th>
                   <th scope="col">안 온 날</th>
-                  <th scope="col">Brier</th>
-                  <th scope="col">최근 7일</th>
+                  <th scope="col">최근 {policy.windowDays}일 Brier</th>
+                  <th scope="col">최근 7일 Brier</th>
                   <th scope="col">적격</th>
-                  <th scope="col">영향력</th>
+                  <th scope="col">기록상 비중</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,6 +251,7 @@ export default async function BehindTheDataPage({
           </div>
         )}
         <p className="btd-note">
+          표시는 소수점 다섯째 자리까지 반올림하며 판정에는 반올림하기 전 점수를 씁니다.
           Open-Meteo와 기상청 단독 예보 점수도 함께 표시합니다.
           각 서비스가 확률을 발표한 기록만 해당 서비스 점수에 포함됩니다.
         </p>
