@@ -3066,12 +3066,6 @@ html {
   color: var(--local-ink-2);
 }
 
-.local-hourly-table caption {
-  text-align: start;
-  padding: 0.3rem 0;
-  color: var(--local-ink);
-}
-
 .local-hourly-table :is(th, td) {
   padding: 0.45rem 0.2rem;
   text-align: start;
@@ -3109,5 +3103,48 @@ html {
 
   :is(#forecast-compare, #forecast-station, #forecast-evidence-status, #forecast-record) {
     scroll-margin-block: 0.65rem;
+  }
+}
+
+.local-hourly-cell-label {
+  display: none;
+}
+
+@container (max-width: 15rem) {
+  .local-hourly-table colgroup {
+    display: none;
+  }
+
+  .local-hourly-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .local-hourly-table,
+  .local-hourly-table :is(tbody, tbody tr, tbody th, tbody td) {
+    display: block;
+  }
+
+  .local-hourly-table tbody tr {
+    padding-block: 0.45rem;
+    border-block-start: 1px solid var(--local-line-2);
+  }
+
+  .local-hourly-table tbody :is(th, td) {
+    border: 0;
+    padding: 0.22rem 0;
+  }
+
+  .local-hourly-cell-label {
+    display: block;
+    color: var(--local-ink);
+    font-weight: 650;
+  }
+
+  .local-hourly-cell-label::before {
+    content: attr(data-label);
   }
 }

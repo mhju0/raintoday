@@ -114,3 +114,21 @@ test("midnight announces dated older data and identifies a selected period that 
   await expect(action).toHaveAttribute("href", `#compare=${Date.parse("2026-11-23T00:00:00+09:00")}`);
   expect(requests).toBe(1);
 });
+
+test("comparison metrics reflow below the hour when text is enlarged at 320 px", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.clock.setFixedTime(new Date("2026-11-22T22:38:00+09:00"));
+  await page.route("**/api/local-forecast", (route) => route.fulfill({ json: { ...response, hourlyComparison: comparison } }));
+  await page.goto(area);
+  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  await page.locator(".local-hourly-hit").nth(2).click();
+  await page.getByRole("link", { name: "이 시간대의 예보 비교" }).click();
+  const table = page.getByRole("table").first();
+  const row = table.getByRole("row").filter({ has: page.getByRole("cell", { name: /곳/ }) }).first();
+  await expect(row.getByRole("cell")).toHaveCount(2);
+  const bounds = await row.evaluate((element) => [...element.children].map((cell) => cell.getBoundingClientRect().toJSON()));
+  expect(bounds[0].bottom).toBeLessThanOrEqual(bounds[1].top);
+  expect(bounds[1].bottom).toBeLessThanOrEqual(bounds[2].top);
+  expect(await table.evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(await table.evaluate((element) => element.clientWidth));
+  await expect(row.locator(".local-hourly-cell-label").first()).toHaveCSS("display", "block");
+});

@@ -121,38 +121,42 @@ function SourceMetric({ data, source, row, metric }: {
 
 function ComparisonRows({ data, block, source }: { data: HourlyComparison; block: HourlyRibbonBlock; source: HourlyProviderSeries | undefined }) {
   return (
-    <table className="local-hourly-table">
-      <caption>{day(block.start)} {rangeLabel(block.start, block.end)} KST</caption>
+    <table className="local-hourly-table" role="table">
+      <caption className="sr-only">{day(block.start)} {rangeLabel(block.start, block.end)} KST</caption>
       <colgroup><col className="local-hourly-time-col" /><col /><col /></colgroup>
-      <thead>
-        <tr>
-          <th scope="col">시간</th>
-          <th scope="col">확률{!source && <small>범위</small>}</th>
-          <th scope="col">강수량{!source && <small>평균</small>}</th>
+      <thead role="rowgroup">
+        <tr role="row">
+          <th role="columnheader" scope="col">시간</th>
+          <th role="columnheader" scope="col">확률{!source && <small>범위</small>}</th>
+          <th role="columnheader" scope="col">강수량{!source && <small>평균</small>}</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody role="rowgroup">
         {block.hours.map((row) => {
           const spread = hourlyExtremes(row.chance);
           return (
-            <tr key={row.start}>
-              <th scope="row"><span>{clock(row.start)}</span>–<wbr /><span>{clock(row.end)}</span></th>
+            <tr key={row.start} role="row">
+              <th role="rowheader" scope="row"><span>{clock(row.start)}</span>–<wbr /><span>{clock(row.end)}</span></th>
               {row.state !== "complete" ? (
-                <td colSpan={2}>{row.state === "elapsed" ? "지난 시간" : "진행 중인 시간"} · 평균 제외</td>
+                <td role="cell" colSpan={2}>{row.state === "elapsed" ? "지난 시간" : "진행 중인 시간"} · 평균 제외</td>
               ) : source ? (
                 <>
-                  <td><SourceMetric data={data} source={source} row={row} metric="chance" /></td>
-                  <td><SourceMetric data={data} source={source} row={row} metric="amount" /></td>
+                  <td role="cell"><span className="local-hourly-cell-label" aria-hidden="true" data-label="강수확률" />
+                    <SourceMetric data={data} source={source} row={row} metric="chance" /></td>
+                  <td role="cell"><span className="local-hourly-cell-label" aria-hidden="true" data-label="강수량" />
+                    <SourceMetric data={data} source={source} row={row} metric="amount" /></td>
                 </>
               ) : (
                 <>
-                  <td>
+                  <td role="cell">
+                    <span className="local-hourly-cell-label" aria-hidden="true" data-label="강수확률 범위" />
                     {spread ? spread.low === spread.high ? probability(spread.high) : `${probability(spread.low)}–${probability(spread.high)}`
                       : row.chance.length === 1 ? "두 곳 미만" : "미발표"}
                     {spread && <small>평균 {probability(hourlyMean(row.chance))}</small>}
                     <Members members={row.chance} />
                   </td>
-                  <td>{row.amount.length === 1 ? "두 곳 미만" : amountText(hourlyMean(row.amount))}<Members members={row.amount} /></td>
+                  <td role="cell"><span className="local-hourly-cell-label" aria-hidden="true" data-label="평균 강수량" />
+                    {row.amount.length === 1 ? "두 곳 미만" : amountText(hourlyMean(row.amount))}<Members members={row.amount} /></td>
                 </>
               )}
             </tr>
