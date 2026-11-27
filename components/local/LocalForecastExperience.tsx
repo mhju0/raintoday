@@ -15,7 +15,7 @@ import {
   type ForecastLocationSelection,
 } from "@/lib/locationPrecision";
 import type { ForecastLocationSearchResult } from "@/lib/locationSearch";
-import { HourlyForecastComparison } from "./HourlyForecastComparison";
+import { HourlyForecastComparison, HourlyPeak, HourlyRainHeadline, useHourlyRibbon } from "./HourlyForecastComparison";
 import { useLocationCandidateSearch } from "./useLocationCandidateSearch";
 
 type ViewState =
@@ -1055,7 +1055,9 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
   // testing the raw value would report "오늘" while rendering tomorrow's numbers.
   const today = forecast.today ?? null;
   const tomorrow = forecast.recommendation;
-  const timeline = forecast.timeline;
+  const comparison = forecast.hourlyComparison;
+  const hourly = useHourlyRibbon(comparison);
+  const timeline = hourly ? null : forecast.timeline;
   const blocks = timeline?.blocks ?? [];
   const run = timeline?.reading.firstRun ?? null;
   const laterRun = timeline?.reading.laterRun ?? null;
@@ -1188,10 +1190,11 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
       <section className="local-answer" aria-labelledby="forecast-heading">
         <p className="local-kicker">비 예보</p>
         <h1 id="forecast-heading" ref={headingRef} tabIndex={-1}>
-          {timeline
+          {hourly ? <HourlyRainHeadline blocks={hourly.blocks} /> : timeline
             ? <RainSentence run={run} endsTomorrow={runEndsTomorrow} peak={peak} hours={hours} />
             : <HeadlineDay day={today ?? tomorrow} label={today ? "오늘" : "내일"} />}
         </h1>
+        {hourly && <HourlyPeak blocks={hourly.blocks} />}
         {timeline && (
           <p className="local-answer-sub">
             {peak && <span>최대 <b className="is-wet">{Math.round(peak.probability)}%</b>&nbsp;· {peak.rangeLabel}</span>}
@@ -1213,7 +1216,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
             <span>{timeline.threshold}% 이상인 시간대를 비 예상 구간으로 봅니다</span>
           </p>
         )}
-        <p className="local-answer-action">
+        {!hourly && <p className="local-answer-action">
           {timeline
             ? umbrellaAdvice({ blocks, dayOffsets, threshold: timeline.threshold, run, endsTomorrow: runEndsTomorrow, today })
             : rainAction(
@@ -1224,10 +1227,10 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
           {laterRun && run && !run.startsTomorrow && (
             <> 이후 <span className="local-keep">{laterRun.startsTomorrow ? "내일 " : ""}{clockLabel(laterRun.startHour)}부터</span> 다시 비가 예상됩니다.</>
           )}
-        </p>
+        </p>}
       </section>
 
-      <HourlyForecastComparison data={forecast.hourlyComparison} onRefresh={onRefresh}>
+      {comparison && hourly && <HourlyForecastComparison data={comparison} {...hourly} onRefresh={onRefresh} />}
       {timeline && (
         <section className="local-ribbon" aria-labelledby="ribbon-heading">
           <div className="local-ribbon-head">
@@ -1341,7 +1344,6 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
           <p className="local-ribbon-swipe">← 옆으로 밀어 24시간 전체 보기</p>
         </section>
       )}
-      </HourlyForecastComparison>
 
       <p className="local-kicker">{today ? "오늘\u00a0· 내일" : "내일"}&nbsp;<span>: 여러 서비스를 섞은 하루 숫자</span></p>
       <div className="local-days">

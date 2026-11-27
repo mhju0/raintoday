@@ -1,173 +1,72 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { periodNameForHour } from "@/lib/forecast/blocks";
 import {
-  HOURLY_ALIGNMENT,
   HOUR_MS,
   hourlyComparisonEnd,
-  hourlyBlocks,
   hourlyExtremes,
   hourlyMean,
-  hourlyRows,
+  hourlyRibbon,
+  hourlySourceReading,
   kstStamp,
-  type DetailedReading,
   type HourlyComparison,
-  type HourlyMode,
   type HourlyProviderSeries,
+  type HourlyRibbonBlock,
   type HourlyRow,
 } from "@/lib/forecast/hourlyComparison";
+import { RAIN_ONSET_PROBABILITY } from "@/lib/localForecastView";
 
-const number = new Intl.NumberFormat("ko-KR", { maximumSignificantDigits: 5 });
+const number = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2, useGrouping: false });
+const exact = new Intl.NumberFormat("ko-KR", { maximumSignificantDigits: 5 });
 const clock = (stamp: number) => kstStamp(stamp).slice(11);
 const dated = (stamp: number) => kstStamp(stamp).replace("T", " ");
-const probability = (value: number | null) => value === null ? "미발표" : `${number.format(value)}%`;
+const day = (stamp: number) => {
+  const [month, date] = kstStamp(stamp).slice(5, 10).split("-").map(Number);
+  return `${month}월 ${date}일`;
+};
+const rangeLabel = (start: number, end: number) => `${clock(start)}–${clock(end)}`;
+const wet = (value: number | null) => value !== null && value >= RAIN_ONSET_PROBABILITY;
 
-function amountText(value: DetailedReading["amount"] | undefined) {
+function probability(value: number | "invalid" | null) {
   if (value === "invalid") return "값 확인 불가";
-  if (value == null) return "미발표";
-  if (typeof value === "number") return `${number.format(value)} mm`;
-  if (value.highMm === null) return `${number.format(value.lowMm)} mm 이상`;
-  if (value.lowMm === 0) return `${number.format(value.highMm)} mm 미만`;
-  return `${number.format(value.lowMm)}~${number.format(value.highMm)} mm`;
+  if (value === null) return "미발표";
+  if (value > 0 && value < 0.01) return "<0.01%";
+  const rounded = number.format(value);
+  if (value < 100 && rounded === "100") return "<100%";
+  if (!wet(value) && rounded === String(RAIN_ONSET_PROBABILITY)) return `<${RAIN_ONSET_PROBABILITY}%`;
+  return `${rounded}%`;
 }
 
-function ChanceBar({ high, low = 0 }: { high: number | null; low?: number }) {
-  return (
-    <span className="local-hourly-track" aria-hidden="true">
-      {high !== null && (
-        <i style={{ marginInlineStart: `${low}%`, width: `${high - low}%` }} />
-      )}
-    </span>
-  );
-}
-
-function ChanceReading({ value }: { value: DetailedReading["chance"] | undefined }) {
-  if (typeof value !== "number") return value === "invalid" ? "값 확인 불가" : "미발표";
-  return <span className="local-hourly-chance"><ChanceBar high={value} />{probability(value)}</span>;
-}
-
-function hourLabel(row: HourlyRow, native: boolean) {
-  return native ? clock(row.start) : `${clock(row.start)}–${clock(row.end)}`;
-}
-
-function SourceTable({ row }: { row: HourlyRow }) {
-  return (
-    <table className="local-hourly-table">
-      <caption className="sr-only">선택한 시간의 서비스별 강수 예보</caption>
-      <thead><tr><th scope="col">서비스</th><th scope="col">강수확률</th><th scope="col">강수량</th></tr></thead>
-      <tbody>
-        {row.details.map(({ source, chance, amount }) => (
-          <tr key={source.id}>
-            <th scope="row">
-              {source.name}
-              {source.status === "stale" && <small>이전 응답 · 집계 제외</small>}
-              {source.status === "unavailable" && <small>응답 없음</small>}
-            </th>
-            <td>{HOURLY_ALIGNMENT[source.id].chance ? <ChanceReading value={chance} /> : "제공사 시각"}</td>
-            <td>{HOURLY_ALIGNMENT[source.id].amount ? amountText(amount) : "제공사 시각"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function Reading({ row, mode, source }: { row: HourlyRow; mode: HourlyMode; source?: HourlyProviderSeries }) {
-  if (row.elapsed) return <p>지난 시간</p>;
-  if (source) {
-    return (
-      <dl className="local-hourly-reading">
-        <div><dt>강수확률</dt><dd><ChanceReading value={row.reading?.chance} /></dd></div>
-        <div><dt>강수량</dt><dd>{amountText(row.reading?.amount)}</dd></div>
-      </dl>
-    );
+function amountText(value: ReturnType<typeof hourlySourceReading>["value"], raw = false): string {
+  if (value === "invalid") return "값 확인 불가";
+  if (value === null) return "미발표";
+  if (typeof value === "number") {
+    if (!raw && value > 0 && value < 0.01) return "<0.01 mm";
+    return `${(raw ? exact : number).format(value)} mm`;
   }
-  if (mode === "average") {
-    return (
-      <dl className="local-hourly-reading">
-        <div>
-          <dt>강수확률 · {row.chance.length}곳</dt>
-          <dd>{probability(hourlyMean(row.chance))}</dd>
-        </div>
-        <div>
-          <dt>강수량 · {row.amount.length}곳</dt>
-          <dd>{amountText(hourlyMean(row.amount))}</dd>
-        </div>
-      </dl>
-    );
-  }
-  const chance = hourlyExtremes(row.chance);
-  const amount = hourlyExtremes(row.amount);
-  return (
-    <dl className="local-hourly-reading">
-      <div><dt>강수확률 차이 · {row.chance.length}곳</dt><dd>{chance ? `${number.format(chance.high - chance.low)}%p` : "두 곳 미만"}</dd></div>
-      <div><dt>강수량 차이 · {row.amount.length}곳</dt><dd>{amount ? amountText(amount.high - amount.low) : "두 곳 미만"}</dd></div>
-    </dl>
-  );
+  if (value.highMm === null) return `${exact.format(value.lowMm)} mm 이상`;
+  if (value.lowMm === 0) return `${exact.format(value.highMm)} mm 미만`;
+  return `${exact.format(value.lowMm)}~${exact.format(value.highMm)} mm 미만`;
 }
 
-function FullDayTable({ rows, mode, source, native, onInspect }: {
-  rows: HourlyRow[];
-  mode: HourlyMode;
-  source?: HourlyProviderSeries;
-  native: boolean;
-  onInspect: (hour: number) => void;
-}) {
-  return (
-    <details className="local-hourly-all">
-      <summary>{native ? "제공사 시각 수치 표" : "시간별 수치 표"}</summary>
-      <table className="local-hourly-table">
-        <caption className="sr-only">선택한 날짜의 시간별 강수 예보</caption>
-        <thead><tr><th scope="col">{native ? "제공사 시각" : "유효 시간"}</th><th scope="col">강수확률</th><th scope="col">강수량</th></tr></thead>
-        <tbody>
-          {rows.map((row, hour) => {
-            const chance = hourlyExtremes(row.chance);
-            const amount = hourlyExtremes(row.amount);
-            return (
-              <tr key={row.start}>
-                <th scope="row">
-                  <button type="button" onClick={() => onInspect(hour)}>{hourLabel(row, native)}</button>
-                </th>
-                {row.elapsed ? <td colSpan={2}>지난 시간</td> : source ? (
-                  <><td><ChanceReading value={row.reading?.chance} /></td><td>{amountText(row.reading?.amount)}</td></>
-                ) : mode === "average" ? (
-                  <><td>{probability(hourlyMean(row.chance))}<small>{row.chance.length}곳</small></td>
-                    <td>{amountText(hourlyMean(row.amount))}<small>{row.amount.length}곳</small></td></>
-                ) : (
-                  <><td>{chance ? `${probability(chance.low)}–${probability(chance.high)}` : "두 곳 미만"}<small>{row.chance.length}곳</small></td>
-                    <td>{amount ? `${number.format(amount.low)}~${amountText(amount.high)}` : "두 곳 미만"}<small>{row.amount.length}곳</small></td></>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </details>
-  );
+function periodAmount(block: HourlyRibbonBlock) {
+  return block.sum === null && block.completeHours < 3 ? "합계 없음" : amountText(block.sum);
 }
 
-function providerCount(rows: HourlyRow[], metric: "chance" | "amount") {
-  const counts = rows.filter((row) => !row.elapsed).map((row) => row[metric].length);
-  const min = Math.min(...counts);
-  const max = Math.max(...counts);
-  return min === max ? `${min}곳` : `${min}–${max}곳`;
-}
-
-function availableSources(data: HourlyComparison, date: string) {
-  return data.sources.filter((source) => source.status !== "unavailable" &&
-    hourlyRows(data, date, source).some(({ reading }) => reading && (reading.chance !== null || reading.amount !== null)));
-}
-
-function useViewingHour() {
-  const [hour, setHour] = useState(() => Math.floor(Date.now() / HOUR_MS) * HOUR_MS);
+export function useHourlyRibbon(data: HourlyComparison | undefined) {
+  const [now, setNow] = useState(Date.now);
   useEffect(() => {
+    if (!data) return;
     let timer: number | undefined;
     const sync = () => {
       window.clearTimeout(timer);
       if (document.visibilityState === "hidden") return;
-      const now = Date.now();
-      setHour(Math.floor(now / HOUR_MS) * HOUR_MS);
-      timer = window.setTimeout(sync, HOUR_MS - (now % HOUR_MS));
+      const time = Date.now();
+      setNow(time);
+      // A whole interval starts at :00:00.000 and becomes partial just after.
+      const offset = time % HOUR_MS;
+      timer = window.setTimeout(sync, offset === 0 ? 1 : HOUR_MS - offset);
     };
     sync();
     document.addEventListener("visibilitychange", sync);
@@ -177,163 +76,249 @@ function useViewingHour() {
       document.removeEventListener("visibilitychange", sync);
       window.removeEventListener("pageshow", sync);
     };
-  }, []);
-  return hour;
+  }, [data]);
+  return useMemo(() => {
+    if (!data) return null;
+    const viewedAt = Math.max(now, data.asOf);
+    const blocks = hourlyRibbon(data, viewedAt);
+    const responseEnd = hourlyComparisonEnd(data);
+    const expired = kstStamp(viewedAt).slice(0, 10) > data.dates[1] ||
+      (responseEnd !== null && viewedAt >= responseEnd);
+    return { blocks, expired };
+  }, [data, now]);
 }
 
-interface HourlyForecastProps {
-  data?: HourlyComparison;
-  children: ReactNode;
-  onRefresh(): void;
-}
-
-export function HourlyForecastComparison({ data, children, onRefresh }: HourlyForecastProps) {
-  return data ? <HourlyForecastModes data={data} onRefresh={onRefresh}>{children}</HourlyForecastModes> : children;
-}
-
-function HourlyForecastModes({ data, children, onRefresh }: HourlyForecastProps & { data: HourlyComparison }) {
-  const viewingHour = useViewingHour();
-  const viewedAt = Math.max(viewingHour, data.asOf);
-  const today = kstStamp(viewingHour).slice(0, 10);
-  const tomorrow = kstStamp(viewingHour + 24 * HOUR_MS).slice(0, 10);
-  const [choice, setMode] = useState<HourlyMode>(children ? "primary" : "average");
-  const [chosenDate, setDate] = useState<string | null>(null);
-  const [hour, setHour] = useState<{ date: string; index: number } | null>(null);
-  const date = chosenDate ?? data.dates.find((value) => value >= today) ?? data.dates[1];
-  // Keep the source picker tied to what the response supplied for this date.
-  // An hour expiring must not drop the user's selected provider or date.
-  const sources = useMemo(() => availableSources(data, date), [data, date]);
-  const source = sources.find(({ id }) => id === choice);
-  const mode = choice === "primary" || choice === "average" || source ? choice : "compare";
-  const native = source !== undefined && !HOURLY_ALIGNMENT[source.id].chance;
-  const responseEnd = useMemo(() => hourlyComparisonEnd(data), [data]);
-  const expired = today > data.dates[1] || (responseEnd !== null && viewedAt >= responseEnd);
-  const rows = useMemo(() => hourlyRows(data, date, source, viewedAt), [data, date, source, viewedAt]);
-  const firstAvailable = rows.findIndex((row) => !row.elapsed &&
-    (source ? row.reading && (row.reading.chance !== null || row.reading.amount !== null) : row.chance.length || row.amount.length));
-  const selectedHour = hour?.date === date
-    ? hour.index
-    : Math.max(firstAvailable, rows.findIndex((row) => !row.elapsed), 0);
-  const selected = rows[selectedHour];
-
-  function changeDate(next: string) {
-    setDate(next);
-    setHour(null);
-    if (source && !availableSources(data, next).some(({ id }) => id === source.id)) setMode("compare");
+export function HourlyRainHeadline({ blocks }: { blocks: HourlyRibbonBlock[] }) {
+  const firstWet = blocks.findIndex((block) => wet(block.peak));
+  if (firstWet === -1) {
+    return blocks.some((block) => block.peak !== null)
+      ? `확인된 시간은 ${RAIN_ONSET_PROBABILITY}% 미만이에요`
+      : "평균 강수확률 자료가 부족해요";
   }
+  const first = blocks[firstWet];
+  if (firstWet === 0) return <><b>지금 구간</b>에 비 예상</>;
+  const next = blocks.slice(firstWet + 1).find((block) => !wet(block.peak));
+  const startDate = day(first.start) === day(blocks[0].start) ? "" : day(first.start);
+  const endDate = next && day(next.start) !== day(first.start) ? `${day(next.start)} ` : "";
+  const startTime = `${clock(first.start).slice(0, 2)}시`;
+  return (
+    <>
+      {startDate && <><b className="local-answer-clause">{startDate}</b>{" "}</>}
+      {next?.chanceHours === 3 ? (
+        <>
+          <span className="local-answer-clause"><b>{startTime}</b>부터</span>{" "}
+          <span className="local-answer-clause"><b>{endDate}{clock(next.start).slice(0, 2)}시</b>까지 비 예상</span>
+        </>
+      ) : (
+        <span className="local-answer-clause"><b>{startTime}</b>부터 비 예상</span>
+      )}
+    </>
+  );
+}
 
-  function inspectHour(next: number) {
-    setHour({ date, index: next });
-    document.getElementById("local-hourly-hour")?.focus();
+export function HourlyPeak({ blocks }: { blocks: HourlyRibbonBlock[] }) {
+  const peak = blocks.reduce<HourlyRibbonBlock | null>((best, block) =>
+    block.peak !== null && (best?.peak == null || block.peak > best.peak) ? block : best, null);
+  return peak && (
+    <p className="local-answer-sub">
+      <span>시간별 최고 <b className={wet(peak.peak) ? "is-wet" : undefined}>{probability(peak.peak)}</b> · {day(peak.start)} {rangeLabel(peak.start, peak.end)}</span>
+    </p>
+  );
+}
+
+function Members({ members }: { members: HourlyRow["chance"] }) {
+  return <small>{members.length}곳{members.length > 0 && ` · ${members.map(({ source }) => source.name).join(", ")}`}</small>;
+}
+
+function SourceMetric({ source, row, metric }: {
+  source: HourlyProviderSeries;
+  row: HourlyRow;
+  metric: "chance" | "amount";
+}) {
+  const { aligned, stamp, value } = hourlySourceReading(source, row.start, metric);
+  return (
+    <>
+      {metric === "chance" ? probability(typeof value === "object" ? null : value) : amountText(value, true)}
+      <small>{clock(stamp)} {aligned ? "종료" : "제공사 시각"}</small>
+    </>
+  );
+}
+
+function ComparisonRows({ block, source }: { block: HourlyRibbonBlock; source: HourlyProviderSeries | undefined }) {
+  return (
+    <table className="local-hourly-table">
+      <caption>{day(block.start)} {rangeLabel(block.start, block.end)} KST</caption>
+      <colgroup><col className="local-hourly-time-col" /><col /><col /></colgroup>
+      <thead>
+        <tr>
+          <th scope="col">시간</th>
+          <th scope="col">확률{!source && <small>범위</small>}</th>
+          <th scope="col">강수량{!source && <small>평균</small>}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {block.hours.map((row) => {
+          const spread = hourlyExtremes(row.chance);
+          return (
+            <tr key={row.start}>
+              <th scope="row"><span>{clock(row.start)}</span>–<wbr /><span>{clock(row.end)}</span></th>
+              {row.state !== "complete" ? (
+                <td colSpan={2}>{row.state === "elapsed" ? "지난 시간" : "진행 중인 시간"} · 평균 제외</td>
+              ) : source ? (
+                <>
+                  <td><SourceMetric source={source} row={row} metric="chance" /></td>
+                  <td><SourceMetric source={source} row={row} metric="amount" /></td>
+                </>
+              ) : (
+                <>
+                  <td>
+                    {spread ? spread.low === spread.high ? probability(spread.high) : `${probability(spread.low)}–${probability(spread.high)}` : "두 곳 미만"}
+                    <Members members={row.chance} />
+                  </td>
+                  <td>{amountText(hourlyMean(row.amount))}<Members members={row.amount} /></td>
+                </>
+              )}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+export function HourlyForecastComparison({ data, blocks, expired, onRefresh }: {
+  data: HourlyComparison;
+  blocks: HourlyRibbonBlock[];
+  expired: boolean;
+  onRefresh(): void;
+}) {
+  const [selectedStart, setSelectedStart] = useState<number | null>(null);
+  const [choice, setChoice] = useState("compare");
+  const [atEnd, setAtEnd] = useState(false);
+  const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+  const scroller = useRef<HTMLDivElement>(null);
+  const disclosure = useRef<HTMLDetailsElement>(null);
+  const summary = useRef<HTMLElement>(null);
+  const selectedIndex = Math.max(0, blocks.findIndex(({ start }) => start === selectedStart));
+  const selected = blocks[selectedIndex];
+  const source = data.sources.find(({ id }) => id === choice);
+  const hasAverage = blocks.some(({ hours }) => hours.some((row) => row.chance.length >= 2 || row.amount.length >= 2));
+  const hasComparison = data.sources.some(({ status, hours }) => status !== "unavailable" && Object.keys(hours).length > 0);
+
+  function move(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const next = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: blocks.length - 1 }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    const target = Math.max(0, Math.min(next, blocks.length - 1));
+    const button = buttons.current[target];
+    if (!button || !scroller.current) return;
+    const column = button.getBoundingClientRect();
+    const viewport = scroller.current.getBoundingClientRect();
+    button.focus({ preventScroll: true });
+    scroller.current.scrollBy({ left: column.left < viewport.left ? column.left - viewport.left : Math.max(0, column.right - viewport.right) });
+    setSelectedStart(blocks[target].start);
   }
 
   return (
-    <section className="local-hourly" aria-labelledby="local-hourly-heading">
-      <div className="local-card-head">
-        <h2 id="local-hourly-heading">시간대별 강수 예보</h2>
+    <section className="local-ribbon local-hourly" aria-labelledby="local-hourly-heading" onKeyDown={(event) => {
+      if (event.key === "Escape" && disclosure.current?.open) {
+        disclosure.current.open = false;
+        summary.current?.focus();
+      }
+    }}>
+      <div className="local-ribbon-head">
+        <h2 id="local-hourly-heading" className="local-ribbon-src"><i aria-hidden />시간대별 강수 예보</h2>
+        <span className="local-ribbon-note">{hasAverage ? "서비스 평균" : "평균 자료 부족"} · {day(blocks[0].start)} KST</span>
       </div>
-      <div className="local-hourly-controls">
-        <label>
-          <span>시간별 예보 보기</span>
-          <select value={mode} onChange={(event) => { setMode(event.target.value as HourlyMode); setHour(null); }}>
-            {children && <option value="primary">기본 · 단독 예보</option>}
-            <option value="average">평균 · 같은 시간</option>
-            <option value="compare">서비스 비교</option>
-            {sources.map(({ id, name }) => (
-              <option key={id} value={id}>{id === "kma" ? "기상청" : name}</option>
-            ))}
-          </select>
-        </label>
-        {mode !== "primary" && (
-          <label>
-            <span>예보 날짜</span>
-            <select value={date} onChange={(event) => changeDate(event.target.value)}>
-              {data.dates.map((value) => <option key={value} value={value}>{value === today ? "오늘" : value === tomorrow ? "내일" : value}</option>)}
-            </select>
-          </label>
-        )}
+      <p className="local-hourly-swipe">
+        {atEnd ? <><span aria-hidden="true">←</span> 앞 시간 보기</> : <>옆으로 넘겨 다음 시간 보기 <span aria-hidden="true">→</span></>}
+      </p>
+      <p id="local-hourly-keys" className="sr-only">좌우 화살표로 이동하고 Home과 End 키로 처음과 마지막 구간을 확인할 수 있습니다.</p>
+      <div ref={scroller} className="local-ribbon-scroll" onScroll={({ currentTarget: track }) => {
+        setAtEnd(track.scrollLeft > 0 && track.scrollWidth - track.clientWidth - track.scrollLeft < 2);
+      }}>
+        <ol className="local-ribbon-grid local-hourly-grid" role="list" aria-label="연속된 3시간 구간 8개" aria-describedby="local-hourly-keys"
+          style={{ "--cols": 8, "--threshold": `${RAIN_ONSET_PROBABILITY}%` } as CSSProperties}>
+          {blocks.map((block, index) => {
+            const { start, end, peak, chanceHours, completeHours } = block;
+            const startHour = Number(clock(start).slice(0, 2));
+            const label = index === 0 ? "지금" : periodNameForHour(startHour);
+            const daybreak = index > 0 && startHour === 0;
+            const inspected = selectedStart !== null && selected.start === start;
+            const isWet = wet(peak);
+            const qualifier = completeHours < 3
+              ? chanceHours ? `남은 ${chanceHours}시간 반영` : completeHours ? "남은 시간 자료 부족" : "온전히 남은 시간 없음"
+              : chanceHours > 0 && chanceHours < 3 ? `확률 ${chanceHours}/3시간` : "";
+            const accessible = [label, `${day(start)} ${rangeLabel(start, end)}`, `최고 확률 ${probability(peak)}`,
+              `강수량 ${periodAmount(block)}`, qualifier, isWet ? "비 예상" : ""].filter(Boolean).join(", ");
+            return (
+              <li key={start} className={`local-ribbon-col${isWet ? " is-wet" : ""}${daybreak ? " is-daybreak" : ""}${inspected ? " is-scrubbed" : ""}`}
+                aria-current={index === 0 ? "time" : undefined}>
+                <span className="local-hourly-day" aria-hidden="true">{daybreak ? day(start) : ""}</span>
+                <span className="local-ribbon-chead" aria-hidden="true">
+                  <span className="local-ribbon-per">{label}</span>
+                  <b className="local-ribbon-rng">{rangeLabel(start, end)}</b>
+                </span>
+                <span className={`local-ribbon-track${peak === null ? " is-na" : ""}`} aria-hidden="true">
+                  {index === 0 && <span className="local-ribbon-rule">{RAIN_ONSET_PROBABILITY}%</span>}
+                  {peak !== null && peak > 0 && <span className="local-ribbon-bar" style={{ "--h": `${peak}%` } as CSSProperties} />}
+                </span>
+                <span className="local-ribbon-cfoot" aria-hidden="true">
+                  <strong className={`local-ribbon-val${peak === null || peak === 0 ? " is-na" : ""}`}>{probability(peak)}</strong>
+                  <span className={`local-hourly-mm${block.sum === null || block.sum === 0 ? " is-quiet" : ""}`}>{periodAmount(block)}</span>
+                  {qualifier && <small className="local-ribbon-hint">{qualifier}</small>}
+                </span>
+                <button type="button" ref={(element) => { buttons.current[index] = element; }} className="local-hourly-hit"
+                  aria-label={accessible} aria-pressed={inspected} tabIndex={index === selectedIndex ? 0 : -1}
+                  onClick={() => setSelectedStart(start)} onKeyDown={(event) => move(event, index)} />
+              </li>
+            );
+          })}
+        </ol>
       </div>
-      {mode === "primary" ? children : (
-        <>
-          <p className="local-hourly-note">
-            {mode === "average" ? "같은 한 시간의 수치를 같은 비중으로 평균합니다. 확률과 양은 각각 두 곳 이상일 때 표시합니다. 내일 정확도 가중치는 일별 예보에 적용합니다."
-              : mode === "compare" ? "같은 한 시간에 맞춘 값만 비교합니다. 제공사 시각으로 표시된 값은 개별 보기에서 확인할 수 있습니다."
-              : native ? `${source.name} 제공사 시각 · ${HOURLY_ALIGNMENT[source.id].amount ? "강수확률의 적용 구간 미확인" : "확률과 양의 적용 구간 미확인"}`
-              : `${source?.name} · 한국 시간 유효 구간`}
-            {source?.status === "stale" && " · 이전 응답"}
-          </p>
-          <p className="local-hourly-note">{data.dates[0] < today ? "이전 조회 자료" : "조회 기준"} {dated(data.asOf)} KST</p>
-          {expired && (
-            <>
-              <p className="local-hourly-note" role="status">이 응답에서 유효한 예보 시간이 지났습니다.</p>
-              <div className="local-error-actions">
-                <button type="button" onClick={onRefresh}>예보 다시 불러오기</button>
-              </div>
-            </>
-          )}
-          <p className="local-hourly-date"><time dateTime={date}>{date}</time> <span>KST</span></p>
-          <ol className="local-hourly-grid" aria-label="하루 여덟 구간">
-            {hourlyBlocks(rows, mode, source).map(({ hours, peak, sum, chanceHours, amountHours, hasRange }) => {
-              const [first, , last] = hours;
-              const elapsed = hours.every((row) => row.elapsed);
-              const label = `${clock(first.start)}–${native ? clock(last.start) : clock(last.end)}`;
-              const range = peak?.range;
-              return (
-                <li key={first.start} className={hours.includes(selected) ? "is-inspected" : undefined}>
-                  <span className="local-hourly-period">{!native && last.end === rows[23].end ? `${clock(first.start)}–24:00` : label}</span>
-                  <div className="local-hourly-tile">
-                    <ChanceBar low={range?.low} high={peak?.value ?? null} />
-                    <strong>{elapsed ? "지난 구간" : range
-                      ? `${probability(range.low)}–${probability(range.high)}`
-                      : probability(peak?.value ?? null)}</strong>
-                    {!elapsed && range && <span>차이 {number.format(range.high - range.low)}%p</span>}
-                    {!elapsed && mode !== "compare" && !native && (
-                      <span>{sum !== null ? amountText(sum) : hasRange ? "양 범위 개별 확인" : "구간 양 자료 부족"}</span>
-                    )}
-                    {!elapsed && chanceHours < 3 && <small>확률 {chanceHours}/3시간</small>}
-                    {!elapsed && !source && <small>확률 {providerCount(hours, "chance")}</small>}
-                    {!elapsed && mode === "average" && (
-                      <small>양 {providerCount(hours, "amount")}{amountHours < 3 && ` · ${amountHours}/3시간`}</small>
-                    )}
-                    {!elapsed && hours.some((row) => row.elapsed) && <small>지난 시간 포함</small>}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-          <p className="local-hourly-note">
-            {native ? "막대 0–100% · 제공사 시각을 세 개씩 묶고 그중 가장 높은 강수확률을 표시합니다."
-              : mode === "compare" ? "막대 0–100% · 각 구간에서 비교 가능한 시간별 강수확률 중 최댓값이 나온 한 시간의 범위입니다."
-              : "막대 0–100% · 구간 안에서 가장 높은 시간별 강수확률입니다. 양은 세 시간의 수치가 모두 있을 때 더합니다."}
-          </p>
-          <div className="local-hourly-exact">
+      {selectedStart === selected.start && (
+        <p className="local-hourly-readout" role="status"><b>{day(selected.start)} {rangeLabel(selected.start, selected.end)}</b>{" "}
+          · 최고 확률 {probability(selected.peak)} · 강수량 {periodAmount(selected)}
+        </p>
+      )}
+      <p className="local-hourly-note">
+        <b>{RAIN_ONSET_PROBABILITY}% 이상</b>을 비 예상 구간으로 봅니다. 확률은 구간 안의 시간별 평균 중 최고값입니다.
+        강수량은 온전한 세 시간의 평균값이 모두 있을 때 합산합니다.
+      </p>
+      {(blocks[0].completeHours < 3 || !hasAverage) && (
+        <p className="local-hourly-note">
+          {!hasAverage ? "같은 시간에 두 곳 이상 발표한 수치가 있어야 평균을 표시합니다." : "지금 구간은 지난 시간과 진행 중인 시간을 뺍니다."}
+        </p>
+      )}
+      {expired && (
+        <div className="local-error-actions">
+          <p className="local-hourly-note" role="status">이 응답에서 유효한 예보 시간이 지났습니다.</p>
+          <button type="button" onClick={onRefresh}>예보 다시 불러오기</button>
+        </div>
+      )}
+      {hasComparison && (
+        <details className="local-hourly-all" ref={disclosure}>
+          <summary ref={summary}>서비스별 예보</summary>
+          <div className="local-hourly-detail">
             <label>
-              <span>{native ? "정확한 제공사 시각" : "정확한 한 시간"}</span>
-              <select id="local-hourly-hour" value={selectedHour} onChange={(event) => setHour({ date, index: Number(event.target.value) })}>
-                {rows.map((row, index) => (
-                  <option key={row.start} value={index}>{hourLabel(row, native)}{row.elapsed ? " · 지난 시간" : ""}</option>
+              <span>서비스별 예보 보기</span>
+              <select value={source?.id ?? "compare"} onChange={(event) => setChoice(event.target.value)}>
+                <option value="compare">서비스 비교</option>
+                {data.sources.map(({ id, name, status }) => (
+                  <option key={id} value={id}>{name}{status === "stale" ? " · 이전 응답" : status === "unavailable" ? " · 응답 없음" : ""}</option>
                 ))}
               </select>
             </label>
-            <p className="local-hourly-valid" aria-live="polite">
-              {dated(selected.start)}{!native && `–${dated(selected.end)}`} KST
+            <p className="local-hourly-note">
+              {source?.status === "stale" ? "이전 응답입니다. 평균에서 제외합니다. " : source?.status === "unavailable" ? "서비스 응답이 없습니다. " : ""}
+              {source ? "종료로 표시한 값은 해당 한 시간의 예보입니다. 제공사 시각은 값의 적용 구간을 확인할 수 없습니다."
+                : "리본에서 고른 구간을 봅니다. 지표별로 같은 시간에 발표된 최신 수치를 같은 비중으로 평균합니다."}
             </p>
-            {source?.id === "visual-crossing" && (
-              <p className="local-hourly-note">
-                양 유효 구간 {dated(selected.start - (selected.end - selected.start))}–{dated(selected.start)} KST
-              </p>
-            )}
-            <Reading row={selected} mode={mode} source={source} />
-            {!source && !selected.elapsed && (mode === "average" ? (
-              <details className="local-hourly-all">
-                <summary>서비스별 값과 제외 항목</summary>
-                <SourceTable row={selected} />
-              </details>
-            ) : <SourceTable row={selected} />)}
+            <ComparisonRows block={selected} source={source} />
           </div>
-          <FullDayTable rows={rows} mode={mode} source={source} native={native} onInspect={inspectHour} />
-        </>
+        </details>
       )}
+      <p className="local-hourly-note">조회 기준 <time dateTime={new Date(data.asOf).toISOString()}>{dated(data.asOf)} KST</time></p>
     </section>
   );
 }

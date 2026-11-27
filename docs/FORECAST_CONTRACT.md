@@ -62,13 +62,12 @@ npm run performance:seed -- --start=2025-06-01 --end=2025-08-31
 ## User flow
 
 1. Choose device location, search for a Korean area, or select an example.
-2. Read the expected rain window and next 24 hours from the named hourly provider, for example "오후 3시부터 저녁 7시까지 비 예상". The rain-window threshold is 40% or higher. Lower values do not mean rain is impossible; unpublished values remain labelled as missing, and a length such as "앞으로 24시간" is stated only when every block is published and the blocks are contiguous. Without an hourly series, the headline shows the blended day probability instead.
-   The umbrella line covers the rest of today (now until midnight KST). Rain at or above the threshold in today's remaining blocks means take an umbrella. Before noon, a blended day total of 10 mm or more also does, because a day total carries no timing. Rain only after midnight reads as no umbrella today.
+2. Read the hourly rain window and eight clock-aligned three-hour blocks starting with the current KST block. Each block shows the highest available hourly service-average probability, with an amber cue at 40% or higher. An average needs at least two fresh numeric values aligned to the same whole hour, separately for each metric. A block shows an amount total only when all three complete hours have amount averages. The ribbon excludes elapsed and in-progress hours from its averages. Open **서비스별 예보** to inspect the selected block's counts, ranges and original source values, including provider timestamps where interval alignment is unknown. Older responses without hourly comparison data retain the labeled single-provider view.
 3. Compare today and tomorrow, each labelled with its calculation method. Rainfall amount has its own provider count.
 4. Read the provider comparison, longer outlook and scoring evidence below; only the raw scoring table is folded and expands on request.
 5. Open the evidence-status link to the station's [`/behind-the-data`](https://raintoday.vercel.app/behind-the-data) record. Device-location links carry only the public station ID; area links carry the area's representative coordinate.
 
-The supporting evidence is always shown in full below the answer; there is no density control. Pointer movement or arrow keys inspect individual timeline blocks.
+The supporting evidence is shown below the answer. Tap a ribbon block or use the arrow keys to inspect it. The ribbon advances with the clock using the existing response. When its coverage expires, the page offers a manual refresh.
 
 ## Architecture
 

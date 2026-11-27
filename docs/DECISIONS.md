@@ -1603,3 +1603,22 @@ separate dataset and do not appear in the live location comparison.
 [KMA forecast timing, PDF page 97](https://www.kma.go.kr/kma/servlet/NeoboardProcess?bid=policy_research&mode=download&num=66&fno=1&k=ATC202506171516021_10a47a5f-886e-49b7-875a-0c1088a29350.pdf#page=97) ·
 [Visual Crossing interval clarification](https://support.visualcrossing.com/hc/en-us/community/posts/6727993547661-Exact-periods-ranges-of-hourly-weather-timeline) ·
 [WeatherAPI hourly fields](https://www.weatherapi.com/docs/forecast-api/)
+
+## 2026-11-28 — Open the hourly ribbon on the rolling service average
+
+Supersedes the default ribbon and calendar-date controls in the November 27
+decision. The hourly answer and ribbon open on the service average. The single
+row starts with the current clock-aligned KST three-hour block and keeps the
+next seven blocks visible or reachable by horizontal scrolling. Midnight has
+its own date marker. Selecting a block and opening **서비스별 예보** reveals its
+aligned comparison and original provider values. A response issued before the
+hourly comparison contract retains the labeled single-provider view.
+
+Probability is the highest of the available one-hour averages within a block.
+The 40% cue uses the unrounded peak. Elapsed and in-progress hours are excluded.
+The amount total requires a numeric average for each of the three complete
+hours. Each average still requires two aligned, fresh, numeric sources for its
+own metric. A one-source forecast can be inspected by name. Empty slots and
+partial blocks keep their time labels. The clock and comparisons reuse the
+response, and an expired response can be refreshed manually. Daily forecasting,
+provider requests and weighting retain the November 27 serving contract.
