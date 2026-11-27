@@ -38,7 +38,7 @@ function probability(value: number | "invalid" | null) {
   return `${rounded}%`;
 }
 
-function amountText(value: ReturnType<typeof hourlySourceReading>["value"], raw = false): string {
+function amountText(value: NonNullable<ReturnType<typeof hourlySourceReading>>["value"], raw = false): string {
   if (value === "invalid") return "값 확인 불가";
   if (value === null) return "미발표";
   if (typeof value === "number") {
@@ -88,41 +88,23 @@ export function useHourlyRibbon(data: HourlyComparison | undefined) {
   }, [data, now]);
 }
 
-export function HourlyRainHeadline({ blocks }: { blocks: HourlyRibbonBlock[] }) {
-  const firstWet = blocks.findIndex((block) => wet(block.peak));
-  if (firstWet === -1) {
-    return blocks.some((block) => block.peak !== null)
-      ? `확인된 시간은 ${RAIN_ONSET_PROBABILITY}% 미만이에요`
-      : "평균 강수확률 자료가 부족해요";
-  }
-  const first = blocks[firstWet];
-  if (firstWet === 0) return <><b>지금 구간</b>에 비 예상</>;
-  const next = blocks.slice(firstWet + 1).find((block) => !wet(block.peak));
-  const startDate = day(first.start) === day(blocks[0].start) ? "" : day(first.start);
-  const endDate = next && day(next.start) !== day(first.start) ? `${day(next.start)} ` : "";
-  const startTime = `${clock(first.start).slice(0, 2)}시`;
-  return (
-    <>
-      {startDate && <><b className="local-answer-clause">{startDate}</b>{" "}</>}
-      {next?.chanceHours === 3 ? (
-        <>
-          <span className="local-answer-clause"><b>{startTime}</b>부터</span>{" "}
-          <span className="local-answer-clause"><b>{endDate}{clock(next.start).slice(0, 2)}시</b>까지 비 예상</span>
-        </>
-      ) : (
-        <span className="local-answer-clause"><b>{startTime}</b>부터 비 예상</span>
-      )}
-    </>
-  );
-}
-
-export function HourlyPeak({ blocks }: { blocks: HourlyRibbonBlock[] }) {
+function HourlySummary({ blocks }: { blocks: HourlyRibbonBlock[] }) {
+  const first = blocks.find((block) => wet(block.peak));
   const peak = blocks.reduce<HourlyRibbonBlock | null>((best, block) =>
     block.peak !== null && (best?.peak == null || block.peak > best.peak) ? block : best, null);
-  return peak && (
-    <p className="local-answer-sub">
-      <span>시간별 최고 <b className={wet(peak.peak) ? "is-wet" : undefined}>{probability(peak.peak)}</b> · {day(peak.start)} {rangeLabel(peak.start, peak.end)}</span>
-    </p>
+  const firstLabel = first && (first === blocks[0] ? "지금 구간" :
+    `${day(first.start) === day(blocks[0].start) ? "" : `${day(first.start)} `}${rangeLabel(first.start, first.end)} 구간`);
+  return (
+    <>
+      <p className="local-hourly-summary">
+        {firstLabel ? <><b>{firstLabel}</b>에 비 예상</> : peak
+          ? `확인된 시간은 ${RAIN_ONSET_PROBABILITY}% 미만이에요`
+          : "평균 강수확률 자료가 부족해요"}
+      </p>
+      {peak && <p className="local-hourly-note">
+        시간별 최고 <strong>{probability(peak.peak)}</strong> · {day(peak.start)} {rangeLabel(peak.start, peak.end)}
+      </p>}
+    </>
   );
 }
 
@@ -130,12 +112,15 @@ function Members({ members }: { members: HourlyRow["chance"] }) {
   return <small>{members.length}곳{members.length > 0 && ` · ${members.map(({ source }) => source.name).join(", ")}`}</small>;
 }
 
-function SourceMetric({ source, row, metric }: {
+function SourceMetric({ data, source, row, metric }: {
+  data: HourlyComparison;
   source: HourlyProviderSeries;
   row: HourlyRow;
   metric: "chance" | "amount";
 }) {
-  const { aligned, stamp, value } = hourlySourceReading(source, row.start, metric);
+  const reading = hourlySourceReading(data, source, row.start, metric);
+  if (!reading) return "응답 범위 밖";
+  const { aligned, stamp, value } = reading;
   return (
     <>
       {metric === "chance" ? probability(typeof value === "object" ? null : value) : amountText(value, true)}
@@ -144,7 +129,7 @@ function SourceMetric({ source, row, metric }: {
   );
 }
 
-function ComparisonRows({ block, source }: { block: HourlyRibbonBlock; source: HourlyProviderSeries | undefined }) {
+function ComparisonRows({ data, block, source }: { data: HourlyComparison; block: HourlyRibbonBlock; source: HourlyProviderSeries | undefined }) {
   return (
     <table className="local-hourly-table">
       <caption>{day(block.start)} {rangeLabel(block.start, block.end)} KST</caption>
@@ -166,8 +151,8 @@ function ComparisonRows({ block, source }: { block: HourlyRibbonBlock; source: H
                 <td colSpan={2}>{row.state === "elapsed" ? "지난 시간" : "진행 중인 시간"} · 평균 제외</td>
               ) : source ? (
                 <>
-                  <td><SourceMetric source={source} row={row} metric="chance" /></td>
-                  <td><SourceMetric source={source} row={row} metric="amount" /></td>
+                  <td><SourceMetric data={data} source={source} row={row} metric="chance" /></td>
+                  <td><SourceMetric data={data} source={source} row={row} metric="amount" /></td>
                 </>
               ) : (
                 <>
@@ -230,6 +215,7 @@ export function HourlyForecastComparison({ data, blocks, expired, onRefresh }: {
         <h2 id="local-hourly-heading" className="local-ribbon-src"><i aria-hidden />시간대별 강수 예보</h2>
         <span className="local-ribbon-note">{hasAverage ? "서비스 평균" : "평균 자료 부족"} · {day(blocks[0].start)} KST</span>
       </div>
+      <HourlySummary blocks={blocks} />
       <p className="local-hourly-swipe">
         {atEnd ? <><span aria-hidden="true">←</span> 앞 시간 보기</> : <>옆으로 넘겨 다음 시간 보기 <span aria-hidden="true">→</span></>}
       </p>
@@ -314,7 +300,7 @@ export function HourlyForecastComparison({ data, blocks, expired, onRefresh }: {
               {source ? "종료로 표시한 값은 해당 한 시간의 예보입니다. 제공사 시각은 값의 적용 구간을 확인할 수 없습니다."
                 : "리본에서 고른 구간을 봅니다. 지표별로 같은 시간에 발표된 최신 수치를 같은 비중으로 평균합니다."}
             </p>
-            <ComparisonRows block={selected} source={source} />
+            <ComparisonRows data={data} block={selected} source={source} />
           </div>
         </details>
       )}

@@ -1607,7 +1607,7 @@ separate dataset and do not appear in the live location comparison.
 ## 2026-11-28 — Open the hourly ribbon on the rolling service average
 
 Supersedes the default ribbon and calendar-date controls in the November 27
-decision. The hourly answer and ribbon open on the service average. The single
+decision. The hourly ribbon opens on the service average. The single
 row starts with the current clock-aligned KST three-hour block and keeps the
 next seven blocks visible or reachable by horizontal scrolling. Midnight has
 its own date marker. Selecting a block and opening **서비스별 예보** reveals its
@@ -1615,10 +1615,16 @@ aligned comparison and original provider values. A response issued before the
 hourly comparison contract retains the labeled single-provider view.
 
 Probability is the highest of the available one-hour averages within a block.
-The 40% cue uses the unrounded peak. Elapsed and in-progress hours are excluded.
+The 40% cue uses the unrounded peak. The ribbon names the first period with a
+wet hourly average. That label makes no claim about an exact onset or continuous
+rain. Elapsed and in-progress hours are excluded.
 The amount total requires a numeric average for each of the three complete
 hours. Each average still requires two aligned, fresh, numeric sources for its
 own metric. A one-source forecast can be inspected by name. Empty slots and
-partial blocks keep their time labels. The clock and comparisons reuse the
+partial blocks keep their time labels. Individual readings follow the response
+dates in the metric's own time convention. An aligned amount ending at midnight
+belongs to the previous day. The clock and comparisons reuse the
 response, and an expired response can be refreshed manually. Daily forecasting,
 provider requests and weighting retain the November 27 serving contract.
+The main umbrella advisory retains the existing rest-of-today and before-noon
+daily amount rules.

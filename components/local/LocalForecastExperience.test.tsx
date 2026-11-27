@@ -1423,6 +1423,16 @@ test("umbrella: in the evening a heavy day total may already have fallen, so the
   assert.equal(advice, "우산 없이 나서도 괜찮아 보여요.");
 });
 
+test("modern hourly responses keep the daily umbrella decision and noon boundary", async () => {
+  const hourlyComparison = { dates: ["2026-08-17", "2026-08-18"], asOf: Date.parse("2026-08-17T11:00:00+09:00"), sources: [] };
+  const today = { ...dryToday, precipitationProbability: 80, precipitationAmountMm: 10 };
+  const probabilities = [10, 20, 20, 10, 10, 10, 10, 10];
+  assert.equal(await adviceFor({ today, hourlyComparison, timeline: seriesFrom(11, probabilities) }),
+    "시간대별 예보에는 없지만 여러 서비스가 오늘 10mm를 예상해요. 우산을 챙기세요.");
+  assert.equal(await adviceFor({ today, hourlyComparison: { ...hourlyComparison, asOf: hourlyComparison.asOf + 3_600_000 }, timeline: seriesFrom(12, probabilities) }),
+    "우산 없이 나서도 괜찮아 보여요.");
+});
+
 test("the umbrella advice never contradicts the headline above it", async () => {
   window.localStorage.setItem("raintoday.last-location.v1", SEED_LOCATION);
   // The blended day probability is high while the window this section describes

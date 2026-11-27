@@ -81,9 +81,16 @@ export function buildHourlyComparison(snapshots: readonly ProviderSnapshot[], no
   return { dates, asOf, sources };
 }
 
+function coverageBounds(comparison: HourlyComparison) {
+  return {
+    from: Date.parse(`${comparison.dates[0]}T00:00:00+09:00`),
+    until: Date.parse(`${comparison.dates[1]}T00:00:00+09:00`) + 24 * HOUR_MS,
+  };
+}
+
 /** Last displayable hour in the snapshot, bounded by the two dates it carries. */
 export function hourlyComparisonEnd(comparison: HourlyComparison): number | null {
-  const dayEnd = Date.parse(`${comparison.dates[1]}T00:00:00+09:00`) + 24 * HOUR_MS;
+  const { from, until } = coverageBounds(comparison);
   let latest: number | null = null;
   for (const source of comparison.sources) {
     if (source.status === "unavailable") continue;
@@ -95,8 +102,9 @@ export function hourlyComparisonEnd(comparison: HourlyComparison): number | null
         if (value === null || value === "invalid") continue;
         // Native metrics have no confirmed interval. Keep their existing
         // display rule: a stamp is readable through the hour it names.
-        const end = alignment[metric] ? stamp : stamp + HOUR_MS;
-        if (end <= dayEnd) latest = Math.max(latest ?? end, end);
+        const start = alignment[metric] ? stamp - HOUR_MS : stamp;
+        const end = start + HOUR_MS;
+        if (start >= from && end <= until) latest = Math.max(latest ?? end, end);
       }
     }
   }
@@ -121,7 +129,11 @@ export function hourlyExtremes(members: readonly Member[]) {
 }
 
 /** Keep each metric's original timestamp, even when a provider mixes conventions. */
-export function hourlySourceReading(source: HourlyProviderSeries, start: number, metric: keyof HourlyReading) {
+export function hourlySourceReading(comparison: HourlyComparison, source: HourlyProviderSeries, start: number, metric: keyof HourlyReading) {
+  const { from, until } = coverageBounds(comparison);
+  // A retained midnight stamp can close the previous day's aligned hour.
+  // The native metric at the same stamp belongs to the next day.
+  if (start < from || start + HOUR_MS > until) return null;
   const aligned = HOURLY_ALIGNMENT[source.id][metric];
   const stamp = aligned ? start + HOUR_MS : start;
   const value = source.status === "unavailable" ? null : source.hours[stamp]?.[metric] ?? null;
@@ -131,12 +143,12 @@ export function hourlySourceReading(source: HourlyProviderSeries, start: number,
 export type HourlyRow = ReturnType<typeof alignedHour>;
 export type HourlyRibbonBlock = ReturnType<typeof hourlyRibbon>[number];
 
-function alignedHour(sources: readonly HourlyProviderSeries[], start: number, viewedAt: number) {
+function alignedHour(comparison: HourlyComparison, start: number, viewedAt: number) {
   const end = start + HOUR_MS;
   const state = end <= viewedAt ? "elapsed" : start < viewedAt ? "in-progress" : "complete";
-  const members = (metric: keyof HourlyReading): Member[] => state !== "complete" ? [] : sources.flatMap((source) => {
+  const members = (metric: keyof HourlyReading): Member[] => state !== "complete" ? [] : comparison.sources.flatMap((source) => {
     if (source.status !== "fresh" || !HOURLY_ALIGNMENT[source.id][metric]) return [];
-    const value = source.hours[end]?.[metric];
+    const value = hourlySourceReading(comparison, source, start, metric)?.value;
     return typeof value === "number" ? [{ source, value }] : [];
   });
   return { start, end, state, chance: members("chance"), amount: members("amount") };
@@ -146,7 +158,7 @@ export function hourlyRibbon(comparison: HourlyComparison, viewedAt: number) {
   const first = Math.floor((viewedAt + KST_OFFSET) / BLOCK_MS) * BLOCK_MS - KST_OFFSET;
   return Array.from({ length: 8 }, (_, index) => {
     const start = first + index * BLOCK_MS;
-    const hours = Array.from({ length: 3 }, (_, hour) => alignedHour(comparison.sources, start + hour * HOUR_MS, viewedAt));
+    const hours = Array.from({ length: 3 }, (_, hour) => alignedHour(comparison, start + hour * HOUR_MS, viewedAt));
     const chances = hours.map((row) => hourlyMean(row.chance)).filter((value) => value !== null);
     const amounts = hours.map((row) => hourlyMean(row.amount));
     return {

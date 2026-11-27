@@ -153,6 +153,59 @@ test("threshold uses full precision and zero percent can still carry a tiny posi
   await expect(panel.getByText("10:20", { exact: true })).toHaveCount(0);
 });
 
+test("a partially published wet block and later wet hours stay separate in the hourly summary", async ({ page }) => {
+  const now = at("2026-11-23T10:20:00");
+  await page.clock.setFixedTime(now);
+  const comparison = buildHourlyComparison(seoulHourlySnapshots.slice(0, 2), now);
+  const intervals: [string, number][] = [
+    ["12:00", 0], ["15:00", 80], ["16:00", 0], ["17:00", 0], ["18:00", 0], ["20:00", 90],
+  ];
+  for (const source of comparison.sources) {
+    source.hours = Object.fromEntries(intervals.map(
+      ([time, chance]) => [at(`2026-11-23T${time}:00`).getTime(), { chance, amount: 0 }],
+    ));
+  }
+  let requests = 0;
+  await page.route("**/api/local-forecast", (route) => {
+    requests += 1;
+    return route.fulfill({ json: { ...forecast, hourlyComparison: comparison } });
+  });
+  await page.goto(seoulUrl);
+  const { panel, tiles, reveal, table } = controls(page);
+  await expect(panel.getByText("12:00–15:00 구간에 비 예상")).toBeVisible();
+  await expect(panel.getByText(/시간별 최고 90% · 11월 23일 18:00–21:00/)).toBeVisible();
+  await expect(tiles.nth(1).getByRole("button")).toHaveAccessibleName(/최고 확률 80%.*확률 1\/3시간/);
+  await tiles.nth(1).getByRole("button").click();
+  await reveal.click();
+  await expect(table.getByRole("row", { name: /12:00–13:00/ })).toContainText("두 곳 미만");
+  await expect(table.getByRole("row", { name: /13:00–14:00/ })).toContainText("두 곳 미만");
+  await expect(table.getByRole("row", { name: /14:00–15:00/ })).toContainText("80%");
+  await expect(page.locator(".local-answer-action")).toBeVisible();
+  expect(requests).toBe(1);
+});
+
+test("the response tail keeps the midnight-ending amount and hides third-date native chance", async ({ page }) => {
+  await page.clock.setFixedTime(at("2026-11-23T10:20:00"));
+  let requests = 0;
+  await page.route("**/api/local-forecast", (route) => {
+    requests += 1;
+    return route.fulfill({ json: forecast });
+  });
+  await page.goto(seoulUrl);
+  const { tiles, reveal, mode, table } = controls(page);
+  await tiles.nth(4).getByRole("button").click();
+  await reveal.click();
+  await mode.selectOption("visual-crossing");
+  const preceding = table.getByRole("row", { name: /23:00–00:00/ });
+  await expect(preceding.getByRole("cell").last()).toHaveText("0 mm00:00 종료");
+  await tiles.nth(5).getByRole("button").click();
+  await expect(tiles.nth(5).getByRole("button")).toHaveAccessibleName(/최고 확률 미발표, 강수량 미발표/);
+  const beyond = table.getByRole("row", { name: /00:00–01:00/ });
+  await expect(beyond.getByRole("cell").first()).toHaveText("응답 범위 밖");
+  await expect(beyond.getByRole("cell").last()).toHaveText("응답 범위 밖");
+  expect(requests).toBe(1);
+});
+
 test("one source stays available for inspection and a delayed location cannot restore its hourly values", async ({ page }) => {
   await page.clock.setFixedTime(at("2026-11-22T22:38:00"));
   let respond!: () => void;

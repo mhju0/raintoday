@@ -15,7 +15,7 @@ import {
   type ForecastLocationSelection,
 } from "@/lib/locationPrecision";
 import type { ForecastLocationSearchResult } from "@/lib/locationSearch";
-import { HourlyForecastComparison, HourlyPeak, HourlyRainHeadline, useHourlyRibbon } from "./HourlyForecastComparison";
+import { HourlyForecastComparison, useHourlyRibbon } from "./HourlyForecastComparison";
 import { useLocationCandidateSearch } from "./useLocationCandidateSearch";
 
 type ViewState =
@@ -1029,7 +1029,7 @@ function RainSentence({ run, endsTomorrow, peak, hours }: {
   );
 }
 
-/** Without an hourly series the headline states the day's own number. */
+/** The daily headline states the day's own probability. */
 function HeadlineDay({ day, label }: { day: { precipitationProbability: number | null }; label: string }) {
   return day.precipitationProbability === null
     ? <>{label} <span className="local-probability-label">강수확률 <b className="local-keep">미발표</b></span></>
@@ -1057,7 +1057,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
   const tomorrow = forecast.recommendation;
   const comparison = forecast.hourlyComparison;
   const hourly = useHourlyRibbon(comparison);
-  const timeline = hourly ? null : forecast.timeline;
+  const timeline = forecast.timeline;
   const blocks = timeline?.blocks ?? [];
   const run = timeline?.reading.firstRun ?? null;
   const laterRun = timeline?.reading.laterRun ?? null;
@@ -1188,14 +1188,13 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
       </div>
 
       <section className="local-answer" aria-labelledby="forecast-heading">
-        <p className="local-kicker">비 예보</p>
+        <p className="local-kicker">비 예보{hourly && timeline && <span> · 우산 안내에 {timeline.sourceName} 시간대 예보 참고</span>}</p>
         <h1 id="forecast-heading" ref={headingRef} tabIndex={-1}>
-          {hourly ? <HourlyRainHeadline blocks={hourly.blocks} /> : timeline
+          {!hourly && timeline
             ? <RainSentence run={run} endsTomorrow={runEndsTomorrow} peak={peak} hours={hours} />
             : <HeadlineDay day={today ?? tomorrow} label={today ? "오늘" : "내일"} />}
         </h1>
-        {hourly && <HourlyPeak blocks={hourly.blocks} />}
-        {timeline && (
+        {!hourly && timeline && (
           <p className="local-answer-sub">
             {peak && <span>최대 <b className="is-wet">{Math.round(peak.probability)}%</b>&nbsp;· {peak.rangeLabel}</span>}
             {run && <span>지속 <b>{run.durationHours}시간</b></span>}
@@ -1216,7 +1215,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
             <span>{timeline.threshold}% 이상인 시간대를 비 예상 구간으로 봅니다</span>
           </p>
         )}
-        {!hourly && <p className="local-answer-action">
+        <p className="local-answer-action">
           {timeline
             ? umbrellaAdvice({ blocks, dayOffsets, threshold: timeline.threshold, run, endsTomorrow: runEndsTomorrow, today })
             : rainAction(
@@ -1224,14 +1223,14 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
               (today ?? tomorrow).precipitationAmountMm,
               RAIN_ONSET_PROBABILITY,
             )}
-          {laterRun && run && !run.startsTomorrow && (
+          {!hourly && laterRun && run && !run.startsTomorrow && (
             <> 이후 <span className="local-keep">{laterRun.startsTomorrow ? "내일 " : ""}{clockLabel(laterRun.startHour)}부터</span> 다시 비가 예상됩니다.</>
           )}
-        </p>}
+        </p>
       </section>
 
       {comparison && hourly && <HourlyForecastComparison data={comparison} {...hourly} onRefresh={onRefresh} />}
-      {timeline && (
+      {!hourly && timeline && (
         <section className="local-ribbon" aria-labelledby="ribbon-heading">
           <div className="local-ribbon-head">
             <h2 id="ribbon-heading" className="local-ribbon-src">
@@ -1507,7 +1506,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
       <footer className="local-footer">
         <p>출처 Open-Meteo&nbsp;· 기상청&nbsp;· Pirate Weather&nbsp;· WeatherAPI&nbsp;· Visual Crossing 중 응답한 서비스&nbsp;· 모든 시각&nbsp;KST</p>
         <p>관측 검증: 기상청 ASOS&nbsp;· 사용자 좌표는 성능 기록 DB에 저장하지 않습니다.</p>
-        {timeline && (
+        {!hourly && timeline && (
           <p>
             시간대 확률은 {timeline.sourceName} 한 곳의 값이고, <span className="local-keep">오늘·내일</span> 확률은 여러 곳을 섞은
             값입니다.

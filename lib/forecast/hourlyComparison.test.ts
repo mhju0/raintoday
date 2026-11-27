@@ -30,16 +30,16 @@ test("the Seoul replay aligns interval ends and retains independent numeric memb
   assert.ok(Math.abs(hourlyMean(wet.amount)! - 1.66) < 1e-12);
   const range = blocks[6].hours[2];
   assert.ok(Math.abs(hourlyMean(range.amount)! - 0.68) < 1e-12);
-  assert.deepEqual(hourlySourceReading(kma, range.start, "amount"), {
+  assert.deepEqual(hourlySourceReading(comparison, kma, range.start, "amount"), {
     aligned: true, stamp: range.end, value: { lowMm: 0, highMm: 1 },
   });
-  assert.deepEqual(hourlySourceReading(weatherApi, wet.end, "chance"), {
+  assert.deepEqual(hourlySourceReading(comparison, weatherApi, wet.end, "chance"), {
     aligned: false, stamp: wet.end, value: 71,
   });
-  assert.deepEqual(hourlySourceReading(visual, wet.start, "amount"), {
+  assert.deepEqual(hourlySourceReading(comparison, visual, wet.start, "amount"), {
     aligned: true, stamp: wet.end, value: 0.7,
   });
-  assert.deepEqual(hourlySourceReading(visual, wet.start, "chance"), {
+  assert.deepEqual(hourlySourceReading(comparison, visual, wet.start, "chance"), {
     aligned: false, stamp: wet.start, value: 100,
   });
 });
@@ -58,6 +58,17 @@ test("the current clock controls elapsed and partial hours and keeps eight slots
   assert.equal(hourlyComparisonEnd(data), last.end);
   assert.equal(hourlyMean(last.chance), 0);
   assert.equal(hourlyMean(last.amount), 0.01 / 3);
+  const [open, , , visual] = data.sources;
+  assert.deepEqual(hourlySourceReading(data, open, last.start, "amount"), {
+    aligned: true, stamp: last.end, value: 0.01,
+  });
+  assert.deepEqual(hourlySourceReading(data, visual, last.start, "amount"), {
+    aligned: true, stamp: last.end, value: 0,
+  });
+  assert.equal(visual.hours[last.end].chance, 0, "raw endpoint also carries a native chance");
+  assert.equal(hourlySourceReading(data, visual, last.end, "chance"), null);
+  assert.equal(hourlySourceReading(data, visual, last.end, "amount"), null);
+  assert.equal(hourlySourceReading(data, visual, at("2026-11-21T23:00"), "amount"), null);
 
   const [before] = hourlyRibbon(data, at("2026-11-22T23:00") - 1);
   const [boundary] = hourlyRibbon(data, at("2026-11-22T23:00"));
@@ -87,13 +98,13 @@ test("stale, range, invalid and missing hours cannot fill numeric averages or a 
   const [, , , stale] = data.sources;
   const blocks = hourlyRibbon(data, at("2026-11-23T13:20"));
   assert.equal(hourlyMean(blocks[0].hours[2].amount), 0.00125);
-  assert.equal(hourlySourceReading(stale, blocks[0].hours[2].start, "amount").value, 0.7);
-  assert.equal(hourlySourceReading(data.sources[1], blocks[1].hours[0].start, "chance").value, "invalid");
+  assert.equal(hourlySourceReading(data, stale, blocks[0].hours[2].start, "amount")?.value, 0.7);
+  assert.equal(hourlySourceReading(data, data.sources[1], blocks[1].hours[0].start, "chance")?.value, "invalid");
   assert.equal(hourlyMean(blocks[1].hours[0].chance), null);
-  assert.equal(hourlySourceReading(data.sources[1], blocks[1].hours[1].start, "amount").value, "invalid");
+  assert.equal(hourlySourceReading(data, data.sources[1], blocks[1].hours[1].start, "amount")?.value, "invalid");
   assert.equal(blocks[1].sum, null);
   assert.equal(blocks[2].sum, null);
-  assert.equal(hourlySourceReading(data.sources[0], blocks[2].hours[0].start, "amount").value, null);
+  assert.equal(hourlySourceReading(data, data.sources[0], blocks[2].hours[0].start, "amount")?.value, null);
   assert.equal(hourlyMean(blocks[2].hours[0].amount), null);
   for (const sources of [[], [data.sources[0]], [data.sources[0], stale]]) {
     assert.ok(hourlyRibbon({ ...data, sources }, asOf.getTime()).every(({ peak, sum }) => peak === null && sum === null));
