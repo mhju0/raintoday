@@ -15,6 +15,7 @@ import {
   type ForecastLocationSelection,
 } from "@/lib/locationPrecision";
 import type { ForecastLocationSearchResult } from "@/lib/locationSearch";
+import { HourlyForecastComparison } from "./HourlyForecastComparison";
 import { useLocationCandidateSearch } from "./useLocationCandidateSearch";
 
 type ViewState =
@@ -1225,6 +1226,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
         </p>
       </section>
 
+      <HourlyForecastComparison data={forecast.hourlyComparison}>
       {timeline && (
         <section className="local-ribbon" aria-labelledby="ribbon-heading">
           <div className="local-ribbon-head">
@@ -1338,6 +1340,7 @@ function ForecastDashboard({ forecast, selection, onReset, recordHref }: {
           <p className="local-ribbon-swipe">← 옆으로 밀어 24시간 전체 보기</p>
         </section>
       )}
+      </HourlyForecastComparison>
 
       <p className="local-kicker">{today ? "오늘\u00a0· 내일" : "내일"}&nbsp;<span>: 여러 서비스를 섞은 하루 숫자</span></p>
       <div className="local-days">

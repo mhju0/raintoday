@@ -105,10 +105,10 @@ async function fetchHourlyAmounts(location: ForecastLocation): Promise<Map<strin
       .filter(([key]) => key === "precipitation" || key.startsWith("precipitation_member"))
       .map(([, series]) => (Array.isArray(series) ? (series as unknown[]) : []));
     hourly.time?.forEach((time, i) => {
-      const values = runs.map((run) => run[i]).filter((v): v is number => typeof v === "number");
+      const values = runs.map((run) => run[i]).filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0);
       if (values.length === 0) return;
       const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-      amounts.set(time, Math.round(mean * 100) / 100);
+      amounts.set(time, mean);
     });
   } catch {
     amounts.clear();
@@ -192,11 +192,13 @@ async function fetchSnapshot(location: ForecastLocation): Promise<Snapshot> {
     .slice(startIdx, startIdx + HOURLY_HORIZON_HOURS)
     .map((t, i) => {
       const idx = startIdx + i;
+      const amount = hourlyAmounts.get(t) ?? null;
       return {
         time: toKstIso(t),
         temperature: data.hourly.temperature_2m[idx],
         precipitationProbability: data.hourly.precipitation_probability[idx] ?? null,
-        precipitationAmount: hourlyAmounts.get(t) ?? null,
+        precipitationAmount: amount === null ? null : Math.round(amount * 100) / 100,
+        precipitationAmountUnrounded: amount,
         windSpeed: data.hourly.wind_speed_10m[idx],
         humidity: data.hourly.relative_humidity_2m[idx],
         condition: conditionFromWmoCode(data.hourly.weather_code[idx]),

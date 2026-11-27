@@ -2887,3 +2887,228 @@ html {
 .btd-picker-results button:hover:not(:focus-visible) {
   outline: 1px solid var(--local-line-2);
 }
+
+/* ---- calendar-day hourly comparison ---- */
+.local-hourly {
+  container-type: inline-size;
+  min-width: 0;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.local-hourly .local-card-head {
+  margin-block-end: 0.75rem;
+}
+
+.local-hourly-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-block-end: 1rem;
+}
+
+.local-hourly label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  min-inline-size: 0;
+  gap: 0.25rem;
+  max-inline-size: 100%;
+  color: var(--local-ink-2);
+  font-size: var(--t-label);
+}
+
+.local-hourly select {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  min-block-size: 44px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--local-line-2);
+  border-radius: 3px;
+  background: var(--local-panel);
+  color: var(--local-ink);
+  font-size: var(--t-body);
+}
+
+.local-hourly :is(select, summary, button):focus-visible {
+  outline: 2px solid var(--local-accent);
+  outline-offset: 2px;
+}
+
+.local-hourly-date,
+.local-hourly-period,
+.local-hourly-valid {
+  font-family: var(--local-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--local-ink);
+}
+
+.local-hourly-date {
+  margin: 1.25rem 0 0.8rem;
+  padding-inline: calc(0.6rem + 1px);
+  font-size: 1.2rem;
+  font-weight: 650;
+}
+
+.local-hourly-date span,
+.local-hourly-note,
+.local-hourly small {
+  color: var(--local-dim);
+  font-size: var(--t-label);
+}
+
+.local-hourly-note {
+  margin-block: 0.55rem;
+  line-height: 1.6;
+}
+
+.local-hourly-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem 0.45rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+@container (min-width: 15.5rem) {
+  .local-hourly-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 31rem) {
+  .local-hourly-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 63rem) {
+  .local-hourly-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+}
+
+.local-hourly-grid li {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-inline-size: 0;
+}
+
+.local-hourly-period {
+  padding: 0 calc(0.6rem + 1px) 0.28rem;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+
+.local-hourly-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--local-line-2);
+  border-radius: 3px;
+  background: var(--local-panel);
+  color: var(--local-ink-2);
+  font-size: var(--t-label);
+}
+
+.local-hourly-tile strong {
+  font-family: var(--local-mono);
+  font-size: 1rem;
+  color: var(--local-ink);
+}
+
+.local-hourly-grid .is-inspected .local-hourly-tile {
+  border-color: var(--local-accent-deep);
+}
+
+.local-hourly-track {
+  display: block;
+  inline-size: 100%;
+  block-size: 0.35rem;
+  overflow: hidden;
+  background: var(--local-line-2);
+  border-radius: 2px;
+}
+
+.local-hourly-track i {
+  display: block;
+  block-size: 100%;
+  background: var(--local-accent);
+}
+
+.local-hourly-exact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.7rem;
+  margin-block: 1.2rem 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--local-line-2);
+  border-radius: 3px;
+  background: var(--local-panel);
+}
+
+.local-hourly-valid,
+.local-hourly-exact p {
+  margin: 0;
+}
+
+.local-hourly-reading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.5rem;
+  margin: 0;
+  color: var(--local-ink-2);
+}
+
+.local-hourly-reading dd {
+  margin: 0.2rem 0 0;
+  font-family: var(--local-mono);
+  font-weight: 650;
+  color: var(--local-ink);
+}
+
+.local-hourly-chance {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.local-hourly-all summary,
+.local-hourly-table button {
+  color: var(--local-accent);
+  min-block-size: 44px;
+  cursor: pointer;
+}
+
+.local-hourly-all summary {
+  align-content: center;
+}
+
+.local-hourly-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--t-label);
+  color: var(--local-ink-2);
+}
+
+.local-hourly-table :is(th, td) {
+  padding: 0.45rem 0.35rem;
+  text-align: start;
+  border-block-start: 1px solid var(--local-line-2);
+}
+
+.local-hourly-table small {
+  display: block;
+}
+
+.local-hourly-table button {
+  border: 0;
+  padding: 0;
+  text-align: start;
+  font-family: var(--local-mono);
+  font-variant-numeric: tabular-nums;
+}
