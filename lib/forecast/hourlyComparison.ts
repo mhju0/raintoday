@@ -2,6 +2,7 @@ import type { ProviderSnapshot } from "../types.ts";
 
 export const HOUR_MS = 3_600_000;
 const KST_OFFSET = 9 * HOUR_MS;
+const BLOCK_MS = 3 * HOUR_MS;
 
 // The three confirmed accumulations end at the published timestamp. Native
 // metrics keep that timestamp but have no confirmed one-hour interval.
@@ -80,9 +81,16 @@ export function buildHourlyComparison(snapshots: readonly ProviderSnapshot[], no
   return { dates, asOf, sources };
 }
 
+function coverageBounds(comparison: HourlyComparison) {
+  return {
+    from: Date.parse(`${comparison.dates[0]}T00:00:00+09:00`),
+    until: Date.parse(`${comparison.dates[1]}T00:00:00+09:00`) + 24 * HOUR_MS,
+  };
+}
+
 /** Last displayable hour in the snapshot, bounded by the two dates it carries. */
 export function hourlyComparisonEnd(comparison: HourlyComparison): number | null {
-  const dayEnd = Date.parse(`${comparison.dates[1]}T00:00:00+09:00`) + 24 * HOUR_MS;
+  const { from, until } = coverageBounds(comparison);
   let latest: number | null = null;
   for (const source of comparison.sources) {
     if (source.status === "unavailable") continue;
@@ -94,18 +102,17 @@ export function hourlyComparisonEnd(comparison: HourlyComparison): number | null
         if (value === null || value === "invalid") continue;
         // Native metrics have no confirmed interval. Keep their existing
         // display rule: a stamp is readable through the hour it names.
-        const end = alignment[metric] ? stamp : stamp + HOUR_MS;
-        if (end <= dayEnd) latest = Math.max(latest ?? end, end);
+        const start = alignment[metric] ? stamp - HOUR_MS : stamp;
+        const end = start + HOUR_MS;
+        if (start >= from && end <= until) latest = Math.max(latest ?? end, end);
       }
     }
   }
   return latest;
 }
 
-export type HourlyMode = "primary" | "average" | "compare" | HourlyProviderId;
-export type DetailedReading = HourlyReading & { source: HourlyProviderSeries };
 interface Member {
-  id: HourlyProviderId;
+  source: HourlyProviderSeries;
   value: number;
 }
 
@@ -121,66 +128,45 @@ export function hourlyExtremes(members: readonly Member[]) {
   return { low: Math.min(...values), high: Math.max(...values) };
 }
 
-export function hourlyRows(
-  comparison: HourlyComparison,
-  date: string,
-  selected?: HourlyProviderSeries,
-  viewedAt = comparison.asOf,
-) {
-  const native = selected !== undefined && !HOURLY_ALIGNMENT[selected.id].chance;
-  const midnight = Date.parse(`${date}T00:00:00+09:00`);
-  return Array.from({ length: 24 }, (_, hour) => {
-    const start = midnight + hour * HOUR_MS;
-    const end = start + HOUR_MS;
-    const elapsed = native ? start < Math.floor(viewedAt / HOUR_MS) * HOUR_MS : end <= viewedAt;
-    const details = comparison.sources.map((source): DetailedReading => {
-      const alignment = HOURLY_ALIGNMENT[source.id];
-      const reading = source.hours[end];
-      return {
-        source,
-        chance: !elapsed && alignment.chance ? reading?.chance ?? null : null,
-        amount: !elapsed && alignment.amount ? reading?.amount ?? null : null,
-      };
-    });
-    const members = (metric: "chance" | "amount"): Member[] => details.flatMap((detail) => {
-      const value = detail[metric];
-      return detail.source.status === "fresh" && typeof value === "number" ? [{ id: detail.source.id, value }] : [];
-    });
-    const reading = elapsed ? undefined : native
-      ? selected.hours[start]
-      : details.find(({ source }) => source.id === selected?.id);
-    return { start, end, elapsed, details, reading, chance: members("chance"), amount: members("amount") };
-  });
+/** Keep each metric's original timestamp, even when a provider mixes conventions. */
+export function hourlySourceReading(comparison: HourlyComparison, source: HourlyProviderSeries, start: number, metric: keyof HourlyReading) {
+  const { from, until } = coverageBounds(comparison);
+  // A retained midnight stamp can close the previous day's aligned hour.
+  // The native metric at the same stamp belongs to the next day.
+  if (start < from || start + HOUR_MS > until) return null;
+  const aligned = HOURLY_ALIGNMENT[source.id][metric];
+  const stamp = aligned ? start + HOUR_MS : start;
+  const value = source.status === "unavailable" ? null : source.hours[stamp]?.[metric] ?? null;
+  return { aligned, stamp, value };
 }
 
-export type HourlyRow = ReturnType<typeof hourlyRows>[number];
+export type HourlyRow = ReturnType<typeof alignedHour>;
+export type HourlyRibbonBlock = ReturnType<typeof hourlyRibbon>[number];
 
-export function hourlyBlocks(rows: readonly HourlyRow[], mode: HourlyMode, source?: HourlyProviderSeries) {
+function alignedHour(comparison: HourlyComparison, start: number, viewedAt: number) {
+  const end = start + HOUR_MS;
+  const state = end <= viewedAt ? "elapsed" : start < viewedAt ? "in-progress" : "complete";
+  const members = (metric: keyof HourlyReading): Member[] => state !== "complete" ? [] : comparison.sources.flatMap((source) => {
+    if (source.status !== "fresh" || !HOURLY_ALIGNMENT[source.id][metric]) return [];
+    const value = hourlySourceReading(comparison, source, start, metric)?.value;
+    return typeof value === "number" ? [{ source, value }] : [];
+  });
+  return { start, end, state, chance: members("chance"), amount: members("amount") };
+}
+
+export function hourlyRibbon(comparison: HourlyComparison, viewedAt: number) {
+  const first = Math.floor((viewedAt + KST_OFFSET) / BLOCK_MS) * BLOCK_MS - KST_OFFSET;
   return Array.from({ length: 8 }, (_, index) => {
-    const hours = rows.slice(index * 3, index * 3 + 3);
-    const amounts = hours.map((row) => mode === "average" ? hourlyMean(row.amount) : row.reading?.amount);
-    const numeric = hours.flatMap((row) => {
-      const range = mode === "compare" ? hourlyExtremes(row.chance) : null;
-      const value = mode === "average" ? hourlyMean(row.chance)
-        : mode === "compare" ? range?.high
-        : source?.status === "fresh" ? row.reading?.chance : null;
-      return typeof value === "number" ? [{ value, range }] : [];
-    });
-    const peak = numeric.reduce<(typeof numeric)[number] | null>(
-      (best, next) => !best || next.value > best.value ? next : best, null,
-    );
-    const sum = source && (!HOURLY_ALIGNMENT[source.id].chance || source.status !== "fresh")
-      ? null
-      : amounts.every((value) => typeof value === "number")
-        ? amounts.reduce((total, value) => total + value, 0)
-        : null;
+    const start = first + index * BLOCK_MS;
+    const hours = Array.from({ length: 3 }, (_, hour) => alignedHour(comparison, start + hour * HOUR_MS, viewedAt));
+    const chances = hours.map((row) => hourlyMean(row.chance)).filter((value) => value !== null);
+    const amounts = hours.map((row) => hourlyMean(row.amount));
     return {
-      hours,
-      peak,
-      sum,
-      chanceHours: numeric.length,
-      amountHours: amounts.filter((value) => typeof value === "number").length,
-      hasRange: amounts.some((value) => value !== null && typeof value === "object"),
+      start, end: start + BLOCK_MS, hours,
+      peak: chances.length ? Math.max(...chances) : null,
+      sum: amounts.every((value) => value !== null) ? amounts.reduce((total, value) => total + value, 0) : null,
+      chanceHours: chances.length,
+      completeHours: hours.filter((row) => row.state === "complete").length,
     };
   });
 }

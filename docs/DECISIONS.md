@@ -1603,3 +1603,52 @@ separate dataset and do not appear in the live location comparison.
 [KMA forecast timing, PDF page 97](https://www.kma.go.kr/kma/servlet/NeoboardProcess?bid=policy_research&mode=download&num=66&fno=1&k=ATC202506171516021_10a47a5f-886e-49b7-875a-0c1088a29350.pdf#page=97) ·
 [Visual Crossing interval clarification](https://support.visualcrossing.com/hc/en-us/community/posts/6727993547661-Exact-periods-ranges-of-hourly-weather-timeline) ·
 [WeatherAPI hourly fields](https://www.weatherapi.com/docs/forecast-api/)
+
+## 2026-11-28 — Open the hourly ribbon on the rolling service average
+
+Supersedes the default ribbon and calendar-date controls in the November 27
+decision. The hourly ribbon opens on the service average. The single
+row starts with the current clock-aligned KST three-hour block and keeps the
+next seven blocks visible or reachable by horizontal scrolling. Midnight has
+its own date marker. Selecting a block and opening **서비스별 예보** reveals its
+aligned comparison and original provider values. A response issued before the
+hourly comparison contract retains the labeled single-provider view.
+
+Probability is the highest of the available one-hour averages within a block.
+The 40% cue uses the unrounded peak. The ribbon names the first period with a
+wet hourly average. That label makes no claim about an exact onset or continuous
+rain. Elapsed and in-progress hours are excluded.
+The amount total requires a numeric average for each of the three complete
+hours. Each average still requires two aligned, fresh, numeric sources for its
+own metric. A one-source forecast can be inspected by name. Empty slots and
+partial blocks keep their time labels. Individual readings follow the response
+dates in the metric's own time convention. An aligned amount ending at midnight
+belongs to the previous day. The clock and comparisons reuse the response.
+Refresh is manual when coverage expires or an hour-old response has no
+comparable hourly values left. Daily forecasting,
+provider requests and weighting retain the November 27 serving contract.
+The main umbrella advisory retains the existing rest-of-today and before-noon
+daily amount rules.
+
+## 2026-11-28 — Keep the forecast decision and its comparison in context
+
+The main answer considers the remaining KST day. It uses the primary service
+and retains the before-noon daily 10 mm safeguard. Same-hour disagreement with
+the average is attributed beside the decision. A dry statement requires
+comparable coverage of the remaining complete hours. The first supported
+hour and its own amount are independent of the three-hour ribbon statistic.
+An earlier day's response keeps its dates and offers manual refresh.
+
+The rolling ribbon links to a single in-page comparison view for the selected
+absolute KST period. Within the running tab, comparison, Back, and cancel reuse
+the accepted response. A retry inherits its original intent and commits a new
+location only on success. Browser history stores opaque lookup IDs instead of
+device fixes. Existing rounded last-location storage remains the cold restore
+path. The scoring record preserves the originating forecast area or the
+same-tab return reference while its station picker changes the record subject.
+
+
+A comparison link opens a block from the eight periods shown on the rolling ribbon.
+If an older link falls outside that window, the comparison explains the range of
+the display without making a claim about the provider response's coverage. The
+hourly view has no separate calendar-day navigator.

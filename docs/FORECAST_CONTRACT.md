@@ -62,13 +62,12 @@ npm run performance:seed -- --start=2025-06-01 --end=2025-08-31
 ## User flow
 
 1. Choose device location, search for a Korean area, or select an example.
-2. Read the expected rain window and next 24 hours from the named hourly provider, for example "오후 3시부터 저녁 7시까지 비 예상". The rain-window threshold is 40% or higher. Lower values do not mean rain is impossible; unpublished values remain labelled as missing, and a length such as "앞으로 24시간" is stated only when every block is published and the blocks are contiguous. Without an hourly series, the headline shows the blended day probability instead.
-   The umbrella line covers the rest of today (now until midnight KST). Rain at or above the threshold in today's remaining blocks means take an umbrella. Before noon, a blended day total of 10 mm or more also does, because a day total carries no timing. Rain only after midnight reads as no umbrella today.
-3. Compare today and tomorrow, each labelled with its calculation method. Rainfall amount has its own provider count.
-4. Read the provider comparison, longer outlook and scoring evidence below; only the raw scoring table is folded and expands on request.
-5. Open the evidence-status link to the station's [`/behind-the-data`](https://raintoday.vercel.app/behind-the-data) record. Device-location links carry only the public station ID; area links carry the area's representative coordinate.
+2. Read the umbrella advice for the remainder of the KST day. The answer attributes disagreements between primary and comparable same-hour readings, and considers a blended daily total of at least 10 mm before noon. The ribbon shows eight clock-aligned three-hour blocks, starting with the current one. Each peak is the highest available hourly service average, with amber at 40% or higher. Each average requires at least two fresh numeric values aligned to the same whole hour for that metric. A block shows a total with three complete hourly amount averages. Older responses without comparison retain the named single-provider view.
+3. Open **이 시간대의 예보 비교** for counts, ranges and original source values for the selected absolute period. Native metric timestamps stay labeled. Comparison and retained navigation reuse the current response.
+4. Compare today, tomorrow and later days. Daily probability and amount have their own contributor counts. Later dates use equal averages, and tomorrow can have performance-based or archive-based weights.
+5. Open the station's [`/behind-the-data`](https://raintoday.vercel.app/behind-the-data) record from the applied weights. A record can retain the originating public area or an opaque same-tab reference. Switching the record's location leaves the forecast location unchanged. A shared station-only record offers a place choice.
 
-The supporting evidence is always shown in full below the answer; there is no density control. Pointer movement or arrow keys inspect individual timeline blocks.
+Tap a ribbon block or use the arrow keys to inspect it. The ribbon advances using the existing response. The page offers manual refresh when its day or forecast coverage expires, or when an hour-old response has no comparable values left. Labeling keeps retrieval time and observed conditions separate.
 
 ## Architecture
 

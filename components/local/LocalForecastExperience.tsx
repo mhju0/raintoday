@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import Link from "next/link";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { CONDITION_LABELS_KO } from "@/lib/conditions";
 import { EXAMPLE_FORECAST_LOCATIONS } from "@/lib/exampleLocations";
 import { periodNameForHour } from "@/lib/forecast/blocks";
+import { readUmbrellaEvidence } from "@/lib/forecast/advisory";
+import { kstStamp } from "@/lib/forecast/hourlyComparison";
 import type { TimelineReading } from "@/lib/forecast/rainWindow";
 import {
   RAIN_ONSET_PROBABILITY,
@@ -15,7 +18,7 @@ import {
   type ForecastLocationSelection,
 } from "@/lib/locationPrecision";
 import type { ForecastLocationSearchResult } from "@/lib/locationSearch";
-import { HourlyForecastComparison } from "./HourlyForecastComparison";
+import { ForecastComparisonDetail, HourlyForecastComparison, hourlyProbabilityText, useForecastClock, useHourlyRibbon } from "./HourlyForecastComparison";
 import { useLocationCandidateSearch } from "./useLocationCandidateSearch";
 
 type ViewState =
@@ -26,10 +29,11 @@ type ViewState =
       forecast: LocalForecastView;
       selection: ForecastLocationSelection;
       location: ChosenForecastLocation;
+      entry: ForecastEntry;
     }
   // Carries the input to retry, or null when retrying can never help — so the
   // view cannot offer a button it has no way to act on.
-  | { kind: "error"; message: string; retry: ChosenForecastLocation | null };
+  | { kind: "error"; message: string; retry: ForecastIntent | null };
 
 interface ChosenForecastLocation {
   name: string;
@@ -37,6 +41,51 @@ interface ChosenForecastLocation {
   longitude: number;
   elevationM: number | null;
   selection: ForecastLocationSelection;
+}
+
+interface ForecastEntry {
+  id: string;
+  location: ChosenForecastLocation;
+  forecast: LocalForecastView;
+  receivedAt: number;
+  stored: boolean;
+  reading?: { top: number; focus: string; period: number | null };
+}
+
+interface ForecastIntent {
+  location: ChosenForecastLocation;
+  mode: "select" | "restore" | "refresh";
+  entry?: ForecastEntry;
+  stored?: boolean;
+}
+
+// This module is retained during Next navigation in the same tab. History
+// carries only an opaque ID; the response and full device fix stay in memory.
+const retainedForecasts = new Map<string, ForecastEntry>();
+function rememberForecast(entry: ForecastEntry) {
+  retainedForecasts.delete(entry.id);
+  retainedForecasts.set(entry.id, entry);
+  const oldest = retainedForecasts.keys().next().value;
+  if (retainedForecasts.size > 8 && oldest !== undefined) retainedForecasts.delete(oldest);
+}
+
+function plainClick(event: MouseEvent<HTMLAnchorElement>) {
+  return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+}
+
+type ForecastHistory =
+  | { raintodayView: "chooser"; forecastReturn?: string }
+  | { raintodayView: "forecast"; forecastEntry: string; forecastDetail?: true };
+
+function writeForecastHistory(view: ForecastHistory, url: string, replace: boolean) {
+  const state = { ...window.history.state };
+  delete state.location;
+  delete state.forecastEntry;
+  delete state.forecastDetail;
+  delete state.forecastReturn;
+  Object.assign(state, view);
+  if (replace) window.history.replaceState(state, "", url);
+  else window.history.pushState(state, "", url);
 }
 
 /**
@@ -104,30 +153,17 @@ function formatDate(date: string | null): string {
   }).format(new Date(`${date}T12:00:00+09:00`));
 }
 
-/**
- * "20 목" — six of these share one card, so the month is dropped. The card
- * already says these are the days after tomorrow, and a full "8. 20. (목)"
- * overflows its column at every width.
- */
-function formatOutlookDate(date: string): string {
-  const weekday = new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    weekday: "narrow",
-  }).format(new Date(`${date}T12:00:00+09:00`));
-  // Off the ISO date rather than Intl: ko-KR renders `day: "numeric"` as "20일",
-  // and "20일 목" is a third wider than the column it has to sit in.
-  return `${Number(date.slice(8, 10))} ${weekday}`;
-}
-
 /** GPS links carry only the public matched station; searched areas remain shareable. */
-function recordHrefFor(input: ChosenForecastLocation, stationId: string | undefined): string {
+function recordHrefFor(input: ChosenForecastLocation, stationId: string | undefined, entry: string): string {
   if (input.selection.kind === "device") {
-    return `/behind-the-data?${new URLSearchParams({ station: stationId ?? "none" })}`;
+    return `/behind-the-data?${new URLSearchParams({ station: stationId ?? "none", entry })}`;
   }
   const params = new URLSearchParams({
     lat: input.latitude.toFixed(5),
     lon: input.longitude.toFixed(5),
     name: input.name,
+    area: input.selection.areaKind === "legal-area" ? "b" : "h",
+    entry,
   });
   return `/behind-the-data?${params}`;
 }
@@ -150,6 +186,8 @@ function locationFromSearch(search: string): ChosenForecastLocation | null {
   const rawLon = params.get("lon");
   const name = params.get("name")?.trim();
   const area = params.get("area");
+  if (["lat", "lon", "name", "area"].some((key) => params.getAll(key).length > 1)) return null;
+  if (area !== null && area !== "b" && area !== "h") return null;
   // Bail on absent coordinates before Number(), which turns null and "" into 0
   // and would send a link stripped by a chat client to the Gulf of Guinea —
   // surfacing a dead-end "outside the service area" error as the first screen.
@@ -242,12 +280,13 @@ async function loadForecast(input: {
   latitude: number;
   longitude: number;
   elevationM: number | null;
-}): Promise<LocalForecastView> {
+}, signal: AbortSignal): Promise<LocalForecastView> {
   const response = await fetch("/api/local-forecast", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
     cache: "no-store",
+    signal,
   });
   // A 400 means the coordinate itself was rejected — almost always a position
   // outside the Korean service area. Telling that user to wait and retry would
@@ -315,6 +354,10 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const resultsRef = useRef<HTMLUListElement | null>(null);
   const revealKeyboardResult = useRef(false);
+  const fixGeneration = useRef(0);
+  const composing = useRef(false);
+  const [composition, setComposition] = useState<string | null>(null);
+  useEffect(() => () => { fixGeneration.current += 1; }, []);
 
   // Returning from a forecast puts the user back here on purpose, so land them
   // on the control they came back to use. Never on first paint — auto-focusing
@@ -355,6 +398,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   // An in-flight search must not land on top of a coordinate the visitor has
   // already committed, whichever of the two ways in they took.
   const commitChoice = (choice: ChosenForecastLocation) => {
+    fixGeneration.current += 1;
     search.cancel();
     onChoose(choice);
   };
@@ -381,8 +425,12 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
     // itself gave no sign it had been pressed, and the only feedback was muted
     // text under a different control.
     setLocating(true);
+    const fix = ++fixGeneration.current;
     navigator.geolocation.getCurrentPosition(
-      (position) => commitChoice({
+      (position) => {
+        if (fix !== fixGeneration.current) return;
+        setLocating(false);
+        commitChoice({
         name: DEVICE_PLACEHOLDER_NAME,
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -397,8 +445,10 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
               ? position.coords.accuracy
               : null,
         },
-      }),
+        });
+      },
       () => {
+        if (fix !== fixGeneration.current) return;
         setLocating(false);
         setMessage("위치를 확인하지 못했어요. 권한을 확인하거나 아래에서 지역을 골라 주세요.");
       },
@@ -417,10 +467,9 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
         {/* Day-agnostic on purpose: the forecast now opens on today and carries
             tomorrow beside it, so naming one day in the promise would be wrong
             again the moment the other is on screen. */}
-        <h1 id="location-heading">비, <b>여기서는</b><br />어떨까요?</h1>
+        <h1 id="location-heading">오늘 <b>우산이 필요할까요?</b></h1>
         <p>
-          <span className="local-keep">오늘·내일</span> 비 예보를 여러 날씨 서비스와 비교합니다. 내일 예보는
-          관측소의 비교 기록이 충분할 때 서비스별 비중을 조정합니다.
+          지역을 고르면 오늘 비 오는 시간대와 우산 안내를 볼 수 있어요.
         </p>
       </div>
 
@@ -449,6 +498,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
           onSubmit={(event) => {
             event.preventDefault();
             const selected = visibleResults[activeResultIndex];
+            if (composing.current) return;
             if (selected) {
               chooseSearchResult(selected);
             } else if (query.trim().length < 2) {
@@ -461,12 +511,31 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
           <input
             id="location-search"
             ref={inputRef}
-            value={query}
+            value={composition ?? query}
             onChange={(event) => {
+              if (composing.current) {
+                setComposition(event.target.value);
+                return;
+              }
+              if (event.target.value === query) return;
               revealKeyboardResult.current = false;
               search.updateQuery(event.target.value);
               setExpanded(true);
               setActiveResultIndex(0);
+              setMessage(null);
+            }}
+            onCompositionStart={(event) => {
+              composing.current = true;
+              search.cancel();
+              setExpanded(false);
+              setComposition(event.currentTarget.value);
+            }}
+            onCompositionEnd={(event) => {
+              composing.current = false;
+              setComposition(null);
+              search.updateQuery(event.currentTarget.value);
+              setActiveResultIndex(0);
+              setExpanded(true);
               setMessage(null);
             }}
             placeholder="동네, 도시 이름 검색"
@@ -481,6 +550,7 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
             }
             aria-busy={searching}
             onKeyDown={(event) => {
+              if (composing.current || event.nativeEvent.isComposing) return;
               if (event.key === "ArrowDown" && results.length > 0) {
                 event.preventDefault();
                 revealKeyboardResult.current = !expanded || activeResultIndex !== (activeResultIndex + 1) % results.length;
@@ -655,13 +725,6 @@ export function LocationChooser({ onChoose, autoFocus = false, busy = false }: {
   );
 }
 
-/** Days the provider called wrong, over the days it was scored. */
-function missedDays(score: LocalForecastView["evidence"]["scores"][number]): string {
-  const missed = score.misses + score.falseAlarms;
-  if (score.windowSampleCount <= 0) return `${missed}일`;
-  return `${score.windowSampleCount}일 중 ${missed}일`;
-}
-
 /** The wet-day miss rate — where the real difference between services lives. */
 function seedMissLabel(score: LocalForecastView["evidence"]["seedScores"][number]): string {
   if (score.wetDays <= 0) return "기록 없음";
@@ -679,10 +742,11 @@ function benchmarkVerdict(
     : "성능 반영 방식의 점수가 단순 평균보다 나빠 비교 기준에 미달했습니다.";
 }
 
-function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
+function PerformanceEvidence({ evidence, cohortLabel, recordHref, onRecord }: {
   evidence: LocalForecastView["evidence"];
   cohortLabel: string;
   recordHref: string;
+  onRecord(event: MouseEvent<HTMLAnchorElement>): void;
 }) {
   const {
     status,
@@ -710,7 +774,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
   const rankLabel = (score: LocalForecastView["evidence"]["scores"][number]): string => {
     const position = recent.indexOf(score);
     if (position < 0) return "최근 7일 기록 없음";
-    return position === 0 ? "가장 잘 맞음" : `${position + 1}번째`;
+    return `${position + 1}위`;
   };
   const verdict = benchmark ? benchmarkVerdict(benchmark) : null;
 
@@ -727,9 +791,9 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
         </div>
         {/* The status is the sentence people do not understand, so it is the
             way in: it opens the record that explains it, for this station. */}
-        <a className={`local-status-pill is-${status}`} href={recordHref}>
+        <Link className={`local-status-pill is-${status}`} id="forecast-evidence-status" href={recordHref} onClick={onRecord} prefetch={false}>
           {statusLabel}
-        </a>
+        </Link>
       </div>
 
       <div className="local-evidence-meta">
@@ -788,17 +852,17 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
         </>
       ) : emptyMessage === null ? (
         <>
-          <div className="local-score-table" role="table" aria-label="서비스별 최근 강수 예보 성능">
+          <div className="local-score-table" role="table" aria-label="서비스별 최근 7일 Brier 순위">
             <div className="local-score-row local-score-header" role="row">
               <span role="columnheader">서비스</span>
-              <span role="columnheader">최근 7일</span>
-              <span role="columnheader">빗나간 날</span>
+              <span role="columnheader">최근 7일 순위</span>
+              <span role="columnheader">Brier 점수</span>
             </div>
             {ranked.map((provider) => (
               <div className="local-score-row" role="row" key={provider.id}>
                 <strong role="cell">{provider.name}</strong>
                 <span role="cell">{rankLabel(provider)}</span>
-                <span role="cell">{missedDays(provider)}</span>
+                <span role="cell">{provider.last7DaysBrier?.toFixed(5) ?? "기록 없음"}</span>
               </div>
             ))}
           </div>
@@ -811,15 +875,15 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
                   <span role="columnheader">서비스</span>
                   <span role="columnheader">최근 7일 Brier</span>
                   <span role="columnheader">60일 Brier</span>
-                  <span role="columnheader">누락&nbsp;· 오보</span>
+                  <span role="columnheader">60일 누락&nbsp;· 오보</span>
                   <span role="columnheader">비 온 날 강수량 오차</span>
                 </div>
-                {ranked.map((provider) => (
+                {scores.map((provider) => (
                   <div className="local-score-row" role="row" key={provider.id}>
                     <strong role="cell">{provider.name}</strong>
-                    <span role="cell">{provider.last7DaysBrier?.toFixed(3) ?? "기록 없음"}</span>
-                    <span role="cell">{provider.windowBrier.toFixed(3)}</span>
-                    <span role="cell">누락 {provider.misses}&nbsp;· 오보 {provider.falseAlarms}</span>
+                    <span role="cell">{provider.last7DaysBrier?.toFixed(5) ?? "기록 없음"}</span>
+                    <span role="cell">{provider.windowBrier.toFixed(5)}</span>
+                    <span role="cell">누락 {provider.misses}&nbsp;· 오보 {provider.falseAlarms}<br /><small>{provider.windowSampleCount}일 비교</small></span>
                     <span role="cell">
                       {provider.rainyAmountMae === null ? "기록 없음" : `${provider.rainyAmountMae.toFixed(1)}mm`}
                       {provider.rainyAmountSampleCount > 0 && `\u00a0· ${provider.rainyAmountSampleCount}일`}
@@ -829,8 +893,7 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
               </div>
             </div>
             <p className="local-method-note">
-              Brier 점수는 예보 확률이 실제와 얼마나 어긋났는지를 0에 가까울수록 좋게
-              나타냅니다. <span className="local-keep">‘누락’은</span> 비가 왔는데 낮게 본 날, <span className="local-keep">‘오보’는</span> 비가 오지 않았는데
+              최근 7일 순위는 확률 예보의 Brier 점수로 정합니다. 점수는 낮을수록 좋으며 소수점 다섯 자리까지 표시합니다. <span className="local-keep">‘누락’은</span> 비가 왔는데 낮게 본 날, <span className="local-keep">‘오보’는</span> 비가 오지 않았는데
               높게 본 날입니다. 오전·오후 발표를 섞지 않고, 비가 오지 않은 날도 모두
               포함합니다. 최근 성능은 확률 예보의 영향만 조정하며 정확성을 보장하지
               않습니다.
@@ -849,8 +912,8 @@ function PerformanceEvidence({ evidence, cohortLabel, recordHref }: {
           <b>{verdict}</b>
           <span>
             별도 사전 저장 예보 비교&nbsp;· {benchmark?.sampleCount}건&nbsp;· Brier <span className="local-keep">(낮을수록 좋음)</span>&nbsp;· 성능 반영{" "}
-            {benchmark?.adaptiveBrier?.toFixed(3) ?? "기록 없음"}&nbsp;· 단순 평균{" "}
-            {benchmark?.equalBrier?.toFixed(3) ?? "기록 없음"}
+            {benchmark?.adaptiveBrier?.toFixed(5) ?? "기록 없음"}&nbsp;· 단순 평균{" "}
+            {benchmark?.equalBrier?.toFixed(5) ?? "기록 없음"}. 소수점 다섯 자리까지 표시하며, 순위와 판정은 반올림하기 전 점수를 사용합니다.
           </span>
         </p>
       )}
@@ -878,9 +941,9 @@ function formatRange(high: number | null, low: number | null): string {
  * own — fewer services publish an amount than a probability, and one count
  * printed over both numbers would claim a consensus the amount does not have.
  */
-function amountMeta(amountProviderCount: number, comparedProviderCount: number): string {
+function amountMeta(amountProviderCount: number, comparedProviderCount?: number): string {
   if (amountProviderCount <= 0) return "양을 발표한 서비스 없음";
-  return amountProviderCount === comparedProviderCount
+  return comparedProviderCount === undefined || amountProviderCount === comparedProviderCount
     ? `${amountProviderCount}곳 평균`
     : `${amountProviderCount}곳 평균\u00a0· 확률은 ${comparedProviderCount}곳`;
 }
@@ -958,13 +1021,14 @@ function windowWords(run: NonNullable<TimelineReading["firstRun"]>, endsTomorrow
  *   hours decide;
  * - dry today but rain in the series tomorrow → today is fine, and says when.
  */
-function umbrellaAdvice({ blocks, dayOffsets, threshold, run, endsTomorrow, today }: {
+function umbrellaAdvice({ blocks, dayOffsets, threshold, run, endsTomorrow, today, beforeNoon }: {
   blocks: LocalForecastTimelineBlock[];
   dayOffsets: number[];
   threshold: number;
   run: TimelineReading["firstRun"];
   endsTomorrow: boolean;
   today: { precipitationAmountMm: number | null } | null;
+  beforeNoon: boolean;
 }): string {
   const rest = blocks.filter((block, index) => dayOffsets[index] === 0 && block.precipMax !== null);
   if (rest.length === 0) return "강수 정보를 충분히 모으지 못했어요.";
@@ -974,7 +1038,7 @@ function umbrellaAdvice({ blocks, dayOffsets, threshold, run, endsTomorrow, toda
     return restPeak >= 70 || restMm >= 10 ? "오늘 우산을 꼭 챙기세요." : "오늘 작은 우산을 챙기면 마음이 놓여요.";
   }
   const dayMm = today?.precipitationAmountMm ?? null;
-  if (blocks[0].startHour < 12 && dayMm !== null && dayMm >= 10) {
+  if (beforeNoon && dayMm !== null && dayMm >= 10) {
     return `시간대별 예보에는 없지만 여러 서비스가 오늘 ${formatMm(dayMm)}mm를 예상해요. 우산을 챙기세요.`;
   }
   if (run && dayOffsets[run.startIndex] > 0) return `오늘은 우산 없이 괜찮아요. ${windowWords(run, endsTomorrow).onset}는 챙기세요.`;
@@ -1029,22 +1093,79 @@ function RainSentence({ run, endsTomorrow, peak, hours }: {
   );
 }
 
-/** Without an hourly series the headline states the day's own number. */
+/** The daily headline states the day's own probability. */
 function HeadlineDay({ day, label }: { day: { precipitationProbability: number | null }; label: string }) {
   return day.precipitationProbability === null
     ? <>{label} <span className="local-probability-label">강수확률 <b className="local-keep">미발표</b></span></>
     : <>{label} <span className="local-probability-label">강수확률 <b className="local-keep">{Math.round(day.precipitationProbability)}%</b></span></>;
 }
 
-function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref }: {
+function advisoryClock(stamp: number): string {
+  return kstStamp(stamp).slice(11);
+}
+
+function modernAnswer({ data, hourly, forecast }: {
+  data: NonNullable<LocalForecastView["hourlyComparison"]>;
+  hourly: NonNullable<ReturnType<typeof useHourlyRibbon>>;
   forecast: LocalForecastView;
+}) {
+  const evidence = readUmbrellaEvidence(data, hourly.blocks, hourly.viewedAt, forecast.timeline?.sourceName,
+    forecast.today?.precipitationAmountMm ?? null, RAIN_ONSET_PROBABILITY);
+  const { current, date, first, disagreement, primaryWet, primaryStrong, morning, dry, comparedHours, remainingHours } = evidence;
+  const wetToday = first && kstStamp(first.start).startsWith(date);
+  const title = primaryWet && primaryStrong || morning ? "오늘 우산을 꼭 챙기세요"
+    : primaryWet ? "오늘 작은 우산을 챙기세요"
+    : disagreement ? "오늘 비 예보가 엇갈려요"
+    : wetToday ? "오늘 비가 올 수 있어요"
+    : dry ? "오늘 비 가능성이 낮아요"
+    : remainingHours === 0 ? "자정까지 온전히 남은 예보 시간이 없어요"
+    : "오늘 우산을 판단할 자료가 부족해요";
+  const primary = forecast.timeline?.sourceName;
+  const averageWet = first && (first.chance ?? -1) >= RAIN_ONSET_PROBABILITY;
+  const firstAmount = first && (averageWet ? first.amount : first.primaryAmount);
+  return {
+    current,
+    title,
+    note: current && (
+      <>
+        {morning && <span>오늘 하루 예상 강수량 {forecastAmount(forecast.today!.precipitationAmountMm!)}입니다. </span>}
+        {first && <span>
+          {wetToday ? "오늘" : formatDate(kstStamp(first.start).slice(0, 10))}{" "}
+          <b>{advisoryClock(first.start)}–{advisoryClock(first.end)}</b>에 비 가능성{firstAmount != null &&
+            ` · ${averageWet ? "평균 강수량" : `${primary} 강수량`} ${forecastAmount(firstAmount)}`}.
+        </span>}
+        {disagreement && <span>
+          {" "}{disagreement.start !== first?.start && <>{advisoryClock(disagreement.start)}–{advisoryClock(disagreement.end)} · </>}
+          {primary} {hourlyProbabilityText(disagreement.primary)},
+          {" "}서비스 평균 {hourlyProbabilityText(disagreement.chance)} ({disagreement.members.map(({ source }) => source.name).join(", ")}).
+        </span>}
+        {!disagreement && primaryWet && primary && <span>{" "}{primary}의 남은 시간대 예보를 참고했습니다.</span>}
+      </>
+    ),
+    coverage: remainingHours > 0 && comparedHours < remainingHours
+      ? `오늘 남은 온전한 ${remainingHours}시간 중 ${comparedHours}시간 비교 가능` : null,
+  };
+}
+
+function forecastAmount(value: number): string {
+  return value > 0 && value < 0.01 ? "0.01 mm 미만" : `${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(value)} mm`;
+}
+
+function ForecastDashboard({ forecast, receivedAt, now, selection, onReset, onRefresh, recordHref, onRecord, onCompare, onSelectPeriod, selectedPeriod, refreshFailed }: {
+  forecast: LocalForecastView;
+  receivedAt: number;
+  now: number;
   selection: ForecastLocationSelection;
   onReset(): void;
   onRefresh(): void;
   recordHref: string;
+  onRecord(event: MouseEvent<HTMLAnchorElement>): void;
+  onCompare(event: MouseEvent<HTMLAnchorElement>, start: number): void;
+  onSelectPeriod(start: number): void;
+  selectedPeriod: number | null;
+  refreshFailed: boolean;
 }) {
   const locationDescription = describeForecastLocationSelection(selection);
-  const headingRef = useRef<HTMLHeadingElement | null>(null);
   const learned = forecast.blendMode === "learned";
   // Seed influence is real influence, so the bars are shown — but it comes from
   // past archives, not from measured skill at this station, and must not be
@@ -1055,7 +1176,14 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
   // testing the raw value would report "오늘" while rendering tomorrow's numbers.
   const today = forecast.today ?? null;
   const tomorrow = forecast.recommendation;
-  const timeline = forecast.timeline;
+  const comparison = forecast.hourlyComparison;
+  const hourly = useHourlyRibbon(comparison, now);
+  const answer = comparison && hourly ? modernAnswer({ data: comparison, hourly, forecast }) : null;
+  const currentDate = kstStamp(hourly?.viewedAt ?? Math.max(now, receivedAt)).slice(0, 10);
+  const dateChanged = currentDate !== (comparison?.dates[0] ?? kstStamp(receivedAt).slice(0, 10));
+  const laterOutlook = forecast.outlook.filter((reading) => reading.date !== forecast.targetDate);
+  const refreshReason = dateChanged ? "날짜가 바뀌어 이전 응답을 표시합니다." : hourly?.refreshReason;
+  const timeline = !hourly && dateChanged ? null : forecast.timeline;
   const blocks = timeline?.blocks ?? [];
   const run = timeline?.reading.firstRun ?? null;
   const laterRun = timeline?.reading.laterRun ?? null;
@@ -1142,32 +1270,14 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
     readout.style.left = `${Math.min(Math.max(start + columnWidth / 2, least), most)}px`;
   });
 
-  // The chooser this replaced is gone from the DOM, so without this the whole
-  // swap leaves focus on <body> and a keyboard user restarts from the top.
-  useEffect(() => {
-    headingRef.current?.focus({ preventScroll: true });
-  }, []);
-
   return (
     <main className="local-dashboard">
       <div className="local-strip">
         <div className="local-strip-place">
           <span className="local-strip-pin" aria-hidden><LocationMark /></span>
           <b>{forecast.locationName}</b>
-          {/* With a resolved place name, the source says how we got it. Without
-              one it only repeats the name — "현재 위치 · 현재 기기 위치" tells the
-              reader nothing — so show the accuracy instead.
-
-              The phone strip hides this line to stay short across a sticky
-              scroll. That is right while a name carries the location, and wrong
-              without one: "현재 위치" alone qualifies nothing, so mark the case
-              where this text is the only qualifier and let it through. */}
-          <span
-            className={`local-strip-meta${
-              forecast.locationName === DEVICE_PLACEHOLDER_NAME ? " is-sole-qualifier" : ""
-            }`}
-          >
-            {forecast.locationName === DEVICE_PLACEHOLDER_NAME
+          <span className="local-strip-meta">
+            {selection.kind === "area" || forecast.locationName === DEVICE_PLACEHOLDER_NAME
               ? locationDescription.precision
               : `${locationDescription.source}\u00a0· ${locationDescription.precision}`}
           </span>
@@ -1179,20 +1289,23 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
               <span className="local-strip-meta">
                 {CONDITION_LABELS_KO[forecast.current.condition]}
               </span>
+              {answer && Number.isFinite(Date.parse(forecast.current.observedAt)) && <time className="local-strip-meta" dateTime={forecast.current.observedAt}>
+                관측 {kstStamp(Date.parse(forecast.current.observedAt)).replace("T", " ")} KST
+              </time>}
             </>
           )}
-          <button type="button" onClick={onReset}>위치 바꾸기</button>
+          <button type="button" id="forecast-switch" onClick={onReset}>위치 바꾸기</button>
         </div>
       </div>
 
       <section className="local-answer" aria-labelledby="forecast-heading">
-        <p className="local-kicker">비 예보</p>
-        <h1 id="forecast-heading" ref={headingRef} tabIndex={-1}>
-          {timeline
+        <p className="local-kicker">{answer || dateChanged ? "오늘 자정까지 · 우산 안내" : "비 예보"}</p>
+        <h1 id="forecast-heading" className={answer || dateChanged ? "local-advice-heading" : undefined} tabIndex={-1}>
+          {dateChanged ? "오늘 우산 안내를 새로 확인하세요" : answer ? answer.title : timeline
             ? <RainSentence run={run} endsTomorrow={runEndsTomorrow} peak={peak} hours={hours} />
             : <HeadlineDay day={today ?? tomorrow} label={today ? "오늘" : "내일"} />}
         </h1>
-        {timeline && (
+        {!hourly && timeline && (
           <p className="local-answer-sub">
             {peak && <span>최대 <b className="is-wet">{Math.round(peak.probability)}%</b>&nbsp;· {peak.rangeLabel}</span>}
             {run && <span>지속 <b>{run.durationHours}시간</b></span>}
@@ -1213,22 +1326,34 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
             <span>{timeline.threshold}% 이상인 시간대를 비 예상 구간으로 봅니다</span>
           </p>
         )}
-        <p className="local-answer-action">
+        {answer ? <p className="local-answer-action">{answer.note}</p> : !dateChanged && <p className="local-answer-action">
           {timeline
-            ? umbrellaAdvice({ blocks, dayOffsets, threshold: timeline.threshold, run, endsTomorrow: runEndsTomorrow, today })
+            ? umbrellaAdvice({ blocks, dayOffsets, threshold: timeline.threshold, run, endsTomorrow: runEndsTomorrow, today, beforeNoon: Number(kstStamp(now).slice(11, 13)) < 12 })
             : rainAction(
               (today ?? tomorrow).precipitationProbability,
               (today ?? tomorrow).precipitationAmountMm,
               RAIN_ONSET_PROBABILITY,
             )}
-          {laterRun && run && !run.startsTomorrow && (
+          {!hourly && laterRun && run && !run.startsTomorrow && (
             <> 이후 <span className="local-keep">{laterRun.startsTomorrow ? "내일 " : ""}{clockLabel(laterRun.startHour)}부터</span> 다시 비가 예상됩니다.</>
           )}
-        </p>
+        </p>}
+        {comparison && <p className="local-hourly-note">예보 응답 시각{" "}
+          <time dateTime={new Date(comparison.asOf).toISOString()}>{kstStamp(comparison.asOf).replace("T", " ")} KST</time>
+          {answer?.coverage && <> · {answer.coverage}</>}
+        </p>}
+        {!comparison && dateChanged && <p className="local-hourly-note">이 화면에서 받은 시각{" "}
+          <time dateTime={new Date(receivedAt).toISOString()}>{kstStamp(receivedAt).replace("T", " ")} KST</time>
+        </p>}
+        {(refreshReason || refreshFailed) && <div className="local-error-actions">
+          <p className="local-hourly-note" role={dateChanged && !refreshFailed ? undefined : "status"}>{refreshFailed ? "새 예보를 불러오지 못해 이전 예보를 표시합니다." : refreshReason}</p>
+          <button type="button" id="forecast-refresh" onClick={onRefresh}>{refreshFailed ? "다시 시도" : "예보 다시 불러오기"}</button>
+        </div>}
       </section>
 
-      <HourlyForecastComparison data={forecast.hourlyComparison} onRefresh={onRefresh}>
-      {timeline && (
+      {comparison && hourly && <HourlyForecastComparison {...hourly}
+        onCompare={onCompare} onSelectPeriod={onSelectPeriod} selectedStart={selectedPeriod} />}
+      {!hourly && timeline && (
         <section className="local-ribbon" aria-labelledby="ribbon-heading">
           <div className="local-ribbon-head">
             <h2 id="ribbon-heading" className="local-ribbon-src">
@@ -1341,29 +1466,30 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
           <p className="local-ribbon-swipe">← 옆으로 밀어 24시간 전체 보기</p>
         </section>
       )}
-      </HourlyForecastComparison>
 
-      <p className="local-kicker">{today ? "오늘\u00a0· 내일" : "내일"}&nbsp;<span>: 여러 서비스를 섞은 하루 숫자</span></p>
+      <p className="local-kicker">하루 예보 <span>· 여러 서비스의 예보</span></p>
       <div className="local-days">
         {today && (
           <section className="local-day" aria-labelledby="today-heading">
             <div className="local-day-head">
               <h2 id="today-heading" className="local-day-when">
-                오늘 <span>{formatDate(today.date)}</span>
+                {dateChanged || (answer && today.date !== currentDate) ? "이전 예보" : "오늘"} <span>{formatDate(today.date)}</span>
               </h2>
-              <span className="local-tag">{forecast.comparedProviderCount}개 서비스 동일 비중</span>
+              <span className="local-tag">{today.probabilityProviderCount != null && `확률 ${today.probabilityProviderCount}곳 · `}동일 비중</span>
             </div>
             <div className="local-day-nums">
               <p className="local-day-value">
+                <small className="local-day-metric-label">하루 강수확률</small>
                 {today.precipitationProbability === null
                   ? <span className="local-missing-value">미발표</span>
                   : <>{Math.round(today.precipitationProbability)}<span>%</span></>}
               </p>
               <p className="local-day-mm">
+                <small className="local-day-metric-label">하루 강수량</small>
                 {today.precipitationAmountMm === null
                   ? <b className="is-na">미발표</b>
-                  : <b>{formatMm(today.precipitationAmountMm)}mm</b>}
-                <small>{amountMeta(today.amountProviderCount, forecast.comparedProviderCount)}</small>
+                  : <b>{answer ? forecastAmount(today.precipitationAmountMm) : `${formatMm(today.precipitationAmountMm)}mm`}</b>}
+                <small>{amountMeta(today.amountProviderCount, today.probabilityProviderCount)}</small>
               </p>
             </div>
             <p className="local-day-row">
@@ -1374,7 +1500,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
                 number is always a plain average — claiming otherwise would
                 assert an accuracy nothing has measured. */}
             <p className="local-day-why">
-              오늘은 응답한 서비스의 예보를 <b>같은 비중으로 평균했습니다.</b>
+              이 날짜는 응답한 서비스의 예보를 <b>같은 비중으로 평균했습니다.</b>
             </p>
           </section>
         )}
@@ -1385,7 +1511,7 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
         >
           <div className="local-day-head">
             <h2 id="tomorrow-heading" className="local-day-when">
-              내일 <span>{formatDate(forecast.targetDate)}</span>
+              {dateChanged ? "응답 기준" : "내일"} <span>{formatDate(forecast.targetDate)}</span>
             </h2>
             <span className={`local-tag${weighted ? " is-weighted" : ""}`}>
               {forecast.comparedProviderCount}개 서비스{" "}
@@ -1394,14 +1520,16 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
           </div>
           <div className="local-day-nums">
             <p className="local-day-value">
+              <small className="local-day-metric-label">하루 강수확률</small>
               {tomorrow.precipitationProbability === null
                 ? <span className="local-missing-value">미발표</span>
                 : <>{Math.round(tomorrow.precipitationProbability)}<span>%</span></>}
             </p>
             <p className="local-day-mm">
+              <small className="local-day-metric-label">하루 강수량</small>
               {tomorrow.precipitationAmountMm === null
                 ? <b className="is-na">미발표</b>
-                : <b>{formatMm(tomorrow.precipitationAmountMm)}mm</b>}
+                : <b>{answer ? forecastAmount(tomorrow.precipitationAmountMm) : `${formatMm(tomorrow.precipitationAmountMm)}mm`}</b>}
               <small>
                 {/* The extremes are named members, not percentiles — n≤4 cannot
                     honestly support interval language. Each separator sits
@@ -1423,21 +1551,48 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
               ? "최근 비교 기록이 부족해 과거 모델 예보와 관측을 비교한 결과를 일부 반영했습니다."
               : learned
                 ? <>관측소 {forecast.evidence.station?.name ?? "근처 관측소"}의 <b>비교 기록 {forecast.evidence.benchmark?.sampleCount ?? forecast.evidence.comparisonSampleCount}건</b>을 반영했습니다.</>
-                : "현재 가중치 적용 조건을 충족하지 않아 응답한 서비스를 같은 비중으로 평균했습니다."}
+                : "응답한 서비스를 같은 비중으로 평균했습니다."}
           </p>
         </section>
       </div>
+
+        {laterOutlook.length > 0 && (
+          <section className="local-card local-outlook" aria-labelledby="outlook-heading">
+            <div className="local-card-head">
+              <h2 id="outlook-heading">{dateChanged ? "이전 응답의 이후 전망" : "모레부터의 전망"}</h2>
+              <b>동일 비중</b>
+            </div>
+            <div
+              className="local-week"
+              style={{ "--cols": laterOutlook.length, "--cols-narrow": Math.ceil(laterOutlook.length / 2) } as CSSProperties}
+            >
+              {laterOutlook.map((day) => (
+                <div className="local-wd" key={day.date}>
+                  <time className="local-wd-d" dateTime={day.date}>{formatDate(day.date)}</time>
+                  <span className="local-wd-b">
+                    <i style={{ "--h": `${Math.round(day.precipitationProbability ?? 0)}%` } as CSSProperties} />
+                  </span>
+                  <span className="local-wd-v">{probabilityLabel(day.precipitationProbability)}</span>
+                </div>
+              ))}
+            </div>
+            <p className="local-card-why">
+              서비스별 강수확률을 같은 비중으로 평균했습니다.
+            </p>
+          </section>
+        )}
 
       <div className="local-receipts">
       <p className="local-kicker">근거&nbsp;<span>: 이 숫자가 나온 방식</span></p>
       <div className="local-evidence-cards">
         <section className="local-card" aria-labelledby="influence-heading">
           <div className="local-card-head">
-            <h2 id="influence-heading">서비스 {forecast.comparedProviderCount}곳&nbsp;· 내일</h2>
+            <h2 id="influence-heading">{dateChanged ? "이전 응답의 익일 예보 비중" : "내일 예보에 적용한 비중"}</h2>
             {spread.length > 1 && (
               <b>편차 {Math.round(Math.min(...spread))}–{Math.round(Math.max(...spread))}%</b>
             )}
           </div>
+          <p className="local-card-why">{formatDate(forecast.targetDate)} · 강수확률과 예보에 적용한 비중</p>
           <div className="local-prov">
             {forecast.influence.map((provider) => (
               <div
@@ -1464,48 +1619,26 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
           <p className="local-card-why">
             {weighted
               ? <>막대는 각 서비스의 내일 강수확률입니다. 비중은 이 예보에 반영된 몫이며, {seeded ? "과거 모델 예보와 관측의 비교 결과" : "최근 확률 예보의 채점 결과"}에 따라 조정합니다.</>
-              : "막대는 각 서비스의 내일 강수확률입니다. 현재는 가중치 적용 조건을 충족하지 않아 같은 비중으로 평균합니다."}
+              : "막대는 서비스별 강수확률입니다. 비중은 이 예보에 반영된 몫입니다."}
           </p>
+          {!weighted && forecast.evidence.emptyMessage && <p className="local-card-why">{forecast.evidence.emptyMessage}</p>}
+          <Link id="forecast-station" className="local-compare-link" href={recordHref} onClick={onRecord} prefetch={false}>관측소 채점 기록</Link>
         </section>
 
-        {forecast.outlook.length > 1 && (
-          <section className="local-card" aria-labelledby="outlook-heading">
-            <div className="local-card-head">
-              <h2 id="outlook-heading">{forecast.outlook.length}일 전망</h2>
-              <b>동일 비중</b>
-            </div>
-            <div
-              className="local-week"
-              style={{ "--cols": forecast.outlook.length, "--cols-narrow": Math.ceil(forecast.outlook.length / 2) } as CSSProperties}
-            >
-              {forecast.outlook.map((day) => (
-                <div className="local-wd" key={day.date}>
-                  <span className="local-wd-d">{formatOutlookDate(day.date)}</span>
-                  <span className="local-wd-b">
-                    <i style={{ "--h": `${Math.round(day.precipitationProbability ?? 0)}%` } as CSSProperties} />
-                  </span>
-                  <span className="local-wd-v">{probabilityLabel(day.precipitationProbability)}</span>
-                </div>
-              ))}
-            </div>
-            <p className="local-card-why">
-              성능 가중은 <b>내일 하루에만</b> 적용됩니다. 모레부터는 서비스를 그대로 평균한 값입니다.
-            </p>
-          </section>
-        )}
       </div>
 
       <PerformanceEvidence
         evidence={forecast.evidence}
         cohortLabel={forecast.cohortLabel}
         recordHref={recordHref}
+        onRecord={onRecord}
       />
       </div>
 
       <footer className="local-footer">
         <p>출처 Open-Meteo&nbsp;· 기상청&nbsp;· Pirate Weather&nbsp;· WeatherAPI&nbsp;· Visual Crossing 중 응답한 서비스&nbsp;· 모든 시각&nbsp;KST</p>
         <p>관측 검증: 기상청 ASOS&nbsp;· 사용자 좌표는 성능 기록 DB에 저장하지 않습니다.</p>
-        {timeline && (
+        {!hourly && timeline && (
           <p>
             시간대 확률은 {timeline.sourceName} 한 곳의 값이고, <span className="local-keep">오늘·내일</span> 확률은 여러 곳을 섞은
             값입니다.
@@ -1514,9 +1647,9 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
         {/* The only way into the scoring record. A page nothing links to is a
             page nobody reads, and the claim it carries is the product's. */}
         <p>
-          <a className="local-footer-link" href={recordHref}>
+          <Link className="local-footer-link" id="forecast-record" href={recordHref} onClick={onRecord} prefetch={false}>
             이 예보를 어떻게 채점하는가{"\u00a0"}→
-          </a>
+          </Link>
         </p>
       </footer>
     </main>
@@ -1526,138 +1659,212 @@ function ForecastDashboard({ forecast, selection, onReset, onRefresh, recordHref
 export default function LocalForecastExperience() {
   const [state, setState] = useState<ViewState>({ kind: "idle" });
   const [returningToChooser, setReturningToChooser] = useState(false);
-  const chooseRef = useRef<((input: ChosenForecastLocation, push: boolean) => void) | null>(null);
-  // Every path out of the loading screen bumps this. A response that arrives
-  // after the user has left must not paint a dashboard over the view they went
-  // to, leaving the URL and stored location describing something else.
+  const chooseRef = useRef<((intent: ForecastIntent) => void) | null>(null);
   const generation = useRef(0);
-  // Whether what is on screen is the place this device saved. A forecast opened
-  // from someone else's share link is not, so dismissing it must not delete the
-  // user's own saved location.
-  const showingStoredLocation = useRef(false);
+  const pending = useRef<AbortController | null>(null);
+  const lastEntry = useRef<ForecastEntry | null>(null);
+  const [hasRetainedForecast, setHasRetainedForecast] = useState(false);
+  const returnReading = useRef<ForecastEntry["reading"]>(undefined);
+  const [detailStart, setDetailStart] = useState<number | null>(null);
+  const [refreshFailed, setRefreshFailed] = useState(false);
+  const [contextWarning, setContextWarning] = useState<string | null>(null);
+  const now = useForecastClock(state.kind === "ready");
 
-  const chooseLocation = async (input: ChosenForecastLocation, push = true) => {
-    const attempt = (generation.current += 1);
+  function cancelRequest() {
+    generation.current += 1;
+    pending.current?.abort();
+    pending.current = null;
+  }
+
+  function showEntry(entry: ForecastEntry, restoreReading = false) {
+    lastEntry.current = entry;
+    setHasRetainedForecast(true);
+    returnReading.current = restoreReading ? entry.reading : undefined;
+    setState({ kind: "ready", forecast: entry.forecast, selection: entry.location.selection, location: entry.location, entry });
+  }
+
+  const chooseLocation = async (intent: ForecastIntent) => {
+    if (pending.current && intent.mode !== "restore") return;
+    cancelRequest();
+    const attempt = generation.current;
+    const controller = new AbortController();
+    pending.current = controller;
+    setRefreshFailed(false);
+    const { location: input, mode } = intent;
     setState({ kind: "loading", label: input.name });
     try {
-      const { selection, ...forecastInput } = input;
-      const forecast = await loadForecast(forecastInput);
-      if (attempt !== generation.current) return;
-      // Commit to history and storage only once the coordinate is known to
-      // work. Saving first meant a permanently rejected coordinate reproduced
-      // its own error screen on every later visit.
-      if (push && typeof window !== "undefined") {
-        const search = shareableSearch(input);
-        window.history.pushState(
-          { raintodayView: "forecast", location: input },
-          "",
-          search ?? window.location.pathname,
-        );
+      const { name, latitude, longitude, elevationM } = input;
+      const forecast = await loadForecast({ name, latitude, longitude, elevationM }, controller.signal);
+      if (attempt !== generation.current || controller.signal.aborted) return;
+      const entry = {
+        id: intent.entry?.id ?? crypto.randomUUID(),
+        forecast,
+        receivedAt: Date.now(),
+        location: input,
+        stored: mode === "select" || intent.stored === true || intent.entry?.stored === true,
+        reading: intent.entry?.reading,
+      };
+      rememberForecast(entry);
+      const url = mode === "select" ? shareableSearch(input) ?? "/"
+        : window.location.hash.startsWith("#forecast=") ? window.location.pathname + window.location.search
+        : window.location.href;
+      writeForecastHistory({ raintodayView: "forecast", forecastEntry: entry.id }, url, mode !== "select");
+      if (mode === "select") {
+        setDetailStart(null);
+        setContextWarning(null);
         writeStoredLocation(input);
-        showingStoredLocation.current = true;
       }
-      setState({ kind: "ready", forecast, selection, location: input });
+      showEntry(entry, mode === "refresh");
     } catch (error) {
-      if (attempt !== generation.current) return;
-      setState(
-        error instanceof ForecastOutOfServiceAreaError
-          ? {
-              kind: "error",
-              message: "이 위치는 대한민국 서비스 지역 밖이에요. 대한민국 안의 지역을 고르면 바로 예보를 볼 수 있어요.",
-              retry: null,
-            }
-          : {
-              kind: "error",
-              message: "이 위치의 예보를 불러오지 못했어요.",
-              retry: input,
-            },
-      );
+      if (attempt !== generation.current || controller.signal.aborted) return;
+      if (mode === "refresh" && intent.entry && !(error instanceof ForecastOutOfServiceAreaError)) {
+        showEntry(intent.entry, true);
+        setRefreshFailed(true);
+        return;
+      }
+      setState(error instanceof ForecastOutOfServiceAreaError
+        ? { kind: "error", message: "이 위치는 대한민국 서비스 지역 밖이에요. 대한민국 안의 지역을 고르면 바로 예보를 볼 수 있어요.", retry: null }
+        : { kind: "error", message: "이 위치의 예보를 불러오지 못했어요.", retry: intent });
+    } finally {
+      if (pending.current === controller) pending.current = null;
     }
   };
-  // Declared before the mount effect so it has already run when the restore
-  // below fires, and re-run every render so popstate always calls the current
-  // closure rather than the one captured on mount.
+
   useEffect(() => {
-    chooseRef.current = (input, push) => void chooseLocation(input, push);
+    chooseRef.current = (intent) => void chooseLocation(intent);
   });
 
-  const returnToChooser = (push: boolean) => {
-    generation.current += 1;
-    // Dismissing the saved place is a statement that it is not the place, so it
-    // clears the restore. Dismissing someone else's share link is not, and must
-    // leave this device's own saved location alone.
-    if (showingStoredLocation.current) {
-      clearStoredLocation();
-      showingStoredLocation.current = false;
+  function retainReading(id: string, focus?: string, period?: number) {
+    const entry = retainedForecasts.get(id);
+    if (!entry) return;
+    const next = { ...entry, reading: {
+      top: focus ? window.scrollY : entry.reading?.top ?? 0,
+      focus: focus ?? entry.reading?.focus ?? "forecast-compare",
+      period: period ?? entry.reading?.period ?? null,
+    } };
+    rememberForecast(next);
+    lastEntry.current = next;
+    return next;
+  }
+
+  const returnToChooser = (push: boolean, forget = false) => {
+    cancelRequest();
+    let forecastReturn: string | undefined;
+    if (state.kind === "ready") {
+      const retained = retainReading(state.entry.id, "forecast-switch");
+      const history = window.history.state;
+      if (retained && history?.raintodayView === "forecast" && history.forecastEntry === retained.id && !history.forecastDetail) {
+        forecastReturn = retained.id;
+      }
+      if (forget && state.entry.stored) {
+        clearStoredLocation();
+        if (retained) rememberForecast({ ...retained, stored: false });
+      }
     }
-    if (push && typeof window !== "undefined") {
-      window.history.pushState({ raintodayView: "chooser" }, "", window.location.pathname);
-    }
+    if (push) writeForecastHistory({ raintodayView: "chooser", forecastReturn }, "/", false);
+    setDetailStart(null);
+    setContextWarning(null);
+    setRefreshFailed(false);
     setReturningToChooser(true);
     setState({ kind: "idle" });
   };
 
-  // Restore on arrival: a link with coordinates wins, then whatever this device
-  // last looked at. Without either, the chooser is the honest first screen.
-  useEffect(() => {
-    const fromLink = locationFromSearch(window.location.search);
-    const stored = fromLink ? null : readStoredLocation();
-    const restored = fromLink ?? stored;
-    if (restored) {
-      showingStoredLocation.current = stored !== null;
-      // Stamp the entry the user landed on, so going Back to it later restores
-      // this forecast instead of falling through to the chooser.
-      window.history.replaceState(
-        { raintodayView: "forecast", location: restored },
-        "",
-        window.location.href,
-      );
-      chooseRef.current?.(restored, false);
+  const cancelSwitch = () => {
+    cancelRequest();
+    setRefreshFailed(false);
+    const entry = lastEntry.current;
+    const history = window.history.state;
+    if (entry && history?.raintodayView === "chooser" && history.forecastReturn === entry.id && retainedForecasts.has(entry.id)) {
+      window.history.back();
+      return;
     }
+    if (!entry) {
+      returnToChooser(false);
+      return;
+    }
+    const url = shareableSearch(entry.location) ?? `/#forecast=${entry.id}`;
+    writeForecastHistory({ raintodayView: "forecast", forecastEntry: entry.id }, url, true);
+    setDetailStart(null);
+    setContextWarning(null);
+    showEntry(entry, true);
+  };
 
-    const onPopState = (event: PopStateEvent) => {
-      const entry = event.state as
-        | { raintodayView?: string; location?: ChosenForecastLocation }
-        | null;
-      // A device fix carries no query string, so its history entry is
-      // indistinguishable from the chooser's by URL alone. The pushed state is
-      // what tells them apart.
-      if (entry?.raintodayView === "chooser") {
-        generation.current += 1;
-        setReturningToChooser(true);
-        setState({ kind: "idle" });
+  useEffect(() => {
+    function restore(initial: boolean) {
+      cancelRequest();
+      setRefreshFailed(false);
+      const history = window.history.state;
+      const hash = new URLSearchParams(window.location.hash.slice(1));
+      const period = hash.get("compare");
+      const detail = period !== null && hash.getAll("compare").length === 1 && /^\d{13}$/.test(period) && Number(period) % 10_800_000 === 0
+        ? Number(period) : null;
+      setDetailStart(detail);
+      setContextWarning(period !== null && detail === null ? "링크의 시간대를 확인할 수 없어요. 리본에서 시간대를 골라 주세요." : null);
+      const returnId = hash.get("forecast");
+      const id = returnId ?? (history?.raintodayView === "forecast" ? history.forecastEntry : undefined);
+      const fromLink = locationFromSearch(window.location.search);
+      const params = new URLSearchParams(window.location.search);
+      const explicitChooser = params.get("choose") === "1";
+      const requestedArea = ["lat", "lon", "name", "area"].some((key) => params.has(key));
+      const entry = typeof id === "string" ? retainedForecasts.get(id) : undefined;
+      if (entry && (fromLink ? shareableSearch(entry.location) === shareableSearch(fromLink) : !requestedArea)) {
+        if (returnId) {
+          writeForecastHistory({ raintodayView: "forecast", forecastEntry: entry.id }, shareableSearch(entry.location) ?? "/", true);
+        }
+        showEntry(entry, detail === null);
         return;
       }
-      const target = locationFromSearch(window.location.search)
-        ?? (entry?.raintodayView === "forecast" ? entry.location ?? null : null);
-      if (target) {
-        chooseRef.current?.(target, false);
-      } else {
-        generation.current += 1;
-        setReturningToChooser(true);
+      const stored = initial && history?.raintodayView !== "chooser" && !requestedArea && !explicitChooser && !returnId && period === null ? readStoredLocation() : null;
+      const target = fromLink ?? stored;
+      if (target) chooseRef.current?.({ location: target, mode: "restore", stored: stored !== null });
+      else {
+        if (requestedArea || returnId || period !== null) setContextWarning("링크의 예보 위치를 확인할 수 없어요. 이 화면에서 위치를 골라 주세요.");
+        setReturningToChooser(!initial);
         setState({ kind: "idle" });
       }
-    };
+    }
+    restore(true);
+    const onPopState = () => restore(false);
     window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    return () => {
+      cancelRequest();
+      window.removeEventListener("popstate", onPopState);
+    };
   }, []);
 
-  // Every view the page swaps to opens at its top. The chooser's controls sit
-  // below its intro, so a phone had scrolled down to reach them and the forecast
-  // then arrived mid-page. Layout effect, so the old offset never paints. The
-  // loading overlay is fixed, so it is left where it is.
   const viewKey = state.kind === "ready" ? state.forecast : state.kind;
+  useEffect(() => {
+    const id = state.kind === "loading" ? "forecast-cancel" : state.kind === "error" ? "forecast-error" : null;
+    if (id) document.getElementById(id)?.focus({ preventScroll: true });
+  }, [state.kind]);
   useLayoutEffect(() => {
-    if (viewKey !== "loading") window.scrollTo(0, 0);
-  }, [viewKey]);
+    if (viewKey === "loading") return;
+    const reading = returnReading.current;
+    returnReading.current = undefined;
+    window.scrollTo({ top: reading?.top ?? 0, behavior: "instant" });
+    if (typeof viewKey === "object" && detailStart === null && !reading) {
+      document.getElementById("forecast-heading")?.focus({ preventScroll: true });
+    }
+    if (reading) {
+      const frame = window.requestAnimationFrame(() => {
+        window.scrollTo({ top: reading.top, behavior: "instant" });
+        document.getElementById(reading.focus)?.focus({ preventScroll: true });
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
+  }, [viewKey, detailStart]);
 
-  // Lifted out of the JSX so the narrowing survives into the click handler.
   const errorRetry = state.kind === "error" ? state.retry : null;
 
+  const responseStamp = state.kind === "ready" ? state.forecast.hourlyComparison?.asOf ?? state.entry.receivedAt : null;
+  const responseDate = responseStamp === null ? null : kstStamp(responseStamp).slice(0, 10);
+  const isEarlierResponse = responseDate !== null && responseDate < kstStamp(now).slice(0, 10);
   const announcement = state.kind === "loading"
     ? `${state.label}의 예보를 불러오는 중입니다.`
     : state.kind === "ready"
-      ? `${state.forecast.locationName}의 ${state.forecast.today ? "오늘" : "내일"} 예보를 표시했습니다.`
+      ? isEarlierResponse
+        ? `${state.forecast.locationName}의 이전 응답입니다. ${formatDate(responseDate)}에 받았습니다. ${state.forecast.today ? `${formatDate(state.forecast.today.date)}와 ` : ""}${formatDate(state.forecast.targetDate)} 예보를 표시합니다. 오늘 안내는 예보를 다시 불러와 확인할 수 있습니다.`
+        : `${state.forecast.locationName}의 ${state.forecast.today ? "오늘" : "내일"} 예보를 표시했습니다.`
       : state.kind === "error"
         ? state.message
         : "";
@@ -1674,22 +1881,26 @@ export default function LocalForecastExperience() {
       <header className="local-site-header">
         <button
           type="button"
-          onClick={() => returnToChooser(true)}
+          onClick={() => returnToChooser(true, true)}
           aria-label="처음으로 · 위치 다시 선택"
         >
           <span className="local-wordmark">오늘비</span>
           <small>전국 로컬 예보</small>
         </button>
-        <span className="local-live-mark"><i /> 실시간 예보&nbsp;· KST</span>
+        <span className="local-live-mark"><i /> 시각 기준&nbsp;· KST</span>
       </header>
+      {contextWarning && <p className="local-journey-return" role="status">{contextWarning}</p>}
 
       {(state.kind === "idle" || state.kind === "loading") && (
         <LocationChooser
           autoFocus={returningToChooser}
-          onChoose={(input) => void chooseLocation(input)}
+          onChoose={(location) => void chooseLocation({ location, mode: "select" })}
           busy={state.kind === "loading"}
         />
       )}
+      {state.kind === "idle" && hasRetainedForecast && <div className="local-journey-return">
+        <button type="button" onClick={cancelSwitch}>이전 예보로 돌아가기</button>
+      </div>}
 
       {/* An overlay, not a replacement: unmounting the whole page left a black
           screen with one line on it, which reads as a crash on a slow phone.
@@ -1721,6 +1932,9 @@ export default function LocalForecastExperience() {
           <p className="local-loading-note">
             응답하지 않는 서비스는 비교에서 빠집니다.
           </p>
+          <div className="local-error-actions">
+            <button type="button" id="forecast-cancel" onClick={cancelSwitch}>{hasRetainedForecast ? "취소하고 이전 예보 보기" : "취소하고 위치 선택"}</button>
+          </div>
         </div>
       )}
 
@@ -1732,7 +1946,7 @@ export default function LocalForecastExperience() {
           <p className="local-state-kicker">
             {errorRetry ? "예보를 불러오지 못함" : "서비스 지역 밖"}
           </p>
-          <h1 className="local-state-heading">{state.message}</h1>
+          <h1 id="forecast-error" className="local-state-heading" tabIndex={-1}>{state.message}</h1>
           <p className="local-state-body">
             {errorRetry
               ? "네트워크나 예보 서비스 쪽 문제일 수 있습니다. 다시 시도하면 같은 좌표로 다시 요청합니다."
@@ -1745,7 +1959,7 @@ export default function LocalForecastExperience() {
               <button
                 type="button"
                 className="is-primary"
-                onClick={() => void chooseLocation(errorRetry, false)}
+                onClick={() => void chooseLocation(errorRetry)}
               >
                 다시 시도
               </button>
@@ -1757,6 +1971,7 @@ export default function LocalForecastExperience() {
             >
               {errorRetry ? "위치 바꾸기" : "지역 다시 고르기"}
             </button>
+            {hasRetainedForecast && <button type="button" onClick={cancelSwitch}>이전 예보로 돌아가기</button>}
           </div>
           <p className="local-state-why">
             {errorRetry
@@ -1766,13 +1981,44 @@ export default function LocalForecastExperience() {
         </main>
       )}
 
-      {state.kind === "ready" && (
+      {state.kind === "ready" && detailStart !== null && (
+        <ForecastComparisonDetail data={state.forecast.hourlyComparison} start={detailStart} place={state.forecast.locationName} now={now}
+          home={shareableSearch(state.location) ?? "/"} onReturn={(event) => {
+            if (!plainClick(event)) return;
+            event.preventDefault();
+            if (window.history.state?.forecastDetail) {
+              window.history.back();
+              return;
+            }
+            showEntry(retainedForecasts.get(state.entry.id) ?? state.entry, true);
+            writeForecastHistory({ raintodayView: "forecast", forecastEntry: state.entry.id }, shareableSearch(state.location) ?? "/", true);
+            setDetailStart(null);
+          }} />
+      )}
+      {state.kind === "ready" && detailStart === null && (
         <ForecastDashboard
           forecast={state.forecast}
+          receivedAt={state.entry.receivedAt}
+          now={now}
           selection={state.selection}
           onReset={() => returnToChooser(true)}
-          onRefresh={() => void chooseLocation(state.location, false)}
-          recordHref={recordHrefFor(state.location, state.forecast.evidence.station?.id)}
+          onRefresh={() => {
+            const entry = retainReading(state.entry.id, "forecast-refresh") ?? state.entry;
+            void chooseLocation({ location: state.location, mode: "refresh", entry });
+          }}
+          recordHref={recordHrefFor(state.location, state.forecast.evidence.station?.id, state.entry.id)}
+          onRecord={(event) => retainReading(state.entry.id, event.currentTarget.id || "forecast-record")}
+          onCompare={(event, start) => {
+            if (!plainClick(event)) return;
+            event.preventDefault();
+            setContextWarning(null);
+            retainReading(state.entry.id, "forecast-compare", start);
+            writeForecastHistory({ raintodayView: "forecast", forecastEntry: state.entry.id, forecastDetail: true }, `#compare=${start}`, false);
+            setDetailStart(start);
+          }}
+          onSelectPeriod={(start) => retainReading(state.entry.id, undefined, start)}
+          selectedPeriod={state.entry.reading?.period ?? null}
+          refreshFailed={refreshFailed}
         />
       )}
     </div>

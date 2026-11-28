@@ -261,7 +261,7 @@ for (const width of [320, 390, 768, 900, 901, 1024, 1440]) {
       await expectContentWithinViewport(page);
       await expect(page.locator(".local-evidence-section")).toBeVisible();
       await expect(page.locator(".local-amount-provider")).toHaveText(["(Visual Crossing)", "(WeatherAPI)"]);
-      await expect(page.locator(".local-day-value")).toHaveText(["100%", "100%"]);
+      await expect(page.locator(".local-day-value")).toHaveText(["하루 강수확률100%", "하루 강수확률100%"]);
       await expectContentWithinViewport(page);
       await page.getByText("채점 원자료 자세히 보기", { exact: true }).click();
       await expect(page.locator(".local-score-table.is-raw")).toBeVisible();
@@ -419,14 +419,14 @@ const tops = (locator: import("@playwright/test").Locator) =>
 const spreadOf = (values: number[]) => Math.max(...values) - Math.min(...values);
 
 for (const width of [390, 1440]) {
-  test(`nothing but the phone's location strip stays pinned while scrolling at ${width}px`, async ({ page }) => {
+  test(`the location strip scrolls with the forecast at ${width}px`, async ({ page }) => {
     await openForecast(page, width, expandedForecast(), 800);
     await expect(page.locator(".local-minibar")).toHaveCount(0);
     await page.evaluate(() => window.scrollTo({ top: 1400, behavior: "instant" }));
     const pinned = await page.evaluate(() => [...document.querySelectorAll(".local-dashboard *")]
       .filter((element) => ["sticky", "fixed"].includes(getComputedStyle(element).position))
       .map((element) => element.className));
-    expect(pinned).toEqual(width <= 640 ? ["local-strip"] : []);
+    expect(pinned).toEqual([]);
   });
 }
 

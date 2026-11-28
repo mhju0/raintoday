@@ -97,6 +97,7 @@ test("local forecast targets the user's coordinate and applies only recent local
   assert.deepEqual(response.outlook, [{
     date: "2026-08-14",
     precipitationProbability: 68,
+    probabilityProviderCount: 2,
     precipitationAmountMm: 5,
     // One of the two providers in this fixture publishes no amount, so the amount
     // is a one-provider mean while the probability is a two-provider blend.
@@ -476,6 +477,35 @@ test("today is null rather than invented when no provider still publishes it", a
 
   assert.equal(response.today, null);
   assert.equal(response.recommendation.precipitationProbability, 80);
+});
+
+test("daily contributor counts follow each date and the existing per-metric blend eligibility", async () => {
+  const now = new Date("2026-08-13T18:20:00+09:00");
+  const snapshots = [
+    snapshot("open-meteo", 80, 0), snapshot("kma", 50, 2),
+    snapshot("pirate-weather", 0, null), snapshot("weather-api", 30, null),
+    snapshot("visual-crossing", 40, 4),
+  ];
+  for (const [i, probability, amount] of [[0, 0, 0], [1, 40, null], [4, null, 99]] as const) {
+    snapshots[i].daily.unshift({ ...snapshots[i].daily[0], date: "2026-08-13",
+      precipitationProbability: probability, precipitationAmount: amount });
+  }
+  let reads = 0;
+  const forecast = await readLocalForecast({
+    location: createForecastLocation({ name: "서울", latitude: 37.5665, longitude: 126.978 }), elevationM: null,
+  }, {
+    now,
+    readForecasts: async () => { reads += 1; return snapshots; },
+    readEvidence: async () => ({ status: "unavailable", reason: "database-not-configured", station: null, profile: null }),
+  });
+  assert.equal(reads, 1);
+  assert.equal(forecast.today?.precipitationProbability, 20);
+  assert.equal(forecast.today?.probabilityProviderCount, 2);
+  assert.equal(forecast.today?.precipitationAmountMm, 0);
+  assert.equal(forecast.today?.amountProviderCount, 1);
+  assert.equal(forecast.outlook[0].probabilityProviderCount, 5);
+  assert.equal(forecast.recommendation.amountProviderCount, 3);
+  assert.equal(forecast.recommendation.precipitationAmountMm, 2);
 });
 
 class RecordStore extends InMemoryPerformanceStore {

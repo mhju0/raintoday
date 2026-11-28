@@ -17,8 +17,10 @@ body {
   font-feature-settings: "tnum";
 }
 
-html {
-  scroll-behavior: smooth;
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 ::selection {
@@ -1228,6 +1230,10 @@ html {
   font-weight: 650;
 }
 
+.local-answer h1.local-advice-heading {
+  font-size: min(var(--t-display), 20cqi);
+}
+
 @container (max-width: 10rem) {
   .local-answer h1 {
     font-size: 2rem;
@@ -2206,40 +2212,8 @@ html {
     --local-track: 122px;
   }
 
-  /* The location strip is the only navigation on a page about eleven phone
-     screens long, so it stays put instead of scrolling away in the first
-     screenful. Full-bleed across the page gutter. */
   .local-strip {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    margin-inline: -1rem;
-    padding-inline: 1rem;
-    background: color-mix(in srgb, var(--local-bg) 88%, transparent);
-    backdrop-filter: blur(14px);
-  }
-
-  /* The strip is sticky across the whole scroll, so the provenance line is
-     dropped here to keep it one row — the place name already says where. It is
-     kept only when there is no name to say it. */
-  .local-strip-place .local-strip-meta:not(.is-sole-qualifier) {
-    display: none;
-  }
-
-  /* Out of flex sizing on purpose. Wrapped as a flex item it widened the place
-     block past the row and pushed the temperature and the button onto a third
-     row — 74px of sticky bar became 128px. Positioned, it costs one line. Where
-     :has() is unsupported the padding below is not reserved and the line simply
-     sits inside the strip's existing padding, clear of the reading column,
-     rather than breaking the layout. */
-  .local-strip-place .local-strip-meta.is-sole-qualifier {
-    position: absolute;
-    left: 1rem;
-    bottom: 0.5rem;
-  }
-
-  .local-strip:has(.local-strip-meta.is-sole-qualifier) {
-    padding-bottom: 1.9rem;
+    gap: 0.75rem;
   }
 
   /* Eight blocks at this width would be 40px each. The ribbon — and only the
@@ -2888,34 +2862,119 @@ html {
   outline: 1px solid var(--local-line-2);
 }
 
-/* ---- calendar-day hourly comparison ---- */
+/* ---- rolling KST hourly ribbon ---- */
 .local-hourly {
-  container-type: inline-size;
-  min-width: 0;
+  border-block-start: 1px solid var(--local-line);
+  padding-block-start: 0.75rem;
   word-break: keep-all;
-  overflow-wrap: anywhere;
 }
 
-.local-hourly .local-card-head {
-  margin-block-end: 0.75rem;
+.local-hourly .local-ribbon-head {
+  padding-block-end: 0.5rem;
 }
 
-.local-hourly-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  margin-block-end: 1rem;
+.local-ribbon-grid.local-hourly-grid {
+  grid-template-rows: auto auto var(--local-track) auto;
+  min-inline-size: 59rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
 }
 
-.local-hourly label {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: start;
-  min-inline-size: 0;
-  gap: 0.25rem;
-  max-inline-size: 100%;
-  color: var(--local-ink-2);
+.local-hourly-grid .local-ribbon-col {
+  padding-block-end: 0.3rem;
+}
+
+.local-hourly-day {
+  min-block-size: 1.25em;
+  padding-inline: 0.4rem;
   font-size: var(--t-label);
+  color: var(--local-ink-2);
+}
+
+.local-hourly-grid :is(.local-ribbon-chead, .local-ribbon-cfoot) {
+  padding-inline: 0.4rem;
+}
+
+.local-hourly-grid .local-ribbon-rng {
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  color: var(--local-ink);
+}
+
+.local-hourly-grid .local-ribbon-col:first-child .local-ribbon-per {
+  color: var(--local-accent);
+}
+
+.local-hourly-grid .local-ribbon-rule {
+  z-index: 1;
+}
+
+.local-hourly-grid .local-ribbon-bar {
+  min-height: 0;
+}
+
+.local-hourly-grid .local-ribbon-hint {
+  display: block;
+  text-wrap: balance;
+}
+
+.local-hourly-mm {
+  font-family: var(--local-mono);
+  font-size: var(--t-label);
+  color: var(--local-mm-ink);
+}
+
+.local-hourly-mm.is-quiet {
+  color: var(--local-ink-2);
+}
+
+.local-hourly-hit {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.local-hourly-hit:focus-visible {
+  z-index: 2;
+  outline: 2px solid var(--local-accent);
+  outline-offset: -2px;
+}
+
+.local-hourly-swipe,
+.local-hourly-note,
+.local-hourly-readout {
+  margin: 0.55rem 0;
+  font-size: var(--t-label);
+  line-height: 1.6;
+  color: var(--local-dim);
+}
+
+.local-hourly-swipe span {
+  color: var(--local-accent);
+}
+
+.local-hourly-summary {
+  margin: 0.55rem 0 0;
+  color: var(--local-ink);
+  font-size: var(--t-body);
+}
+
+@container (min-width: 59rem) {
+  .local-hourly-swipe {
+    display: none;
+  }
+}
+
+.local-hourly-note b {
+  color: var(--local-amber);
+}
+
+.local-hourly-readout {
+  color: var(--local-ink-2);
 }
 
 .local-hourly select {
@@ -2930,185 +2989,165 @@ html {
   font-size: var(--t-body);
 }
 
-.local-hourly :is(select, summary, button):focus-visible {
+.local-hourly :is(select, summary):focus-visible {
   outline: 2px solid var(--local-accent);
   outline-offset: 2px;
 }
 
-.local-hourly-date,
-.local-hourly-period,
-.local-hourly-valid {
-  font-family: var(--local-mono);
-  font-variant-numeric: tabular-nums;
-  color: var(--local-ink);
-}
-
-.local-hourly-date {
-  margin: 1.25rem 0 0.8rem;
-  padding-inline: calc(0.6rem + 1px);
-  font-size: 1.2rem;
-  font-weight: 650;
-}
-
-.local-hourly-date span,
-.local-hourly-note,
-.local-hourly small {
-  color: var(--local-dim);
-  font-size: var(--t-label);
-}
-
-.local-hourly-note {
-  margin-block: 0.55rem;
-  line-height: 1.6;
-}
-
-.local-hourly-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.75rem 0.45rem;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-@container (min-width: 15.5rem) {
-  .local-hourly-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@container (min-width: 31rem) {
-  .local-hourly-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@container (min-width: 63rem) {
-  .local-hourly-grid {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-  }
-}
-
-.local-hourly-grid li {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  min-inline-size: 0;
-}
-
-.local-hourly-period {
-  padding: 0 calc(0.6rem + 1px) 0.28rem;
-  font-size: 1rem;
-  font-weight: 650;
-  letter-spacing: -0.04em;
-}
-
-.local-hourly-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-  padding: 0.55rem 0.6rem;
+.local-hourly-all summary {
+  inline-size: fit-content;
+  min-block-size: 44px;
+  align-content: center;
+  padding-inline: 0.6rem;
   border: 1px solid var(--local-line-2);
   border-radius: 3px;
-  background: var(--local-panel);
   color: var(--local-ink-2);
-  font-size: var(--t-label);
+  cursor: pointer;
 }
 
-.local-hourly-tile strong {
-  font-family: var(--local-mono);
-  font-size: 1rem;
-  color: var(--local-ink);
-}
-
-.local-hourly-grid .is-inspected .local-hourly-tile {
-  border-color: var(--local-accent-deep);
-}
-
-.local-hourly-track {
-  display: block;
-  inline-size: 100%;
-  block-size: 0.35rem;
-  overflow: hidden;
-  background: var(--local-line-2);
-  border-radius: 2px;
-}
-
-.local-hourly-track i {
-  display: block;
-  block-size: 100%;
-  background: var(--local-accent);
-}
-
-.local-hourly-exact {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.7rem;
-  margin-block: 1.2rem 0.75rem;
+.local-hourly-detail {
+  margin-block: 0.75rem;
   padding: 0.75rem;
   border: 1px solid var(--local-line-2);
   border-radius: 3px;
   background: var(--local-panel);
 }
 
-.local-hourly-valid,
-.local-hourly-exact p {
-  margin: 0;
+.local-hourly-detail label {
+  display: grid;
+  justify-items: start;
+  gap: 0.25rem;
+  color: var(--local-ink-2);
+  font-size: var(--t-label);
 }
 
-.local-hourly-reading {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem 1.5rem;
-  margin: 0;
+.local-compare-link,
+.local-journey-return button {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  color: var(--local-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.local-journey-return {
+  width: min(100% - 2rem, 1120px);
+  margin: 0 auto 2rem;
+}
+
+.local-hourly-page {
+  padding-block: 1.25rem 3rem;
+  container-type: inline-size;
+}
+
+.local-hourly-page h1 {
+  font-size: min(var(--t-display), 24cqi);
+  margin-block: 0.75rem;
+}
+
+.local-day-metric-label {
+  display: block;
+  font-size: var(--t-label);
+  font-weight: 400;
   color: var(--local-ink-2);
 }
 
-.local-hourly-reading dd {
-  margin: 0.2rem 0 0;
-  font-family: var(--local-mono);
-  font-weight: 650;
-  color: var(--local-ink);
+.local-outlook {
+  margin-block: 1.5rem;
 }
 
-.local-hourly-chance {
-  display: grid;
-  gap: 0.25rem;
-}
-
-.local-hourly-all summary,
-.local-hourly-table button {
-  color: var(--local-accent);
-  min-block-size: 44px;
-  cursor: pointer;
-}
-
-.local-hourly-all summary {
-  align-content: center;
+.local-outlook .local-wd-d {
+  white-space: normal;
 }
 
 .local-hourly-table {
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  font-size: var(--t-label);
+  font-size: 0.875rem;
   color: var(--local-ink-2);
 }
 
 .local-hourly-table :is(th, td) {
-  padding: 0.45rem 0.35rem;
+  padding: 0.45rem 0.2rem;
   text-align: start;
+  vertical-align: top;
   border-block-start: 1px solid var(--local-line-2);
+}
+
+.local-hourly-table th[scope="row"] {
+  font-family: var(--local-mono);
+  font-size: 0.95em;
+}
+
+.local-hourly-time-col {
+  width: 34%;
+}
+
+.local-hourly-table th[scope="row"] span {
+  white-space: nowrap;
 }
 
 .local-hourly-table small {
   display: block;
+  font-size: inherit;
+  color: var(--local-dim);
 }
 
-.local-hourly-table button {
-  border: 0;
-  padding: 0;
-  text-align: start;
-  font-family: var(--local-mono);
-  font-variant-numeric: tabular-nums;
+@media (max-height: 28rem) {
+  .local-ribbon-grid.local-hourly-grid {
+    grid-template-rows: auto auto min(var(--local-track), 3rem) auto;
+  }
+
+  .local-hourly-grid .local-ribbon-col {
+    row-gap: 0.2rem;
+  }
+
+  :is(#forecast-compare, #forecast-station, #forecast-evidence-status, #forecast-record) {
+    scroll-margin-block: 0.65rem;
+  }
+}
+
+.local-hourly-cell-label {
+  display: none;
+}
+
+@container (max-width: 15rem) {
+  .local-hourly-table colgroup {
+    display: none;
+  }
+
+  .local-hourly-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .local-hourly-table,
+  .local-hourly-table :is(tbody, tbody tr, tbody th, tbody td) {
+    display: block;
+  }
+
+  .local-hourly-table tbody tr {
+    padding-block: 0.45rem;
+    border-block-start: 1px solid var(--local-line-2);
+  }
+
+  .local-hourly-table tbody :is(th, td) {
+    border: 0;
+    padding: 0.22rem 0;
+  }
+
+  .local-hourly-cell-label {
+    display: block;
+    color: var(--local-ink);
+    font-weight: 650;
+  }
+
+  .local-hourly-cell-label::before {
+    content: attr(data-label);
+  }
 }

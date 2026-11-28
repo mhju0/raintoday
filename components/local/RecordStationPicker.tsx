@@ -13,7 +13,7 @@ import { useLocationCandidateSearch } from "./useLocationCandidateSearch";
  * on each request, and a client-side swap would leave the URL describing a
  * station the page is no longer showing.
  */
-export function RecordStationPicker({ stationName }: { stationName: string | null }) {
+export function RecordStationPicker({ stationName, origin, entry }: { stationName: string | null; origin?: string; entry?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const search = useLocationCandidateSearch();
@@ -76,7 +76,11 @@ export function RecordStationPicker({ stationName }: { stationName: string | nul
                     lat: result.latitude.toFixed(5),
                     lon: result.longitude.toFixed(5),
                     name: result.name,
+                    area: result.kind === "legal-area" ? "b" : "h",
                   });
+                  if (origin) params.set("origin", origin);
+                  else if (entry) params.set("origin", "?choose=1");
+                  if (entry) params.set("entry", entry);
                   search.cancel();
                   router.push(`/behind-the-data?${params}`);
                   setOpen(false);
